@@ -162,7 +162,7 @@ export default function AgenturDashboard() {
   const [employeeFormName, setEmployeeFormName] = useState('');
 
   const [newProjectData, setNewProjectData] = useState({ title: '', jobNr: '', clientId: '', pmId: '', deadline: '' });
-  const [editProjectData, setEditProjectData] = useState({ id: '', title: '', jobNr: '', status: '', deadline: '', google_doc_url: '', pmId: '' }); // ADDED: jobNr
+  const [editProjectData, setEditProjectData] = useState({ id: '', title: '', jobNr: '', status: '', deadline: '', google_doc_url: '', pmId: '' });
 
   // Refs
   const logoInputRef = useRef(null);
@@ -308,21 +308,8 @@ export default function AgenturDashboard() {
     if (data) { fetchData(); setIsCreatingProject(false); setNewProjectData({ title: '', jobNr: '', clientId: '', pmId: '', deadline: '' }); }
   };
   const handleUpdateProject = async () => {
-    const { data } = await supabase.from('projects').update({ 
-      title: editProjectData.title, 
-      job_number: editProjectData.jobNr, // NEW: Job Number Update
-      status: editProjectData.status, 
-      deadline: editProjectData.deadline || null, 
-      google_doc_url: editProjectData.google_doc_url, 
-      project_manager_id: editProjectData.pmId || null 
-    }).eq('id', editProjectData.id).select(`*, employees ( id, name, initials ), clients ( name, logo_url )`);
-    
-    if (data) { 
-      // Update local state
-      setProjects(prev => prev.map(p => p.id === data[0].id ? { ...p, ...data[0] } : p)); 
-      setSelectedProject(data[0]); 
-      setIsEditingProject(false); 
-    }
+    const { data } = await supabase.from('projects').update({ title: editProjectData.title, status: editProjectData.status, deadline: editProjectData.deadline || null, google_doc_url: editProjectData.google_doc_url, project_manager_id: editProjectData.pmId || null }).eq('id', editProjectData.id).select(`*, employees ( id, name, initials ), clients ( name, logo_url )`);
+    if (data) { setProjects(prev => prev.map(p => p.id === data[0].id ? { ...p, ...data[0] } : p)); setSelectedProject(data[0]); setIsEditingProject(false); }
   };
   const requestDeleteProject = () => { openConfirm("Projekt löschen?", "Alles wird gelöscht.", async () => { await supabase.from('projects').delete().eq('id', selectedProject.id); setProjects(prev => prev.filter(p => p.id !== selectedProject.id)); setSelectedProject(null); }); };
 
@@ -542,20 +529,10 @@ export default function AgenturDashboard() {
               {/* LEFT COLUMN: LOGBOOK */}
               <div className="flex flex-col h-[500px] lg:h-full bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden order-2 lg:order-1">
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Clock size={20} className="text-gray-400"/> Logbuch</h2>
-                  
-                  {/* --- ADD LOG --- */}
                   {isAddingLog && (
                     <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                      {/* NEW: Date Picker on Creation */}
-                      <input 
-                        type="date" 
-                        className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" 
-                        value={newLogDate} 
-                        onChange={(e) => setNewLogDate(e.target.value)} 
-                      />
                       <input type="text" placeholder="Titel" className="w-full bg-transparent border-none text-sm font-semibold mb-2 focus:ring-0 p-0" value={newLogTitle} onChange={(e) => setNewLogTitle(e.target.value)} />
                       <textarea placeholder="Was gibt's neues? (Bild einfach einfügen mit Strg+V)" className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-24" value={newLogContent} onChange={(e) => setNewLogContent(e.target.value)} onPaste={handlePaste} />
-                      
                       {isUploadingLogImage && <div className="text-xs text-blue-500 mb-2">Lade Bild hoch...</div>}
                       {newLogImage && (
                         <div className="relative w-16 h-16 mb-2 group">
@@ -563,7 +540,6 @@ export default function AgenturDashboard() {
                           <button onClick={() => setNewLogImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10}/></button>
                         </div>
                       )}
-                      
                       <div className="flex justify-between items-center mt-2 border-t border-gray-200 pt-2">
                         <button onClick={() => logImageInputRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16}/></button>
                         <input type="file" accept="image/*" ref={logImageInputRef} className="hidden" onChange={(e) => handleLogImageUpload(e.target.files[0])} />
@@ -574,20 +550,9 @@ export default function AgenturDashboard() {
                       </div>
                     </div>
                   )}
-
                   <div className="overflow-y-auto pr-2 space-y-6 flex-1 relative">
                     <div className="absolute left-[7px] top-2 bottom-0 w-[1px] bg-gray-100"></div>
-                    {!isAddingLog && (
-                        <button 
-                            onClick={() => { 
-                                setIsAddingLog(true); 
-                                setNewLogDate(new Date().toISOString().split('T')[0]); // Init with today
-                            }} 
-                            className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition"
-                        >
-                            <Plus size={14} /> Eintrag hinzufügen
-                        </button>
-                    )}
+                    {!isAddingLog && <button onClick={() => setIsAddingLog(true)} className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition"><Plus size={14} /> Eintrag hinzufügen</button>}
                     {projectLogs.map((log) => (
                       <div key={log.id} className="relative pl-6 pb-2 group">
                         <div className="absolute left-0 top-1.5 w-3.5 h-3.5 bg-gray-200 rounded-full border-2 border-white"></div>
@@ -738,7 +703,7 @@ export default function AgenturDashboard() {
             )}
 
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-              {['Alle', 'Anfrage', 'Angebot offen', 'Beauftragt', 'In Umsetzung', 'Warten auf Kunde', 'Abgerechnet', 'Archiviert'].map(filter => (
+              {['Alle', ...STATUS_OPTIONS].map(filter => (
                 <button key={filter} onClick={() => setStatusFilter(filter)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition whitespace-nowrap ${statusFilter === filter ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>{filter}</button>
               ))}
             </div>
