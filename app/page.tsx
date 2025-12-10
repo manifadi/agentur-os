@@ -17,7 +17,7 @@ const renderContentWithLinks = (text) => {
   return parts.map((part, i) => {
     if (part.match(urlRegex)) {
       return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all z-10 relative">
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all cursor-pointer z-10 relative">
           {part}
         </a>
       );
@@ -103,7 +103,6 @@ function LoginScreen() {
 
 // --- MAIN APP COMPONENT ---
 export default function AgenturDashboard() {
-  // Global States
   const [session, setSession] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -112,11 +111,11 @@ export default function AgenturDashboard() {
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]); 
   const [projects, setProjects] = useState([]);
-  const [allLogs, setAllLogs] = useState([]); // Cache for deep search
-  const [allTodos, setAllTodos] = useState([]); // Cache for deep search & global tasks
+  const [allLogs, setAllLogs] = useState([]); 
+  const [allTodos, setAllTodos] = useState([]);
 
   // UI States
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'global_tasks'
+  const [currentView, setCurrentView] = useState('dashboard');
   const [selectedClient, setSelectedClient] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectTodos, setProjectTodos] = useState([]);
@@ -142,7 +141,7 @@ export default function AgenturDashboard() {
   const [isAddingLog, setIsAddingLog] = useState(false);
   const [newLogTitle, setNewLogTitle] = useState('');
   const [newLogContent, setNewLogContent] = useState('');
-  const [newLogDate, setNewLogDate] = useState('');
+  const [newLogDate, setNewLogDate] = useState(''); 
   const [newLogImage, setNewLogImage] = useState(null);
   const [isUploadingLogImage, setIsUploadingLogImage] = useState(false);
 
@@ -158,7 +157,7 @@ export default function AgenturDashboard() {
   const [editLogImage, setEditLogImage] = useState(null); 
   const [isUploadingEditLogImage, setIsUploadingEditLogImage] = useState(false); 
 
-  // Create/Edit Project Modals
+  // Modals
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [clientModalOpen, setClientModalOpen] = useState(false);
@@ -178,7 +177,7 @@ export default function AgenturDashboard() {
   const logImageInputRef = useRef(null);
   const editLogImageInputRef = useRef(null); 
 
-  // --- INITIALIZATION ---
+  // --- INIT & FETCH ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setLoadingSession(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); });
@@ -196,7 +195,6 @@ export default function AgenturDashboard() {
     }
   }, [selectedProject]);
 
-  // --- DATA FETCHING ---
   const fetchData = async () => {
     setLoading(true);
     const { data: c } = await supabase.from('clients').select('*').order('name');
@@ -204,7 +202,7 @@ export default function AgenturDashboard() {
     const { data: e } = await supabase.from('employees').select('*').order('name');
     if (e) setEmployees(e);
     
-    // Fetch Projects WITH Todos (fetch all fields of todos!)
+    // FETCH PROJECTS WITH TODOS (alle Felder für Todos)
     const { data: p } = await supabase
       .from('projects')
       .select(`
@@ -214,12 +212,11 @@ export default function AgenturDashboard() {
         todos ( * )
       `)
       .order('created_at', { ascending: false });
-      
+    
     const { data: l } = await supabase.from('project_logs').select('*, projects(title)').order('entry_date', { ascending: false });
     if(l) setAllLogs(l);
       
     if (p) {
-      // Flatten todos for global search
       const allT = [];
       p.forEach(proj => {
          if(proj.todos) proj.todos.forEach(t => allT.push({...t, project_title: proj.title, project_status: proj.status, project_id: proj.id, clients: proj.clients, job_number: proj.job_number}));
@@ -271,7 +268,7 @@ export default function AgenturDashboard() {
   const openConfirm = (title, message, action) => { setConfirmConfig({ title, message, action }); setConfirmOpen(true); };
   const handleLogout = async () => { await supabase.auth.signOut(); setSession(null); setProjects([]); };
 
-  // --- CRUD HANDLERS (Condensed) ---
+  // --- CRUD HANDLERS ---
   const handleSaveClient = async () => { 
       if (!clientFormName.trim()) return; setUploading(true); let logoUrl = editingClient?.logo_url; 
       if (clientFormLogo) { if (logoUrl) await deleteFileFromSupabase(logoUrl, 'logos'); logoUrl = await uploadFileToSupabase(clientFormLogo, 'logos'); }
@@ -288,22 +285,58 @@ export default function AgenturDashboard() {
   const openEmployeeModal = (e) => { setEditingEmployee(e); setEmployeeFormName(e ? e.name : ''); setEmployeeModalOpen(true); };
 
   const handleCreateProject = async () => { if (!newProjectData.title || !newProjectData.clientId) return alert("Pflichtfelder!"); await supabase.from('projects').insert([{ title: newProjectData.title, job_number: newProjectData.jobNr, client_id: newProjectData.clientId, project_manager_id: newProjectData.pmId || null, deadline: newProjectData.deadline || null, status: 'Bearbeitung' }]); fetchData(); setIsCreatingProject(false); };
-  const handleUpdateProject = async () => { const { data } = await supabase.from('projects').update(editProjectData).eq('id', editProjectData.id).select(`*, employees ( id, name, initials ), clients ( name, logo_url )`); if (data) { setProjects(prev => prev.map(p => p.id === data[0].id ? { ...p, ...data[0] } : p)); setSelectedProject(data[0]); setIsEditingProject(false); } };
+  
+  // FIX: Mapping der Daten für das Update
+  const handleUpdateProject = async () => { 
+      const updates = {
+          title: editProjectData.title,
+          job_number: editProjectData.jobNr,
+          status: editProjectData.status,
+          deadline: editProjectData.deadline || null,
+          google_doc_url: editProjectData.google_doc_url,
+          project_manager_id: editProjectData.pmId || null
+      };
+
+      const { data, error } = await supabase
+        .from('projects')
+        .update(updates)
+        .eq('id', editProjectData.id)
+        .select(`
+            *, 
+            employees ( id, name, initials ), 
+            clients ( name, logo_url ), 
+            todos ( * )
+        `); 
+      
+      if (data) { 
+          // Update lokalen State
+          setProjects(prev => prev.map(p => p.id === data[0].id ? { ...p, ...data[0] } : p)); 
+          // Update selected view
+          setSelectedProject(data[0]); 
+          setIsEditingProject(false); 
+          // Refresh global stats
+          fetchData();
+      }
+  };
+
   const requestDeleteProject = () => openConfirm("Projekt löschen?", "Sicher?", async () => { await supabase.from('projects').delete().eq('id', selectedProject.id); setProjects(prev => prev.filter(p => p.id !== selectedProject.id)); setSelectedProject(null); });
   const handlePdfUpload = async (e) => { const file = e.target.files[0]; if(!file) return; setUploading(true); const url = await uploadFileToSupabase(file, 'documents'); await supabase.from('projects').update({offer_pdf_url: url}).eq('id', selectedProject.id); setSelectedProject(prev => ({...prev, offer_pdf_url: url})); setUploading(false); };
   const openEditModal = () => { setEditProjectData({ id: selectedProject.id, title: selectedProject.title, jobNr: selectedProject.job_number, status: selectedProject.status, deadline: selectedProject.deadline || '', google_doc_url: selectedProject.google_doc_url || '', pmId: selectedProject.project_manager_id || '' }); setIsEditingProject(true); };
 
   // Todos
   const handleAddTodo = async () => { if(!newTodoTitle.trim()) return; const {data} = await supabase.from('todos').insert([{project_id: selectedProject.id, title: newTodoTitle, assigned_to: newTodoAssignee || null}]).select(`*, employees(id, initials, name)`); if(data) { setProjectTodos([...projectTodos, data[0]]); setNewTodoTitle(''); setIsAddingTodo(false); fetchData(); }};
-  const toggleTodo = async (id, status) => { setProjectTodos(prev => prev.map(t => t.id === id ? {...t, is_done: !status} : t)); await supabase.from('todos').update({is_done: !status}).eq('id', id); fetchData(); };
+  const toggleTodo = async (id, status) => { 
+      setProjectTodos(prev => prev.map(t => t.id === id ? {...t, is_done: !status} : t)); 
+      await supabase.from('todos').update({is_done: !status}).eq('id', id); 
+      fetchData(); 
+  };
   const handleUpdateTodo = async (id) => { if(!editTodoTitle.trim()) return; const {data} = await supabase.from('todos').update({title: editTodoTitle, assigned_to: editTodoAssignee || null}).eq('id', id).select(`*, employees(id, initials, name)`); if(data) { setProjectTodos(prev => prev.map(t => t.id === id ? data[0] : t)); setEditingTodoId(null); fetchData(); }};
   const requestDeleteTodo = (id) => openConfirm("Löschen?", "Weg.", async () => { await supabase.from('todos').delete().eq('id', id); setProjectTodos(prev => prev.filter(t => t.id !== id)); fetchData(); });
   const startEditingTodo = (todo) => { setEditingTodoId(todo.id); setEditTodoTitle(todo.title); setEditTodoAssignee(todo.assigned_to || ''); };
   const cancelEditingTodo = () => { setEditingTodoId(null); setEditTodoTitle(''); setEditTodoAssignee(''); };
   
-  // --- DIRECT UPDATE HANDLERS FOR GLOBAL VIEW ---
+  // Direct Assignee Update (Global List)
   const handleAssigneeUpdateGlobal = async (todoId, newAssigneeId) => {
-      // Optimistic Update on Global Cache
       const target = newAssigneeId === "" ? null : newAssigneeId;
       await supabase.from('todos').update({ assigned_to: target }).eq('id', todoId);
       fetchData(); 
@@ -336,96 +369,50 @@ export default function AgenturDashboard() {
 
   // --- FILTER LOGIC ---
   const filteredProjects = projects.filter(p => {
+    // Basic
     if (selectedClient && p.client_id !== selectedClient.id) return false;
     if (statusFilter !== 'Alle' && p.status !== statusFilter) return false;
+    if (searchTerm) {
+       const lower = searchTerm.toLowerCase();
+       return p.title?.toLowerCase().includes(lower) || p.job_number?.toLowerCase().includes(lower) || p.clients?.name?.toLowerCase().includes(lower);
+    }
     
-    // Advanced
+    // Advanced Filters
     if (advancedFilters.pmId !== 'Alle' && p.project_manager_id !== advancedFilters.pmId) return false;
     if (advancedFilters.showOpenTodos) {
-       const hasOpen = p.todos && p.todos.some(t => !t.is_done);
-       if (!hasOpen) return false;
+      // Check if project has open todos
+      const hasOpen = p.todos && p.todos.some(t => !t.is_done);
+      if (!hasOpen) return false;
     }
+
     return true;
   });
 
-  // --- GLOBAL TASKS LOGIC (GROUP BY PROJECT) ---
-  const getOpenTasksByProject = () => {
-    const tasksByProj = [];
+  // --- GLOBAL TASKS LOGIC ---
+  const getTasksByProject = () => {
+    const list = [];
     projects.forEach(proj => {
-        const projTodos = allTodos.filter(t => t.project_id === proj.id && !t.is_done);
-        if (projTodos.length > 0) {
-            tasksByProj.push({
-                ...proj,
-                visibleTodos: projTodos
-            });
-        }
+       // Filter for open todos using the project's own todo list (already fetched with *)
+       const openTodos = proj.todos ? proj.todos.filter(t => !t.is_done) : [];
+       if (openTodos.length > 0) {
+           list.push({ ...proj, visibleTodos: openTodos });
+       }
     });
-    return tasksByProj;
+    return list;
   };
 
   if (loadingSession) return <div className="flex h-screen items-center justify-center text-gray-400 font-medium">Lade App...</div>;
   if (!session) return <LoginScreen />;
 
-  // --- RENDER: SEARCH ---
-  if (searchTerm && searchResults) {
-    return (
-      <div className="min-h-screen bg-[#F9FAFB] text-gray-900 font-sans p-8">
-        <header className="flex items-center gap-4 mb-8">
-          <button onClick={() => setSearchTerm('')} className="flex items-center text-sm text-gray-500 hover:text-gray-900"><ArrowLeft size={16} className="mr-1"/> Suche beenden</button>
-          <h1 className="text-xl font-bold">Suchergebnisse für "{searchTerm}"</h1>
-        </header>
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-xs font-bold text-gray-400 uppercase mb-3">Projekte ({searchResults.projects.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {searchResults.projects.map(p => (
-                <div key={p.id} onClick={() => { setSelectedProject(p); setSearchTerm(''); }} className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 cursor-pointer transition">
-                  <div className="font-bold mb-1">{p.title}</div>
-                  <div className="text-xs text-gray-500">{p.job_number}</div>
-                </div>
-              ))}
-              {searchResults.projects.length === 0 && <div className="text-sm text-gray-400 italic">Keine Projekte gefunden.</div>}
-            </div>
-          </section>
-          <section>
-            <h2 className="text-xs font-bold text-gray-400 uppercase mb-3">Aufgaben ({searchResults.todos.length})</h2>
-            <div className="space-y-2">
-              {searchResults.todos.map(t => (
-                <div key={t.id} onClick={() => {const proj = projects.find(p=>p.id===t.project_id); if(proj) {setSelectedProject(proj); setSearchTerm('');}}} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center cursor-pointer hover:border-blue-400 transition">
-                  <div><div className="text-sm font-medium">{t.title}</div><div className="text-xs text-gray-400">Projekt: {t.project_title}</div></div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${t.is_done ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{t.is_done ? 'Fertig' : 'Offen'}</span>
-                </div>
-              ))}
-               {searchResults.todos.length === 0 && <div className="text-sm text-gray-400 italic">Keine Aufgaben gefunden.</div>}
-            </div>
-          </section>
-           <section>
-            <h2 className="text-xs font-bold text-gray-400 uppercase mb-3">Logbuch ({searchResults.logs.length})</h2>
-            <div className="space-y-4">
-              {searchResults.logs.map(l => (
-                <div key={l.id} onClick={() => {const proj = projects.find(p=>p.id===l.project_id); if(proj) {setSelectedProject(proj); setSearchTerm('');}}} className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-blue-400 transition">
-                  <div className="flex justify-between mb-2"><span className="text-xs font-bold text-gray-500">{new Date(l.entry_date).toLocaleDateString()}</span><span className="text-xs text-blue-600 font-medium">{l.projects?.title}</span></div>
-                  <div className="font-bold text-sm mb-1">{l.title}</div>
-                  <div className="text-sm text-gray-600 line-clamp-2">{l.content}</div>
-                </div>
-              ))}
-               {searchResults.logs.length === 0 && <div className="text-sm text-gray-400 italic">Keine Einträge gefunden.</div>}
-            </div>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    // --- FIXED SCROLL LAYOUT ---
+    // --- FIXED LAYOUT WITH SCROLL AREAS ---
     <div className="flex h-screen w-full bg-[#F9FAFB] text-gray-900 font-sans overflow-hidden">
       
       {mobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileMenuOpen(false)}></div>}
 
-      {/* SIDEBAR - INDEPENDENT SCROLL */}
+      {/* SIDEBAR: Independent Scroll */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col h-full overflow-y-auto flex-shrink-0 transform transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
-        <div className="p-6 flex-1 flex flex-col h-full">
+        <div className="p-6 flex-1 flex flex-col min-h-min">
           <div className="md:hidden flex justify-end mb-4"><button onClick={() => setMobileMenuOpen(false)} className="p-2 text-gray-500"><X size={24}/></button></div>
 
           {/* NAVIGATION */}
@@ -443,7 +430,7 @@ export default function AgenturDashboard() {
             <button onClick={() => { setEditingClient(null); setClientFormName(''); setClientFormLogo(null); setClientModalOpen(true); }} className="text-gray-400 hover:text-gray-900 transition"><Plus size={16}/></button>
           </div>
           <nav className="space-y-3 mb-8">
-            <button onClick={() => { setSelectedClient(null); setSelectedProject(null); setCurrentView('dashboard'); setMobileMenuOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-bold transition ${!selectedClient && currentView === 'dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>Alle Kunden</button>
+            <button onClick={() => { fetchData(); setSelectedClient(null); setSelectedProject(null); setCurrentView('dashboard'); setMobileMenuOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-bold transition ${!selectedClient && currentView === 'dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>Alle Kunden</button>
             {clients.map(client => (
               <div key={client.id} className="group flex items-center pr-2 rounded-lg transition hover:bg-gray-50">
                 <button onClick={() => { setSelectedClient(client); setSelectedProject(null); setCurrentView('dashboard'); setMobileMenuOpen(false); }} className={`flex-1 text-left px-2 py-2 text-sm font-medium flex items-center gap-3 ${selectedClient?.id === client.id ? 'bg-gray-100 text-gray-900 rounded-lg' : 'text-gray-600'}`}>
@@ -474,196 +461,145 @@ export default function AgenturDashboard() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT - INDEPENDENT SCROLL */}
+      {/* MAIN CONTENT: Independent Scroll */}
       <main className="flex-1 h-full overflow-y-auto p-4 md:p-8">
         <div className="md:hidden flex items-center justify-between mb-6"><button onClick={() => setMobileMenuOpen(true)} className="p-2 text-gray-600 bg-white border border-gray-200 rounded-lg"><Menu size={20}/></button><div className="font-bold text-lg">Agentur OS</div><div className="w-10"></div></div>
 
-        {selectedProject ? (
-            /* PROJECT DETAIL VIEW (UNCHANGED LOGIC) */
-            <>
+        {searchTerm && searchResults ? (
+           // --- SEARCH RESULTS ---
+           <div className="space-y-8">
+             <header className="flex items-center gap-4 mb-8">
+               <button onClick={() => setSearchTerm('')} className="flex items-center text-sm text-gray-500 hover:text-gray-900"><ArrowLeft size={16} className="mr-1"/> Suche beenden</button>
+               <h1 className="text-xl font-bold">Suchergebnisse für "{searchTerm}"</h1>
+             </header>
+             <section>
+               <h2 className="text-xs font-bold text-gray-400 uppercase mb-3">Projekte ({searchResults.projects.length})</h2>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                 {searchResults.projects.map(p => (
+                   <div key={p.id} onClick={() => { setSelectedProject(p); setSearchTerm(''); }} className="bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 cursor-pointer transition">
+                     <div className="font-bold mb-1">{p.title}</div>
+                     <div className="text-xs text-gray-500">{p.job_number}</div>
+                   </div>
+                 ))}
+                 {searchResults.projects.length === 0 && <div className="text-sm text-gray-400 italic">Keine Projekte gefunden.</div>}
+               </div>
+             </section>
+             <section>
+               <h2 className="text-xs font-bold text-gray-400 uppercase mb-3">Aufgaben ({searchResults.todos.length})</h2>
+               <div className="space-y-2">
+                 {searchResults.todos.map(t => (
+                   <div key={t.id} onClick={() => {const proj = projects.find(p=>p.id===t.project_id); if(proj) {setSelectedProject(proj); setSearchTerm('');}}} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center cursor-pointer hover:border-blue-400 transition">
+                     <div><div className="text-sm font-medium">{t.title}</div><div className="text-xs text-gray-400">Projekt: {t.project_title}</div></div>
+                     <span className={`text-xs px-2 py-1 rounded-full ${t.is_done ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{t.is_done ? 'Fertig' : 'Offen'}</span>
+                   </div>
+                 ))}
+                  {searchResults.todos.length === 0 && <div className="text-sm text-gray-400 italic">Keine Aufgaben gefunden.</div>}
+               </div>
+             </section>
+              <section>
+               <h2 className="text-xs font-bold text-gray-400 uppercase mb-3">Logbuch ({searchResults.logs.length})</h2>
+               <div className="space-y-4">
+                 {searchResults.logs.map(l => (
+                   <div key={l.id} onClick={() => {const proj = projects.find(p=>p.id===l.project_id); if(proj) {setSelectedProject(proj); setSearchTerm('');}}} className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-blue-400 transition">
+                     <div className="flex justify-between mb-2"><span className="text-xs font-bold text-gray-500">{new Date(l.entry_date).toLocaleDateString()}</span><span className="text-xs text-blue-600 font-medium">{l.projects?.title}</span></div>
+                     <div className="font-bold text-sm mb-1">{l.title}</div>
+                     <div className="text-sm text-gray-600 line-clamp-2">{l.content}</div>
+                   </div>
+                 ))}
+                  {searchResults.logs.length === 0 && <div className="text-sm text-gray-400 italic">Keine Einträge gefunden.</div>}
+               </div>
+             </section>
+           </div>
+        ) : selectedProject ? (
+          /* --- DETAIL VIEW --- */
+          <>
             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
               <button onClick={() => { fetchData(); setSelectedProject(null); }} className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"><ArrowLeft size={16} className="mr-1" /> Zurück zur Übersicht</button>
               <div className="flex gap-2 self-end">
                 <button onClick={requestDeleteProject} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
-                <button onClick={() => { setEditProjectData({ id: selectedProject.id, title: selectedProject.title, jobNr: selectedProject.job_number, status: selectedProject.status, deadline: selectedProject.deadline || '', google_doc_url: selectedProject.google_doc_url || '', pmId: selectedProject.project_manager_id || '' }); setIsEditingProject(true); }} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Einstellungen</button>
+                <button onClick={openEditModal} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Einstellungen</button>
               </div>
             </div>
-
-            <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
-              <div>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{selectedProject.job_number}</div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2 break-words">{selectedProject.title}</h1>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyle(selectedProject.status)}`}>{selectedProject.status}</span>
-              </div>
-              <div className="text-left md:text-right w-full md:w-auto">
-                <div className="text-sm text-gray-500 mb-1">Projektmanager</div>
-                <div className="flex items-center justify-start md:justify-end gap-2">
-                  <span className="text-sm font-medium">{selectedProject.employees?.name || 'Nicht zugewiesen'}</span>
-                  <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white shrink-0">{selectedProject.employees?.initials || '--'}</div>
-                </div>
-                <div className={`mt-2 text-xs font-medium ${getDeadlineColorClass(selectedProject.deadline)}`}>Deadline: {selectedProject.deadline || '-'}</div>
-              </div>
-            </div>
-
+            {/* ... Rest of Detail View ... */}
+            <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4"><div><div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{selectedProject.job_number}</div><h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2 break-words">{selectedProject.title}</h1><span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyle(selectedProject.status)}`}>{selectedProject.status}</span></div><div className="text-left md:text-right w-full md:w-auto"><div className="text-sm text-gray-500 mb-1">Projektmanager</div><div className="flex items-center justify-start md:justify-end gap-2"><span className="text-sm font-medium">{selectedProject.employees?.name || 'Nicht zugewiesen'}</span><div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white shrink-0">{selectedProject.employees?.initials || '--'}</div></div><div className={`mt-2 text-xs font-medium ${getDeadlineColorClass(selectedProject.deadline)}`}>Deadline: {selectedProject.deadline || '-'}</div></div></div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[calc(100vh-200px)]">
-              {/* LEFT COLUMN: LOGBOOK */}
-              <div className="flex flex-col h-[500px] lg:h-full bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden order-2 lg:order-1">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Clock size={20} className="text-gray-400"/> Logbuch</h2>
-                  {isAddingLog && (
-                    <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                      <input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={newLogDate} onChange={(e) => setNewLogDate(e.target.value)} />
-                      <input type="text" placeholder="Titel" className="w-full bg-transparent border-none text-sm font-semibold mb-2 focus:ring-0 p-0" value={newLogTitle} onChange={(e) => setNewLogTitle(e.target.value)} />
-                      <textarea placeholder="Text..." className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-24" value={newLogContent} onChange={(e) => setNewLogContent(e.target.value)} onPaste={handlePaste} />
-                      {isUploadingLogImage && <div className="text-xs text-blue-500 mb-2">Lade Bild hoch...</div>}
-                      {newLogImage && <div className="relative w-16 h-16 mb-2 group"><img src={newLogImage} className="w-full h-full object-cover rounded-lg border border-gray-200" /><button onClick={() => setNewLogImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10}/></button></div>}
-                      <div className="flex justify-between items-center mt-2 border-t border-gray-200 pt-2">
-                        <button onClick={() => logImageInputRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16}/></button>
-                        <input type="file" accept="image/*" ref={logImageInputRef} className="hidden" onChange={(e) => handleLogImageUpload(e.target.files[0])} />
-                        <div className="flex gap-2"><button onClick={() => setIsAddingLog(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-200 rounded-md">Abbrechen</button><button onClick={handleAddLog} disabled={isUploadingLogImage} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-md shadow-sm disabled:opacity-50">Speichern</button></div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="overflow-y-auto pr-2 space-y-6 flex-1 relative">
-                    <div className="absolute left-[7px] top-2 bottom-0 w-[1px] bg-gray-100"></div>
-                    {!isAddingLog && <button onClick={() => { setIsAddingLog(true); setNewLogDate(new Date().toISOString().split('T')[0]); }} className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition"><Plus size={14} /> Eintrag hinzufügen</button>}
-                    {projectLogs.map((log) => (
-                      <div key={log.id} className="relative pl-6 pb-2 group">
-                        <div className="absolute left-0 top-1.5 w-3.5 h-3.5 bg-gray-200 rounded-full border-2 border-white"></div>
-                        {editingLogId === log.id ? (
-                           <div className="bg-gray-50 p-3 rounded-xl border border-blue-200 -ml-2">
-                              <input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={editLogDate} onChange={(e) => setEditLogDate(e.target.value)} />
-                              <input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0" value={editLogTitle} onChange={(e) => setEditLogTitle(e.target.value)} />
-                              <textarea className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-16" value={editLogContent} onChange={(e) => setEditLogContent(e.target.value)} />
-                              {isUploadingEditLogImage && <div className="text-xs text-blue-500 mb-2">Lade Bild hoch...</div>}
-                              {editLogImage && <div className="relative w-16 h-16 mb-2 group"><img src={editLogImage} className="w-full h-full object-cover rounded-lg border border-gray-200" /><button onClick={() => setEditLogImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10}/></button></div>}
-                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
-                                <button onClick={() => editLogImageInputRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16}/></button>
-                                <input type="file" accept="image/*" ref={editLogImageInputRef} className="hidden" onChange={(e) => handleEditLogImageUpload(e.target.files[0])} />
-                                <div className="flex gap-2"><button onClick={() => {setEditingLogId(null);}} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button><button onClick={() => handleUpdateLog(log.id)} disabled={isUploadingEditLogImage} className="text-xs bg-gray-900 text-white px-3 py-1 rounded shadow-sm disabled:opacity-50">Update</button></div>
-                              </div>
-                           </div>
-                        ) : (
-                           <div className="pr-4 relative">
-                              <div className="text-xs font-bold text-gray-500 mb-0.5">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
-                              <div className="text-sm font-medium text-gray-900">{log.title}</div>
-                              <div className="text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
-                              {log.image_url && <div className="mt-3"><a href={log.image_url} target="_blank" rel="noreferrer"><img src={log.image_url} className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in" /></a></div>}
-                              <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white pl-2"><button onClick={() => { setEditingLogId(log.id); setEditLogTitle(log.title); setEditLogContent(log.content); setEditLogImage(log.image_url); setEditLogDate(new Date(log.entry_date).toISOString().split('T')[0]); }} className="text-gray-400 hover:text-blue-600"><Pencil size={12} /></button><button onClick={() => requestDeleteLog(log.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button></div>
-                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-              </div>
+              {/* LOGBOOK */}
+              <div className="flex flex-col h-[500px] lg:h-full bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden order-2 lg:order-1"><h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Clock size={20} className="text-gray-400"/> Logbuch</h2>{isAddingLog && (<div className="mb-4 bg-gray-50 p-3 rounded-xl border border-gray-200"><input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={newLogDate} onChange={(e) => setNewLogDate(e.target.value)} /><input type="text" placeholder="Titel" className="w-full bg-transparent border-none text-sm font-semibold mb-2 focus:ring-0 p-0" value={newLogTitle} onChange={(e) => setNewLogTitle(e.target.value)} /><textarea placeholder="Text..." className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-24" value={newLogContent} onChange={(e) => setNewLogContent(e.target.value)} onPaste={handlePaste} />{isUploadingLogImage && <div className="text-xs text-blue-500 mb-2">Lade Bild hoch...</div>}{newLogImage && <div className="relative w-16 h-16 mb-2 group"><img src={newLogImage} className="w-full h-full object-cover rounded-lg border border-gray-200" /><button onClick={() => setNewLogImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10}/></button></div>}<div className="flex justify-between items-center mt-2 border-t border-gray-200 pt-2"><button onClick={() => logImageInputRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16}/></button><input type="file" accept="image/*" ref={logImageInputRef} className="hidden" onChange={(e) => handleLogImageUpload(e.target.files[0])} /><div className="flex gap-2"><button onClick={() => setIsAddingLog(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-200 rounded-md">Abbrechen</button><button onClick={handleAddLog} disabled={isUploadingLogImage} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-md shadow-sm disabled:opacity-50">Speichern</button></div></div></div>)}<div className="overflow-y-auto pr-2 space-y-6 flex-1 relative"><div className="absolute left-[7px] top-2 bottom-0 w-[1px] bg-gray-100"></div>{!isAddingLog && <button onClick={() => { setIsAddingLog(true); setNewLogDate(new Date().toISOString().split('T')[0]); }} className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition"><Plus size={14} /> Eintrag hinzufügen</button>}{projectLogs.map((log) => (<div key={log.id} className="relative pl-6 pb-2 group"><div className="absolute left-0 top-1.5 w-3.5 h-3.5 bg-gray-200 rounded-full border-2 border-white"></div>{editingLogId === log.id ? (<div className="bg-gray-50 p-3 rounded-xl border border-blue-200 -ml-2"><input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={editLogDate} onChange={(e) => setEditLogDate(e.target.value)} /><input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0" value={editLogTitle} onChange={(e) => setEditLogTitle(e.target.value)} /><textarea className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-16" value={editLogContent} onChange={(e) => setEditLogContent(e.target.value)} />{isUploadingEditLogImage && <div className="text-xs text-blue-500 mb-2">Lade Bild hoch...</div>}{editLogImage && <div className="relative w-16 h-16 mb-2 group"><img src={editLogImage} className="w-full h-full object-cover rounded-lg border border-gray-200" /><button onClick={() => setEditLogImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10}/></button></div>}<div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200"><button onClick={() => editLogImageInputRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16}/></button><input type="file" accept="image/*" ref={editLogImageInputRef} className="hidden" onChange={(e) => handleEditLogImageUpload(e.target.files[0])} /><div className="flex gap-2"><button onClick={() => {setEditingLogId(null);}} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button><button onClick={() => handleUpdateLog(log.id)} disabled={isUploadingEditLogImage} className="text-xs bg-gray-900 text-white px-3 py-1 rounded shadow-sm disabled:opacity-50">Update</button></div></div></div>) : (<div className="pr-4 relative"><div className="text-xs font-bold text-gray-500 mb-0.5">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div><div className="text-sm font-medium text-gray-900">{log.title}</div><div className="text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>{log.image_url && <div className="mt-3"><a href={log.image_url} target="_blank" rel="noreferrer"><img src={log.image_url} className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in" /></a></div>}<div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white pl-2"><button onClick={() => { setEditingLogId(log.id); setEditLogTitle(log.title); setEditLogContent(log.content); setEditLogImage(log.image_url); setEditLogDate(new Date(log.entry_date).toISOString().split('T')[0]); }} className="text-gray-400 hover:text-blue-600"><Pencil size={12} /></button><button onClick={() => requestDeleteLog(log.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button></div></div>)}</div>))}</div></div>
               <div className="flex flex-col gap-6 h-full order-1 lg:order-2">
-                <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[300px]">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-gray-400"/> Aufgaben</h2>
-                  <div className="overflow-y-auto pr-2 space-y-3 flex-1">
-                    {projectTodos.map((todo) => (
-                      <div key={todo.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 group transition">
-                        {editingTodoId === todo.id ? (
-                          <div className="flex flex-1 items-center gap-2 flex-wrap">
-                            <input autoFocus type="text" className="flex-1 min-w-[120px] bg-gray-50 rounded border-none text-sm px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTodoTitle} onChange={(e) => setEditTodoTitle(e.target.value)} />
-                            <select className="w-24 bg-gray-50 rounded border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTodoAssignee} onChange={(e) => setEditTodoAssignee(e.target.value)}>
-                              <option value="">Niemand</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                            </select>
-                            <div className="flex gap-1"><button onClick={() => handleUpdateTodo(todo.id)} className="p-1 text-green-600 hover:bg-green-50 rounded"><CheckCircle2 size={16}/></button><button onClick={() => setEditingTodoId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded"><X size={16}/></button></div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-3">
-                              <button onClick={() => toggleTodo(todo.id, todo.is_done)} className={`w-5 h-5 rounded border flex items-center justify-center transition-all flex-shrink-0 ${todo.is_done ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'}`}>{todo.is_done && <CheckCircle2 size={12} className="text-white" />}</button>
-                              <span className={`text-sm transition-all ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{todo.title}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {todo.employees && <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold shrink-0" title={todo.employees.name}>{todo.employees.initials}</div>}
-                              <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity"><button onClick={() => { setEditingTodoId(todo.id); setEditTodoTitle(todo.title); setEditTodoAssignee(todo.assigned_to || ''); }} className="p-1 text-gray-300 hover:text-blue-500"><Pencil size={12}/></button><button onClick={() => requestDeleteTodo(todo.id)} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={12}/></button></div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                    {isAddingTodo ? (
-                      <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg animate-in fade-in slide-in-from-top-1 flex-wrap">
-                        <input autoFocus type="text" placeholder="Aufgabe..." className="flex-1 min-w-[120px] bg-transparent border-none text-sm focus:ring-0 p-1" value={newTodoTitle} onChange={(e) => setNewTodoTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()} />
-                        <select className="w-24 bg-transparent border-none text-xs text-gray-500 focus:ring-0 cursor-pointer" value={newTodoAssignee} onChange={(e) => setNewTodoAssignee(e.target.value)}><option value="">Niemand</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
-                        <div className="flex gap-1"><button onClick={handleAddTodo} className="text-blue-600 hover:bg-blue-100 p-1 rounded"><Plus size={16}/></button><button onClick={() => setIsAddingTodo(false)} className="text-gray-400 hover:bg-gray-200 p-1 rounded"><X size={16}/></button></div>
-                      </div>
-                    ) : ( <button onClick={() => setIsAddingTodo(true)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 mt-4 pl-1 transition"><Plus size={14} /> Neue Aufgabe</button> )}
-                  </div>
-                </div>
-                {/* PDF */}
-                <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col h-48">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400"/> Projektdetails</h2>
-                  <div className="flex-1 flex flex-col items-center justify-center text-gray-400 relative overflow-hidden group">
-                     {uploading ? <div className="animate-pulse text-sm">Lade Datei hoch...</div> : selectedProject.offer_pdf_url ? (
-                       <div className="flex items-center gap-4 w-full justify-center">
-                          <a href={selectedProject.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 hover:bg-gray-100 transition"><FileText size={16}/> Angebot ansehen</a>
-                          <button onClick={() => pdfInputRef.current?.click()} className="text-xs text-gray-400 hover:text-gray-600">Ändern</button>
-                       </div>
-                     ) : ( <button onClick={() => pdfInputRef.current?.click()} className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><Upload size={16}/> PDF hochladen</button> )}
-                     <input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} />
-                  </div>
-                   <div className="mt-4 pt-4 border-t border-gray-100">{selectedProject.google_doc_url ? ( <a href={selectedProject.google_doc_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full text-blue-600 bg-blue-50 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition">Google Doc öffnen ↗</a> ) : ( <div className="text-center text-sm text-gray-400">Kein Google Doc verknüpft</div> )}</div>
-                </div>
+                <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[300px]"><h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-gray-400"/> Aufgaben</h2><div className="overflow-y-auto pr-2 space-y-3 flex-1">{projectTodos.map((todo) => (<div key={todo.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 group transition">{editingTodoId === todo.id ? (<div className="flex flex-1 items-center gap-2 flex-wrap"><input autoFocus type="text" className="flex-1 min-w-[120px] bg-gray-50 rounded border-none text-sm px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTodoTitle} onChange={(e) => setEditTodoTitle(e.target.value)} /><select className="w-24 bg-gray-50 rounded border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTodoAssignee} onChange={(e) => setEditTodoAssignee(e.target.value)}><option value="">Niemand</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select><div className="flex gap-1"><button onClick={() => handleUpdateTodo(todo.id)} className="p-1 text-green-600 hover:bg-green-50 rounded"><CheckCircle2 size={16}/></button><button onClick={() => setEditingTodoId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded"><X size={16}/></button></div></div>) : (<><div className="flex items-center gap-3"><button onClick={() => toggleTodo(todo.id, todo.is_done)} className={`w-5 h-5 rounded border flex items-center justify-center transition-all flex-shrink-0 ${todo.is_done ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'}`}>{todo.is_done && <CheckCircle2 size={12} className="text-white" />}</button><span className={`text-sm transition-all ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{todo.title}</span></div><div className="flex items-center gap-2">{todo.employees && <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold shrink-0" title={todo.employees.name}>{todo.employees.initials}</div>}<div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity"><button onClick={() => { setEditingTodoId(todo.id); setEditTodoTitle(todo.title); setEditTodoAssignee(todo.assigned_to || ''); }} className="p-1 text-gray-300 hover:text-blue-500"><Pencil size={12}/></button><button onClick={() => requestDeleteTodo(todo.id)} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={12}/></button></div></div></>)}</div>))}{isAddingTodo ? (<div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg animate-in fade-in slide-in-from-top-1 flex-wrap"><input autoFocus type="text" placeholder="Aufgabe..." className="flex-1 min-w-[120px] bg-transparent border-none text-sm focus:ring-0 p-1" value={newTodoTitle} onChange={(e) => setNewTodoTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()} /><select className="w-24 bg-transparent border-none text-xs text-gray-500 focus:ring-0 cursor-pointer" value={newTodoAssignee} onChange={(e) => setNewTodoAssignee(e.target.value)}><option value="">Niemand</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select><div className="flex gap-1"><button onClick={handleAddTodo} className="text-blue-600 hover:bg-blue-100 p-1 rounded"><Plus size={16}/></button><button onClick={() => setIsAddingTodo(false)} className="text-gray-400 hover:bg-gray-200 p-1 rounded"><X size={16}/></button></div></div>) : ( <button onClick={() => setIsAddingTodo(true)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 mt-4 pl-1 transition"><Plus size={14} /> Neue Aufgabe</button> )}</div></div>
+                <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col h-48"><h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400"/> Projektdetails</h2><div className="flex-1 flex flex-col items-center justify-center text-gray-400 relative overflow-hidden group">{uploading ? <div className="animate-pulse text-sm">Lade Datei hoch...</div> : selectedProject.offer_pdf_url ? (<div className="flex items-center gap-4 w-full justify-center"><a href={selectedProject.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 hover:bg-gray-100 transition"><FileText size={16}/> Angebot ansehen</a><button onClick={() => pdfInputRef.current?.click()} className="text-xs text-gray-400 hover:text-gray-600">Ändern</button></div>) : ( <button onClick={() => pdfInputRef.current?.click()} className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><Upload size={16}/> PDF hochladen</button> )}<input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} /></div><div className="mt-4 pt-4 border-t border-gray-100">{selectedProject.google_doc_url ? ( <a href={selectedProject.google_doc_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full text-blue-600 bg-blue-50 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition">Google Doc öffnen ↗</a> ) : ( <div className="text-center text-sm text-gray-400">Kein Google Doc verknüpft</div> )}</div></div>
               </div>
             </div>
           </>
         ) : (
           currentView === 'global_tasks' ? (
              /* --- GLOBAL TASKS LIST VIEW (NEW) --- */
-             <div>
+             <div className="p-0">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                   <div><h1 className="text-2xl font-bold tracking-tight mb-1">Offene Aufgaben</h1><p className="text-gray-500 text-sm">Alle To-Dos im Überblick</p></div>
                 </header>
-                
                 <div className="space-y-6 pb-12">
-                  {getOpenTasksByProject().length === 0 && <div className="text-center p-12 text-gray-400">Keine offenen Aufgaben.</div>}
-                  
-                  {getOpenTasksByProject().map(project => (
-                    <div key={project.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      {/* PROJECT HEADER (Clickable) */}
-                      <div onClick={() => setSelectedProject(project)} className="flex items-center gap-4 p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition border-b border-gray-100">
-                         {project.clients?.logo_url ? (
-                            <div className="w-10 h-10 bg-white rounded-md border border-gray-200 flex items-center justify-center p-0.5 shrink-0"><img src={project.clients.logo_url} className="w-full h-full object-contain"/></div>
-                         ) : (
-                            <div className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center text-[10px] text-gray-400 shrink-0 font-bold">{project.clients?.name ? project.clients.name.substring(0,2).toUpperCase() : '??'}</div>
-                         )}
-                         <div>
-                            <div className="font-bold text-gray-900 text-lg">{project.title}</div>
-                            <div className="text-xs text-gray-500 font-mono">{project.job_number}</div>
-                         </div>
-                         <div className="ml-auto"><ChevronRight size={20} className="text-gray-300"/></div>
-                      </div>
-
-                      {/* TASK LIST */}
-                      <div className="divide-y divide-gray-100">
-                        {project.visibleTodos.map(t => (
-                          <div key={t.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition">
-                            <div className="flex items-center gap-3 flex-1">
-                              <button onClick={() => handleGlobalToggle(t.id, t.is_done)} className="w-5 h-5 rounded border border-gray-300 flex items-center justify-center hover:border-blue-400">
-                                {t.is_done && <CheckCircle2 size={12} className="text-blue-500" />}
-                              </button>
-                              <span className="text-sm text-gray-700">{t.title}</span>
-                            </div>
+                   {getTasksByProject().length === 0 && <div className="text-center p-12 text-gray-400">Keine offenen Aufgaben gefunden.</div>}
+                   {getTasksByProject().map((project) => (
+                      <div key={project.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                         {/* PROJECT HEADER */}
+                         <div 
+                            onClick={() => { setSelectedProject(project); }} 
+                            className="bg-gray-50 px-4 py-3 flex items-center gap-4 cursor-pointer hover:bg-gray-100 transition border-b border-gray-100"
+                         >
+                            {/* CLIENT LOGO */}
+                            {project.clients?.logo_url ? (
+                                <div className="w-10 h-10 bg-white rounded-md border border-gray-200 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                                    <img src={project.clients.logo_url} className="w-full h-full object-contain"/>
+                                </div>
+                            ) : (
+                                <div className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center text-[10px] text-gray-400 shrink-0 font-bold">
+                                    {project.clients?.name ? project.clients.name.substring(0,2).toUpperCase() : '??'}
+                                </div>
+                            )}
                             
-                            {/* ASSIGNEE DROPDOWN */}
-                            <div className="relative flex items-center">
-                               <User size={14} className="absolute left-2 text-gray-400 pointer-events-none"/>
-                               <select 
-                                  className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer"
-                                  value={t.assigned_to || ''}
-                                  onChange={(e) => handleAssigneeUpdateGlobal(t.id, e.target.value)}
-                               >
-                                  <option value="">Nicht zugewiesen</option>
-                                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                               </select>
+                            <div>
+                                <div className="font-bold text-gray-900 text-lg">{project.title}</div>
+                                <div className="text-xs text-gray-500 font-mono">{project.job_number}</div>
                             </div>
-                          </div>
-                        ))}
+                            <div className="ml-auto">
+                                <ChevronRight size={20} className="text-gray-300"/>
+                            </div>
+                         </div>
+
+                         {/* TASK LIST */}
+                         <div className="divide-y divide-gray-100">
+                            {project.visibleTodos.map((t) => (
+                                <div key={t.id} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition group">
+                                    <div className="flex items-center gap-3 flex-1">
+                                        <button 
+                                            onClick={() => handleGlobalToggle(t.id, t.is_done)} 
+                                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all flex-shrink-0 ${t.is_done ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'}`}
+                                        >
+                                            {t.is_done && <CheckCircle2 size={12} className="text-white" />}
+                                        </button>
+                                        <span className={`text-sm text-gray-700 ${t.is_done ? 'line-through text-gray-400' : ''}`}>{t.title}</span>
+                                    </div>
+
+                                    {/* ASSIGNEE SELECTOR */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <div className="relative">
+                                            <select 
+                                                className="appearance-none pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                                                value={t.assigned_to || ''}
+                                                onChange={(e) => handleAssigneeUpdateGlobal(t.id, e.target.value)}
+                                            >
+                                                <option value="">Nicht zugewiesen</option>
+                                                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                            </select>
+                                            <User size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                         </div>
                       </div>
-                    </div>
-                  ))}
+                   ))}
                 </div>
              </div>
           ) : (
