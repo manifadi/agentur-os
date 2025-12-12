@@ -1,49 +1,70 @@
 import React from 'react';
-import { Home, LayoutList, CheckSquare, Briefcase, Settings, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { LayoutGrid, Globe, FolderKanban, Users, LogOut, Settings as SettingsIcon, Clock } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface MainSidebarProps {
-    currentView: ViewState;
-    setCurrentView: (view: ViewState) => void;
+    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'settings';
+    setCurrentView: (view: any) => void;
     handleLogout: () => void;
 }
 
 export default function MainSidebar({ currentView, setCurrentView, handleLogout }: MainSidebarProps) {
-    const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
-        <button
-            onClick={() => setCurrentView(view)}
-            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 group relative ${currentView === view ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-900'}`}
-        >
-            <Icon size={20} strokeWidth={currentView === view ? 2.5 : 2} />
-            {/* Tooltip */}
-            <div className="absolute left-14 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                {label}
-            </div>
-        </button>
-    );
+
+    const NavItem = ({ view, icon: Icon, tooltip, href }: { view: string, icon: any, tooltip: string, href: string }) => {
+        const isActive = currentView === view;
+        return (
+            <Link href={href} className="relative group">
+                <div className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-300 ${isActive
+                    ? 'bg-gray-900 text-white shadow-lg shadow-gray-900/20 scale-100'
+                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+                    }`}>
+                    <Icon size={24} strokeWidth={isActive ? 2 : 1.5} />
+                </div>
+
+                {/* Tooltip */}
+                <div className="absolute left-14 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                    <div className="bg-gray-900 text-white text-xs font-bold py-1.5 px-3 rounded-lg whitespace-nowrap shadow-xl">
+                        {tooltip}
+                        <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                    </div>
+                </div>
+            </Link>
+        );
+    };
 
     return (
-        <aside className="fixed inset-y-0 left-0 z-50 w-20 bg-white border-r border-gray-200 flex flex-col items-center py-6 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-            {/* Logo Placeholder */}
-            <div className="w-10 h-10 flex items-center justify-center mb-auto">
-                <img src="/assets/Agency-OS.png" alt="Logo" className="w-full h-full object-contain" />
+        <aside className="fixed left-0 top-0 bottom-0 w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 z-50">
+            {/* Logo */}
+            <div className="mb-12">
+                <div className="w-12 h-12 flex items-center justify-center">
+                    <img src="/assets/Agency-OS.png" alt="Agentur OS" className="w-full h-full object-contain" />
+                </div>
             </div>
 
-            {/* Centered Navigation */}
-            <nav className="flex flex-col gap-4 items-center justify-center">
-                <NavItem view="dashboard" icon={Home} label="Dashboard" />
-                <NavItem view="projects_overview" icon={LayoutList} label="Übersicht" />
-                <NavItem view="global_tasks" icon={CheckSquare} label="Aufgaben" />
-                <NavItem view="resource_planning" icon={Briefcase} label="Ressourcen" />
-                <NavItem view="settings" icon={Settings} label="Einstellungen" />
+            {/* Nav */}
+            <nav className="flex-1 flex flex-col gap-4 w-full px-4 items-center">
+                <NavItem view="dashboard" href="/dashboard" icon={LayoutGrid} tooltip="Mein Bereich" />
+                <NavItem view="projects_overview" href="/uebersicht" icon={FolderKanban} tooltip="Projekte" />
+                <NavItem view="global_tasks" href="/aufgaben" icon={Globe} tooltip="Alle Aufgaben" />
+                <NavItem view="resource_planning" href="/ressourcen" icon={Clock} tooltip="Ressourcen" />
             </nav>
 
-            <div className="mt-auto">
+            {/* Footer */}
+            <div className="flex flex-col gap-4 w-full px-4 items-center">
+                <NavItem view="settings" href="/einstellungen" icon={SettingsIcon} tooltip="Einstellungen" />
+
                 <button
                     onClick={handleLogout}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="w-12 h-12 flex items-center justify-center rounded-2xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all group relative"
                 >
-                    <LogOut size={18} />
+                    <LogOut size={20} />
+                    <div className="absolute left-14 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        <div className="bg-gray-900 text-white text-xs font-bold py-1.5 px-3 rounded-lg whitespace-nowrap shadow-xl">
+                            Logout
+                            <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                        </div>
+                    </div>
                 </button>
             </div>
         </aside>

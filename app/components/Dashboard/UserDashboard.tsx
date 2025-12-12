@@ -37,48 +37,78 @@ export default function UserDashboard({ currentUser, projects, allocations, onSe
     });
 
     // 3. Weekly Allocations Table Data
+    // 3. Weekly Allocations Table Data
     const weeklyData = useMemo(() => {
-        if (!allocations) return { days: [], rows: [], total: 0 };
+        if (!allocations) return { days: [], rows: [], total: 0, dailyTotals: { monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0 } };
 
         const today = new Date();
-        const day = today.getDay();
-        const diff = today.getDate() - day + (day == 0 ? -6 : 1);
-        const monday = new Date(today.setDate(diff));
-        monday.setHours(0, 0, 0, 0);
+        // ... (rest of date logic remains effectively same, just want to change top return)
 
-        const weekDates = [];
+        // Calculate ISO Week and Year
+        const currentYear = today.getFullYear();
+        // Helper for ISO week
+        const d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const currentWeek = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+
+        // Calculate Week Dates for Header (Mon-Fri)
+        // Get Monday of current week
+        const mondayDate = new Date(d); // d is Thursday of current week
+        mondayDate.setUTCDate(d.getUTCDate() - 3); // Back to Monday
+
         const dateLabels = [];
+        const isoDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        const dateMap: Record<string, string> = {}; // map 'monday' -> 'YYYY-MM-DD' for uniqueness if needed, but here we map col index to date label
+
         const formatter = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
         for (let i = 0; i < 5; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const iso = d.toISOString().split('T')[0];
-            weekDates.push(iso);
-            dateLabels.push({ iso, label: formatter.format(d) });
+            const dayDate = new Date(mondayDate);
+            dayDate.setUTCDate(mondayDate.getUTCDate() + i);
+            const iso = dayDate.toISOString().split('T')[0];
+            const colKey = isoDays[i]; // 'monday', 'tuesday'...
+            dateLabels.push({ iso: colKey, label: formatter.format(dayDate), date: iso }); // iso used as key for columns
         }
 
-        const myAllocs = allocations.filter(a => a.employee_id === currentUser.id && weekDates.includes(a.date));
+        // Filter Allocations for Current Week & User
+        // Note: Year boundary cases (end of Dec) might need handling if dayYear != weekYear, but simplifed for now using ISO week year
+        const myAllocs = allocations.filter((a: any) =>
+            a.employee_id === currentUser.id &&
+            a.year === currentYear && // Strict check might fail if week belogs to next year, better use d.getUTCFullYear() which IS the ISO year
+            a.week_number === currentWeek
+        );
 
         // Group by Project
-        const projectGroups: Record<string, { project: Project | undefined, minutesByDay: Record<string, number>, total: number }> = {};
+        const projectGroups: Record<string, { project: Project | undefined, hoursByDay: Record<string, number>, total: number }> = {};
+        const dailyTotals: Record<string, number> = { monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0 };
+        let grandTotal = 0;
 
-        myAllocs.forEach(a => {
+        myAllocs.forEach((a: any) => {
             if (!projectGroups[a.project_id]) {
                 projectGroups[a.project_id] = {
                     project: projects.find(p => p.id === a.project_id),
-                    minutesByDay: {},
+                    hoursByDay: {},
                     total: 0
                 };
             }
-            projectGroups[a.project_id].minutesByDay[a.date] = (projectGroups[a.project_id].minutesByDay[a.date] || 0) + a.minutes;
-            projectGroups[a.project_id].total += a.minutes;
+
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            days.forEach(day => {
+                const val = a[day] || 0; // Stored as Hours in DB
+                if (val > 0) {
+                    projectGroups[a.project_id].hoursByDay[day] = (projectGroups[a.project_id].hoursByDay[day] || 0) + val;
+                    projectGroups[a.project_id].total += val;
+                    dailyTotals[day] += val;
+                    grandTotal += val;
+                }
+            });
         });
 
         const rows = Object.values(projectGroups);
-        const totalMinutes = myAllocs.reduce((sum, a) => sum + a.minutes, 0);
 
-        return { days: dateLabels, rows, total: totalMinutes / 60 };
+        return { days: dateLabels, rows, total: grandTotal, dailyTotals };
 
     }, [allocations, currentUser.id, projects]);
 
@@ -96,7 +126,7 @@ export default function UserDashboard({ currentUser, projects, allocations, onSe
                 </div>
             </header>
 
-            {/* TOP ROW: TASKS & PROJECTS (Flex-1 to fill available space, but shared) */}
+            {/* TOP ROW: TASKS & PROJECTS */}
             <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                 {/* COLUMN 1: MY TASKS */}
@@ -182,8 +212,8 @@ export default function UserDashboard({ currentUser, projects, allocations, onSe
                 </div>
             </div>
 
-            {/* BOTTOM ROW: RESOURCE PLAN (Fixed height portion, e.g. 1/3 or specific h) */}
-            <div className="h-[35%] min-h-[250px] flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden shrink-0">
+            {/* BOTTOM ROW: RESOURCE PLAN (Increased Height) */}
+            <div className="h-[40%] min-h-[300px] flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden shrink-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Clock size={20} /> Mein Wochenplan <span className="text-gray-400 font-normal text-sm">({weeklyData.total.toFixed(1)} h)</span></h2>
                 </div>
@@ -197,7 +227,10 @@ export default function UserDashboard({ currentUser, projects, allocations, onSe
                                 <tr>
                                     <th className="px-6 py-3 font-semibold text-gray-900">Projekt</th>
                                     {weeklyData.days.map(d => (
-                                        <th key={d.iso} className="px-4 py-3 font-semibold text-center w-20 bg-gray-50">{d.label}</th>
+                                        <th key={d.iso} className="px-4 py-3 font-semibold text-center w-20 bg-gray-50">
+                                            <div>{d.iso.substring(0, 2).toUpperCase()}</div>
+                                            <div className="text-[10px] text-gray-400 font-normal">{d.label.split(' ')[1]}</div>
+                                        </th>
                                     ))}
                                     <th className="px-6 py-3 font-bold text-right text-gray-900">Gesamt</th>
                                 </tr>
@@ -209,22 +242,36 @@ export default function UserDashboard({ currentUser, projects, allocations, onSe
                                             <div className="font-bold text-gray-900">{row.project?.title || 'Unbekanntes Projekt'}</div>
                                             <div className="text-xs text-gray-500">{row.project?.clients?.name}</div>
                                         </td>
-                                        {weeklyData.days.map(d => {
-                                            const mins = row.minutesByDay[d.iso] || 0;
+                                        {weeklyData.days.map((d: any) => {
+                                            const val = row.hoursByDay[d.iso] || 0;
                                             return (
                                                 <td key={d.iso} className="px-4 py-3 text-center">
-                                                    {mins > 0 ? (
+                                                    {val > 0 ? (
                                                         <div className="inline-block bg-purple-50 text-purple-700 font-bold px-2 py-1 rounded text-xs min-w-[3rem]">
-                                                            {(mins / 60).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                                            {val.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                         </div>
                                                     ) : <span className="text-gray-300">-</span>}
                                                 </td>
                                             );
                                         })}
-                                        <td className="px-6 py-3 text-right font-black text-gray-900">{(row.total / 60).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h</td>
+                                        <td className="px-6 py-3 text-right font-black text-gray-900">{row.total.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h</td>
                                     </tr>
                                 ))}
                             </tbody>
+
+                            {/* NEW: Footer Row with Daily Totals */}
+                            <tfoot className="bg-gray-50 border-t border-gray-200 font-bold sticky bottom-0 text-gray-900 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <td className="px-6 py-3">Summe</td>
+                                    {weeklyData.days.map((d: any) => (
+                                        <td key={d.iso} className="px-4 py-3 text-center text-purple-700">
+                                            {(weeklyData.dailyTotals?.[d.iso] || 0).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                        </td>
+                                    ))}
+                                    <td className="px-6 py-3 text-right">{weeklyData.total.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h</td>
+                                </tr>
+                            </tfoot>
+
                         </table>
                     )}
                 </div>

@@ -9,7 +9,8 @@ export interface Employee {
     name: string;
     initials: string;
     department_id?: string;
-    email?: string; // New
+    email?: string;
+    role?: 'admin' | 'user';
 }
 
 export interface Department {
