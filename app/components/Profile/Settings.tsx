@@ -1,0 +1,193 @@
+import React, { useState, useEffect } from 'react';
+import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucide } from 'lucide-react';
+import { Employee, Department } from '../../types';
+import { supabase } from '../../supabaseClient';
+
+interface SettingsProps {
+    session: any;
+    employees: Employee[];
+    departments: Department[];
+    onUpdate: () => void;
+}
+
+export default function Settings({ session, employees, departments, onUpdate }: SettingsProps) {
+    const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    // Form State
+    const [name, setName] = useState('');
+    const [initials, setInitials] = useState('');
+    const [deptId, setDeptId] = useState('');
+    const [email, setEmail] = useState('');
+
+    // Effect to auto-select if session matches
+    useEffect(() => {
+        if (session?.user?.email && employees.length > 0) {
+            const found = employees.find(e => e.email === session.user.email);
+            if (found) {
+                setCurrentUser(found);
+                setName(found.name);
+                setInitials(found.initials);
+                setDeptId(found.department_id || '');
+                setEmail(found.email || '');
+            }
+        }
+    }, [employees, session]);
+
+    const handleSave = async () => {
+        if (!currentUser) return;
+        setLoading(true);
+        await supabase.from('employees').update({
+            name,
+            initials,
+            department_id: deptId || null,
+            email: email || null
+        }).eq('id', currentUser.id);
+        onUpdate();
+        setLoading(false);
+        alert("Einstellungen gespeichert!");
+    };
+
+    const handleLinkAccount = async () => {
+        if (!currentUser || !session?.user?.email) return;
+        if (confirm(`Möchtest du dieses Profil (${currentUser.name}) mit deinem Login (${session.user.email}) verknüpfen?`)) {
+            setEmail(session.user.email);
+            await supabase.from('employees').update({ email: session.user.email }).eq('id', currentUser.id);
+            onUpdate();
+        }
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto mt-10 p-6">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><SettingsHeaderIcon size={32} /> Einstellungen</h1>
+            <p className="text-gray-500 mb-8">Verwalte dein Profil und deine App-Einstellungen.</p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                {/* LEFT COLUMN: IDENTITY */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* PROFILE CARD */}
+                    <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User size={20} className="text-gray-400" /> Profil Details</h2>
+
+                        {/* Identity Selector */}
+                        <div className="mb-6 bg-gray-50 p-4 rounded-xl">
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Wer bist du?</label>
+                            <select
+                                className="w-full p-2 border border-gray-200 rounded-lg bg-white"
+                                onChange={(e) => {
+                                    const emp = employees.find(ep => ep.id === e.target.value);
+                                    if (emp) {
+                                        setCurrentUser(emp);
+                                        setName(emp.name);
+                                        setInitials(emp.initials);
+                                        setDeptId(emp.department_id || '');
+                                        setEmail(emp.email || '');
+                                    }
+                                }}
+                                value={currentUser?.id || ''}
+                            >
+                                {employees?.length > 0 ? (
+                                    employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.email ? '✅' : ''}</option>)
+                                ) : (
+                                    <option disabled>Keine Mitarbeiter gefunden</option>
+                                )}
+                            </select>
+                            <p className="text-xs text-gray-400 mt-2">Wähle deinen Namen aus der Liste, um deine Daten zu bearbeiten.</p>
+                        </div>
+
+                        {currentUser && (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Anzeigename</label>
+                                        <input type="text" className="w-full p-2 border border-gray-200 rounded-lg font-medium" value={name} onChange={(e) => setName(e.target.value)} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kürzel (2 Zeichen)</label>
+                                        <input type="text" maxLength={2} className="w-full p-2 border border-gray-200 rounded-lg font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Abteilung / Rolle</label>
+                                    <select className="w-full p-2 border border-gray-200 rounded-lg" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
+                                        <option value="">Keine Abteilung</option>
+                                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="pt-4 flex justify-end">
+                                    <button onClick={handleSave} disabled={loading} className="bg-gray-900 text-white px-6 py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition">Speichern</button>
+                                </div>
+                            </div>
+                        )}
+                    </section>
+
+                    {/* ACCOUNT LINKING */}
+                    {currentUser && (
+                        <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Lock size={20} className="text-gray-400" /> Account Verknüpfung</h2>
+                            <div className={`p-4 rounded-xl flex items-center justify-between ${currentUser.email === session?.user?.email ? 'bg-green-50 text-green-900 border border-green-100' : 'bg-orange-50 text-orange-900 border border-orange-100'}`}>
+                                <div className="text-sm">
+                                    {currentUser.email === session?.user?.email ? (
+                                        <span><span className="font-bold">Verknüpft:</span> Du bist als <u>{currentUser.name}</u> eingeloggt.</span>
+                                    ) : (
+                                        <span>
+                                            <span className="font-bold">Nicht verknüpft.</span><br />
+                                            Dein Login: {session?.user?.email}<br />
+                                            Profil Email: {currentUser.email || 'Keine'}
+                                        </span>
+                                    )}
+                                </div>
+                                {currentUser.email !== session?.user?.email && (
+                                    <button onClick={handleLinkAccount} className="text-xs bg-white border border-gray-300 px-3 py-2 rounded-lg shadow-sm hover:bg-gray-50 font-bold">
+                                        Jetzt verknüpfen
+                                    </button>
+                                )}
+                            </div>
+                        </section>
+                    )}
+                </div>
+
+                {/* RIGHT COLUMN: PREFERENCES */}
+                <div className="space-y-6">
+                    {/* APPEARANCE */}
+                    <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm opacity-60 pointer-events-none relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gray-50/50 z-10 flex items-center justify-center font-bold text-gray-400 text-xs rotate-12 transform border-gray-200 border-2 rounded-xl m-4 bg-white/80 uppercase tracking-widest">Coming Soon</div>
+                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Moon size={20} className="text-gray-400" /> Darstellung</h2>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Dark Mode</span>
+                                <div className="w-10 h-6 bg-gray-200 rounded-full"></div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Kompakte Ansicht</span>
+                                <div className="w-10 h-6 bg-gray-200 rounded-full"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* NOTIFICATIONS */}
+                    <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm opacity-60 pointer-events-none relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gray-50/50 z-10 flex items-center justify-center font-bold text-gray-400 text-xs rotate-12 transform border-gray-200 border-2 rounded-xl m-4 bg-white/80 uppercase tracking-widest">Coming Soon</div>
+                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Bell size={20} className="text-gray-400" /> Benachrichtigungen</h2>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <Mail size={16} className="text-gray-400" />
+                                <span className="text-sm text-gray-600 flex-1">Email Zusammenfassung</span>
+                                <input type="checkbox" disabled checked className="rounded text-gray-900 focus:ring-gray-900 border-gray-300" />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Smartphone size={16} className="text-gray-400" />
+                                <span className="text-sm text-gray-600 flex-1">Push Nachrichten</span>
+                                <input type="checkbox" disabled className="rounded text-gray-900 focus:ring-gray-900 border-gray-300" />
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Icon wrapper for header
+const SettingsHeaderIcon = ({ size }: { size: number }) => <SettingsIconLucide size={size} />;

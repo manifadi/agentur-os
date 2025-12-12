@@ -1,0 +1,5 @@
+
+# In Next.js, static assets need to be in the public folder to be accessible via /assets/... URL.
+# The user's files are in /Documents/_PERSONAL/agentur-os/assets/Agency-OS.png
+# We need to copy this to /Documents/_PERSONAL/agentur-os/public/assets/Agency-OS.png
+# Or checking if "public" exists.
