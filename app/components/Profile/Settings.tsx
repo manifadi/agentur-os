@@ -3,6 +3,8 @@ import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucid
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
 import AdminUserManagement from './AdminUserManagement';
+import AdminProjectList from './AdminProjectList';
+import { useApp } from '../../context/AppContext';
 
 interface SettingsProps {
     session: any;
@@ -12,14 +14,16 @@ interface SettingsProps {
 }
 
 export default function Settings({ session, employees, departments, onUpdate }: SettingsProps) {
+    const { projects, clients } = useApp(); // Get global projects and clients
     const [currentUser, setCurrentUser] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'admin'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects'>('profile');
 
     // Form State
     const [name, setName] = useState('');
     const [initials, setInitials] = useState('');
     const [deptId, setDeptId] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
     const [email, setEmail] = useState('');
 
     // Effect to auto-select if session matches
@@ -31,6 +35,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 setName(found.name);
                 setInitials(found.initials);
                 setDeptId(found.department_id || '');
+                setJobTitle(found.job_title || '');
                 setEmail(found.email || '');
             }
         }
@@ -41,8 +46,9 @@ export default function Settings({ session, employees, departments, onUpdate }: 
         setLoading(true);
         await supabase.from('employees').update({
             name,
-            initials,
+            initials: initials.toUpperCase(),
             department_id: deptId || null,
+            job_title: jobTitle,
             email: email || null
         }).eq('id', currentUser.id);
         onUpdate();
@@ -72,12 +78,20 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 </button>
 
                 {currentUser && currentUser.role === 'admin' && (
-                    <button
-                        onClick={() => setActiveTab('admin')}
-                        className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'admin' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
-                    >
-                        <Shield size={14} /> Team Verwaltung
-                    </button>
+                    <>
+                        <button
+                            onClick={() => setActiveTab('admin')}
+                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'admin' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
+                        >
+                            <Shield size={14} /> Team Verwaltung
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('projects')}
+                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'projects' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
+                        >
+                            <SettingsIconLucide size={14} /> Alle Projekte
+                        </button>
+                    </>
                 )}
             </div>
 
@@ -104,6 +118,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                                 setName(emp.name);
                                                 setInitials(emp.initials);
                                                 setDeptId(emp.department_id || '');
+                                                setJobTitle(emp.job_title || '');
                                                 setEmail(emp.email || '');
                                             }
                                         }}
@@ -129,6 +144,10 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kürzel (2 Zeichen)</label>
                                                 <input type="text" maxLength={2} className="w-full p-2 border border-gray-200 rounded-lg font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
                                             </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel</label>
+                                            <input type="text" className="w-full p-2 border border-gray-200 rounded-lg" placeholder="z.B. Senior Designer" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Abteilung / Rolle</label>
@@ -208,6 +227,19 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                         </div>
                     </div>
                 </>
+            ) : activeTab === 'projects' && currentUser?.role === 'admin' ? (
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <h2 className="text-lg font-bold mb-4">Alle Projekte (Admin Übersicht)</h2>
+                    {/* We can reuse DashboardView here, but we need to mock/pass props. 
+                        DashboardView needs: projects, clients, employees, stats, onSelectProject, etc. 
+                        We don't have all stats computed here easily unless we computed them.
+                        Maybe just a simple table is better? Or simplified DashboardView?
+                        Let's try to import DashboardView components or ProjectList.
+                        Actually, let's keep it simple: A list of all projects with filter.
+                    */}
+                    <AdminProjectList projects={projects} clients={clients} />
+                    <p>Projekte werden geladen...</p>
+                </div>
             ) : currentUser ? (
                 <AdminUserManagement
                     employees={employees}

@@ -3,17 +3,20 @@ import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { Employee, Project, Department, AllocationRow, ResourceAllocation } from '../../types';
 import { getStatusStyle } from '../../utils';
+import { useApp } from '../../context/AppContext';
 import ResourceGrid from './ResourceGrid';
 
 interface ResourcePlannerProps {
     employees: Employee[];
     projects: Project[];
+    currentUser?: Employee;
 }
 
-export default function ResourcePlanner({ employees, projects }: ResourcePlannerProps) {
+export default function ResourcePlanner({ employees, projects, currentUser }: ResourcePlannerProps) {
+    const { fetchData } = useApp();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDeptId, setSelectedDeptId] = useState<string>('Alle');
     const [departments, setDepartments] = useState<Department[]>([]);
+    const [selectedDeptId, setSelectedDeptId] = useState<string>(currentUser?.department_id || '');
     const [allocations, setAllocations] = useState<ResourceAllocation[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -38,29 +41,30 @@ export default function ResourcePlanner({ employees, projects }: ResourcePlanner
     };
 
     useEffect(() => {
-        fetchDepartments();
-    }, []);
+        const init = async () => {
+            const { data } = await supabase.from('departments').select('*').order('name');
+            if (data) {
+                setDepartments(data);
+                // If no selection yet (or 'Alle' legacy), try to set to user dept -> first dept
+                if (!selectedDeptId || selectedDeptId === 'Alle') {
+                    if (currentUser?.department_id) {
+                        setSelectedDeptId(currentUser.department_id);
+                    } else if (data.length > 0) {
+                        setSelectedDeptId(data[0].id);
+                    }
+                }
+            }
+        };
+        init();
+    }, [currentUser]);
 
     useEffect(() => {
         fetchAllocations();
     }, [currentWeek, currentYear]);
 
-    const fetchDepartments = async () => {
-        const { data } = await supabase.from('departments').select('*').order('name');
-        if (data) setDepartments(data);
-    };
-
     const fetchAllocations = async () => {
         setLoading(true);
-        const { data } = await supabase
-            .from('resource_allocations')
-            .select(`*, projects (*)`) // Join project to get details
-            .eq('year', currentYear)
-            .eq('week_number', currentWeek);
-
-        // We also need project details nested. 
-        // Supabase join syntax: `projects ( *, clients (name), employees (initials) )` might be needed for display
-        // Let's refine:
+        // Supabase select with joins
         const { data: deepData } = await supabase
             .from('resource_allocations')
             .select(`
@@ -74,14 +78,21 @@ export default function ResourcePlanner({ employees, projects }: ResourcePlanner
             .eq('year', currentYear)
             .eq('week_number', currentWeek);
 
-        if (deepData) setAllocations(deepData as any);
+        if (deepData) {
+            const sorted = (deepData as any[]).sort((a, b) => {
+                const dateA = a.projects?.created_at || '';
+                const dateB = b.projects?.created_at || '';
+                return dateA.localeCompare(dateB);
+            });
+            setAllocations(sorted);
+        }
         setLoading(false);
     };
 
     // Construct Grid Data
     const gridData = useMemo(() => {
         let filteredEmployees = employees;
-        if (selectedDeptId !== 'Alle') {
+        if (selectedDeptId && selectedDeptId !== 'Alle') {
             filteredEmployees = employees.filter(e => e.department_id === selectedDeptId);
         }
 
@@ -96,22 +107,76 @@ export default function ResourcePlanner({ employees, projects }: ResourcePlanner
 
     // Handlers
     const handleUpdateAllocation = async (id: string, field: string, value: any) => {
-        // Optimistic update
         setAllocations(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
         await supabase.from('resource_allocations').update({ [field]: value }).eq('id', id);
     };
 
-    const handleCreateAllocation = async (employeeId: string, projectId: string) => {
-        const { data } = await supabase.from('resource_allocations').insert([{
+    const handleCreateAllocation = async (employeeId: string, data: any) => {
+        let projectId = data.projectId;
+
+        if (data.type === 'new') {
+            const { clientName, projectTitle, jobNr } = data;
+
+            // 0. Resolve Client
+            let clientId;
+            if (clientName) {
+                // Try find existing
+                const { data: existingClient } = await supabase.from('clients').select('id').ilike('name', clientName).single();
+                if (existingClient) {
+                    clientId = existingClient.id;
+                } else {
+                    // Create Client
+                    const { data: newClient } = await supabase.from('clients').insert([{
+                        name: clientName,
+                        organization_id: currentUser?.organization_id // Assuming context
+                    }]).select().single();
+                    if (newClient) clientId = newClient.id;
+                }
+            }
+
+            // 1. Create Project
+            // If no jobNr, generic one? Or allow empty? Database might require it. 
+            // Types say job_number is string.
+            const { data: newProj, error: projError } = await supabase.from('projects').insert([{
+                title: projectTitle || 'Neues Projekt',
+                job_number: jobNr || '',
+                client_id: clientId, // Might be undefined if no client entered, check DB constraints?
+                organization_id: currentUser?.organization_id,
+                status: 'Bearbeitung'
+            }]).select().single();
+
+            if (projError) {
+                console.error('Error creating project:', projError);
+                alert('Fehler beim Erstellen des Projekts: ' + projError.message);
+                return;
+            }
+
+            if (newProj) projectId = newProj.id;
+        }
+
+        if (!projectId) return;
+
+        const { data: newAlloc, error } = await supabase.from('resource_allocations').insert([{
             employee_id: employeeId,
             project_id: projectId,
             year: currentYear,
             week_number: currentWeek,
+            organization_id: currentUser?.organization_id,
             monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0
-        }]).select(`*, projects ( *, clients(name), employees(initials) )`); // Need to fetch joined data back!
+        }]).select();
 
-        if (data) {
-            setAllocations(prev => [...prev, data[0] as any]);
+        if (error) {
+            console.error('Error creating allocation:', error);
+            alert('Fehler beim Erstellen des Eintrags: ' + error.message);
+            return;
+        }
+
+        if (newAlloc) {
+            // We refresh the whole grid to ensure relations are loaded correctly
+            await fetchAllocations();
+
+            // Also refresh global context so Dashboard sees it
+            fetchData();
         }
     };
 
@@ -119,16 +184,11 @@ export default function ResourcePlanner({ employees, projects }: ResourcePlanner
         if (!confirm("Eintrag entfernen?")) return;
         setAllocations(prev => prev.filter(a => a.id !== id));
         await supabase.from('resource_allocations').delete().eq('id', id);
+        fetchData();
     };
 
     const handleUpdateProject = async (projectId: string, field: string, value: any) => {
-        // Optimistic update for local visual (less critical here since allocs update on re-fetch mostly, but good for UX)
-        // However, allocations don't store project data directly, they reference it.
-        // We'd need to update the `projects` state in `ResourcePlanner` parent or just trigger a refetch.
-        // Simplest: Call Supabase, then trigger generic refresh.
         await supabase.from('projects').update({ [field]: value }).eq('id', projectId);
-        // We might want to notify parent to refresh projects list?
-        // Or we just fetchAllocations again? FetchAllocations fetches JOINED project data, so yes.
         fetchAllocations();
     };
 
@@ -150,7 +210,6 @@ export default function ResourcePlanner({ employees, projects }: ResourcePlanner
                         value={selectedDeptId}
                         onChange={(e) => setSelectedDeptId(e.target.value)}
                     >
-                        <option value="Alle">Alle Abteilungen</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                 </div>

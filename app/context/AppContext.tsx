@@ -6,21 +6,37 @@ interface AppContextType {
     projects: Project[];
     clients: Client[];
     employees: Employee[];
-    departments: Department[];
+    departments: any[];
     allocations: any[];
+    members: any[]; // Project Members
+    currentUser?: Employee;
     loading: boolean;
 
     // Setters / Refreshers
-    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-    setClients: React.Dispatch<React.SetStateAction<Client[]>>;
-    setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
+    setProjects: (projects: any[]) => void;
+    setClients: (clients: Client[]) => void;
+    setEmployees: (employees: Employee[]) => void;
     fetchData: () => Promise<void>;
 
     // Actions that might be global
     handleLogout: () => Promise<void>;
 }
 
-export const AppContext = createContext<AppContextType | undefined>(undefined);
+export const AppContext = createContext<AppContextType>({
+    session: null,
+    projects: [],
+    clients: [],
+    employees: [],
+    departments: [],
+    allocations: [],
+    members: [],
+    loading: true,
+    setProjects: () => { },
+    setClients: () => { },
+    setEmployees: () => { },
+    fetchData: async () => { },
+    handleLogout: async () => { },
+});
 
 export function useApp() {
     const context = useContext(AppContext);

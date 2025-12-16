@@ -2,6 +2,7 @@ export interface Client {
     id: string;
     name: string;
     logo_url?: string | null;
+    organization_id: string;
 }
 
 export interface Employee {
@@ -9,13 +10,16 @@ export interface Employee {
     name: string;
     initials: string;
     department_id?: string;
+    job_title?: string;
     email?: string;
     role?: 'admin' | 'user';
+    organization_id?: string;
 }
 
 export interface Department {
     id: string;
     name: string;
+    organization_id: string;
 }
 
 export interface Todo {
@@ -56,6 +60,7 @@ export interface Project {
     project_manager_id?: string | null;
     google_doc_url?: string | null;
     offer_pdf_url?: string | null;
+    organization_id: string;
 
     // Joined data
     clients?: Client;
@@ -82,12 +87,29 @@ export interface ResourceAllocation {
     comment?: string;
     task_description?: string; // New field
     projects?: Project;
+    organization_id: string;
 }
 
 // Map for grid: Employee -> Allocations[]
 export interface AllocationRow {
     employee: Employee;
     allocations: ResourceAllocation[];
+}
+
+export interface Organization {
+    id: string;
+    name: string;
+}
+
+export interface RegistrationRequest {
+    id: string;
+    email: string;
+    name: string;
+    company_name?: string;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+    organization_id?: string;
+    organization_name?: string;
 }
 
 export type ViewState = 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'settings';

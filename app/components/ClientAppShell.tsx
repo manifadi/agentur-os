@@ -12,9 +12,14 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const pathname = usePathname();
     const router = useRouter();
 
+    // Apple Design System Global Styles
+    // Background: #F5F5F7 (Apple Light Gray)
+    // Font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto...
+    const appleBg = "bg-[#F5F5F7] text-gray-900 font-[system-ui]";
+
     const [session, setSession] = useState<any>(null);
     const [loadingSession, setLoadingSession] = useState(true);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     // Data
     const [clients, setClients] = useState<Client[]>([]);
@@ -22,10 +27,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [departments, setDepartments] = useState<any[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [allocations, setAllocations] = useState<any[]>([]);
+    const [members, setMembers] = useState<any[]>([]);
 
     // State mapping for Sidebar highlighting
     // Mapping: URL path -> ViewState ID used in Sidebar (or just simplified)
-    const currentView = pathname?.split('/')[1] || 'dashboard';
+    const currentView = (pathname?.split('/')[1] || 'dashboard') as any;
 
     // --- INIT & FETCH ---
     useEffect(() => {
@@ -43,32 +49,80 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (session) fetchData();
     }, [session]);
 
+    // GATEKEEPER: Check if user is approved
+    useEffect(() => {
+        if (!loading && session && pathname !== '/onboarding') {
+            const isApproved = employees.some(e => e.email === session.user.email);
+            if (!isApproved) {
+                // Strict check: If user is not in the loaded employees list, redirect.
+                // This covers: 
+                // 1. New users (no employee record)
+                // 2. Users not assigned to an organization (fetchData returns no employees for them)
+                router.replace('/onboarding');
+            }
+        }
+    }, [session, employees, loading, pathname, router]);
+
     const fetchData = async () => {
         setLoading(true);
 
+        // 1. Get current employee to find organization_id
+        if (!session?.user?.email) {
+            setLoading(false);
+            return;
+        }
+
+        const { data: currentUserData } = await supabase.from('employees')
+            .select('*')
+            .eq('email', session.user.email)
+            .single();
+
+        if (!currentUserData || !currentUserData.organization_id) {
+            // Cannot fetch organization data without an org ID.
+            // But we might need to load basic stuff? Or just stop.
+            // If we stop here, 'employees' state is empty, so Gatekeeper will hold.
+            // EXCEPT: Gatekeeper checks 'employees.some...' logic which depends on this fetch.
+            // Critical fix: We must at least load the USER record into 'employees' state 
+            // OR handle 'no org' state carefully.
+
+            // For now, if no org, we fetch NOTHING.
+            // The Gatekeeper will see empty employees and redirect to Onboarding.
+            setLoading(false);
+            return;
+        }
+
+        const orgId = currentUserData.organization_id;
+
+        // 2. Fetch scoped data
         const [
             { data: clientsData },
             { data: employeesData },
             { data: departmentsData },
             { data: allocationsData },
+            { data: membersData }, // project_members doesn't have org_id directly usually, but projects do.
             { data: projectsData }
         ] = await Promise.all([
-            supabase.from('clients').select('*').order('name'),
-            supabase.from('employees').select('*').order('name'),
-            supabase.from('departments').select('*').order('name'),
-            supabase.from('resource_allocations').select('*'),
+            supabase.from('clients').select('*').eq('organization_id', orgId).order('name'),
+            supabase.from('employees').select('*').eq('organization_id', orgId).order('name'),
+            supabase.from('departments').select('*').eq('organization_id', orgId).order('name'),
+            supabase.from('resource_allocations').select('*')
+                .eq('organization_id', orgId)
+                .eq('employee_id', currentUserData.id)
+                .gte('year', new Date().getFullYear() - 1),
+            supabase.from('project_members').select('*'), // TODO: Filter this? Ideally, RLS handles it. OR we filter locally based on projects we get.
             supabase.from('projects').select(`
                 *, 
                 employees ( id, name, initials ), 
                 clients ( name, logo_url ), 
                 todos ( * )
-            `).order('created_at', { ascending: false })
+            `).eq('organization_id', orgId).order('created_at', { ascending: false })
         ]);
 
         if (clientsData) setClients(clientsData);
         if (employeesData) setEmployees(employeesData);
         if (departmentsData) setDepartments(departmentsData);
         if (allocationsData) setAllocations(allocationsData);
+        if (membersData) setMembers(membersData);
 
         if (projectsData) {
             // Process stats / computed fields
@@ -106,14 +160,19 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         }
     };
 
+    // Derived Current User
+    const currentUser = employees.find(e => e.email === session?.user?.email);
+
     return (
         <AppContext.Provider value={{
             session,
             projects,
             clients,
             employees,
+            currentUser,
             departments,
             allocations,
+            members,
             loading,
             setProjects,
             setClients,
@@ -121,22 +180,27 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             fetchData,
             handleLogout
         }}>
-            <div className="flex h-screen w-full bg-[#F9FAFB] text-gray-900 font-sans overflow-hidden">
-                <MainSidebar
-                    currentView={getSidebarView()}
-                    setCurrentView={(v) => {
-                        // Navigation Logic
-                        switch (v) {
-                            case 'dashboard': router.push('/dashboard'); break;
-                            case 'projects_overview': router.push('/uebersicht'); break;
-                            case 'global_tasks': router.push('/aufgaben'); break;
-                            case 'resource_planning': router.push('/ressourcen'); break;
-                            case 'settings': router.push('/einstellungen'); break;
-                        }
-                    }}
-                    handleLogout={handleLogout}
-                />
-                <main className="flex-1 h-full overflow-y-auto relative bg-[#F9FAFB] ml-20">
+            <div className={`flex h-screen w-screen overflow-hidden ${appleBg} antialiased selection:bg-blue-500/30 scroll-smooth`}>
+                {/* SIDEBAR */}
+                {!['/login', '/onboarding'].includes(pathname || '') && (
+                    <MainSidebar
+                        currentView={getSidebarView()}
+                        setCurrentView={(v) => {
+                            switch (v) {
+                                case 'dashboard': router.push('/dashboard'); break;
+                                case 'projects_overview': router.push('/uebersicht'); break;
+                                case 'global_tasks': router.push('/aufgaben'); break;
+                                case 'resource_planning': router.push('/ressourcen'); break;
+                                case 'settings': router.push('/einstellungen'); break;
+                            }
+                        }}
+                        handleLogout={handleLogout}
+                    />
+                )}
+
+                {/* MAIN CONTENT AREA */}
+                <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative ml-20">
+                    {/* Glassmorphism Header Background Effect if needed here */}
                     {children}
                 </main>
             </div>

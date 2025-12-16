@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Activity, ListTodo, Timer, Plus, Search } from 'lucide-react';
+import { Activity, ListTodo, Timer, Plus, Search, FilePlus } from 'lucide-react';
 import { Project, Client, Employee } from '../../types';
 import ProjectList from '../Projects/ProjectList';
 import GlobalSearch from '../GlobalSearch';
@@ -85,7 +85,7 @@ export default function DashboardView({
                         onSelectProject={onSelectProject}
                         onSelectClient={onSelectClient}
                     />
-                    <button onClick={onOpenCreateModal} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-gray-800 transition flex items-center gap-2 whitespace-nowrap"><Plus size={16} /> <span className="hidden md:inline">Neues Projekt</span></button>
+                    <button onClick={onOpenCreateModal} className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition"><FilePlus size={16} /> Projekt hinzufügen</button>
 
                     {/* FILTER MENU */}
                     <div className="ml-2">

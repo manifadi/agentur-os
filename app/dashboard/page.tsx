@@ -11,7 +11,7 @@ import ClientModal from '../components/Modals/ClientModal';
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { session, employees, projects, allocations, clients, fetchData } = useApp();
+    const { session, employees, projects, allocations, clients, members, fetchData } = useApp();
 
     // Local state for modals triggers
     const [createProjectOpen, setCreateProjectOpen] = useState(false);
@@ -28,9 +28,24 @@ export default function DashboardPage() {
     };
 
     const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
-        await supabase.from('projects').insert([{
+        const { data: newProject } = await supabase.from('projects').insert([{
             title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung'
-        }]);
+        }]).select().single();
+
+        if (newProject && currentUser) {
+            // 1. Add creator as member automatically
+            await supabase.from('project_members').insert([{
+                project_id: newProject.id,
+                employee_id: currentUser.id,
+                role: 'member' // or 'owner' if we had that role
+            }]);
+
+            // 2. If PM is selected and DIFFERENT from creator, add them too?
+            // Usually DB FK ensures PM is linked, but project_members is for "My List".
+            // If I assign someone else, they should see it. The logic "isPM" handles that.
+            // So we only need to ensure CREATOR sees it if they are NOT the PM.
+        }
+
         fetchData();
         setCreateProjectOpen(false);
     };
@@ -44,18 +59,43 @@ export default function DashboardPage() {
         // And render the Modals here? Yes.
     };
 
+    const handleJoinProject = async (projectId: string) => {
+        if (!currentUser) return;
+
+        // Check if already member? The DB might throw unique constraint error, let's catch it or just insert.
+        // The modal logic might filter, but safety first.
+        const { error } = await supabase.from('project_members').insert([{
+            project_id: projectId,
+            employee_id: currentUser.id,
+            role: 'member'
+        }]);
+
+        if (error) {
+            // duplicate key value violates unique constraint usually means already member
+            console.error('Join error:', error);
+        }
+
+        fetchData();
+        // Keep modal open to show status change
+        // setCreateProjectOpen(false); 
+    };
+
+    // Calcluate joined projects IDs (Member table)
+    const joinedProjectIds = members
+        ?.filter((m: any) => m.employee_id === currentUser?.id)
+        .map((m: any) => m.project_id) || [];
+
     return (
         <div className="p-4 md:p-8 h-full">
             <UserDashboard
                 currentUser={currentUser}
                 projects={projects}
                 allocations={allocations}
+                members={members}
                 onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
                 onToggleTodo={handleToggleTodo}
                 onQuickAction={(action) => {
                     if (action === 'create_project') setCreateProjectOpen(true);
-                    // For client creation, we'll need the full modal logic, keeping it simple for now or adding the modal here.
-                    // Let's implement CreateProjectModal at least.
                 }}
             />
 
@@ -63,8 +103,12 @@ export default function DashboardPage() {
                 isOpen={createProjectOpen}
                 clients={clients}
                 employees={employees}
+                projects={projects}
+                joinedProjectIds={joinedProjectIds}
+                currentUserId={currentUser?.id || ''}
                 onClose={() => setCreateProjectOpen(false)}
                 onCreate={handleCreateProject}
+                onJoin={handleJoinProject}
             />
         </div>
     );

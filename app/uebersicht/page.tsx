@@ -15,12 +15,31 @@ import { Project, Client, Employee } from '../types';
 import { deleteFileFromSupabase, uploadFileToSupabase } from '../utils/supabaseUtils';
 
 export default function UebersichtPage() {
-    const { session, projects, clients, employees, fetchData, setClients, setEmployees, setProjects } = useApp();
+    const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees, setProjects } = useApp();
+
+    // Calculate joined IDs for modal
+    const activeUser = employees.find(e => e.email === session?.user?.email);
+    const joinedProjectIds = members
+        ?.filter((m: any) => m.employee_id === activeUser?.id)
+        .map((m: any) => m.project_id) || [];
     const searchParams = useSearchParams();
     const router = useRouter();
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+    // -- FILTER PROJECTS: Show only "My Projects" --
+    // Definition: PM, Member, Has Tasks, OR Has Allocations
+    const myProjects = useMemo(() => {
+        if (!activeUser) return [];
+        return projects.filter(p => {
+            const isPM = p.project_manager_id === activeUser.id;
+            const hasTasks = p.todos?.some(t => t.assigned_to === activeUser.id && !t.is_done);
+            const isMember = members?.some((m: any) => m.project_id === p.id && m.employee_id === activeUser.id);
+            const hasAllocations = allocations?.some((a: any) => a.project_id === p.id && a.employee_id === activeUser.id && (a.monday + a.tuesday + a.wednesday + a.thursday + a.friday) > 0);
+            return isPM || hasTasks || isMember || hasAllocations;
+        });
+    }, [projects, activeUser, members, allocations]);
 
     // Modal States
     const [clientModalOpen, setClientModalOpen] = useState(false);
@@ -40,20 +59,18 @@ export default function UebersichtPage() {
         }
     }, [searchParams, projects]);
 
-    const activeUser = employees.find(e => e.email === session?.user?.email);
-
-    // Filter Logic for Stats
+    // Filter Logic for Stats (using myProjects instead of all projects)
     const stats = useMemo(() => {
-        if (!projects) return { activeProjects: 0, openTasks: 0, nextDeadline: null };
-        const activeCount = projects.filter(p => ['Bearbeitung', 'In Umsetzung'].includes(p.status)).length;
-        const openTaskCount = projects.reduce((acc, curr) => acc + ((curr.totalTodos || 0) - (curr.doneTodos || 0)), 0);
+        if (!myProjects) return { activeProjects: 0, openTasks: 0, nextDeadline: null };
+        const activeCount = myProjects.filter(p => ['Bearbeitung', 'In Umsetzung'].includes(p.status)).length;
+        const openTaskCount = myProjects.reduce((acc, curr) => acc + ((curr.totalTodos || 0) - (curr.doneTodos || 0)), 0);
 
         const today = new Date(); today.setHours(0, 0, 0, 0);
-        const futureProjects = projects
+        const futureProjects = myProjects
             .filter(proj => proj.deadline && new Date(proj.deadline) >= today)
             .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
         return { activeProjects: activeCount, openTasks: openTaskCount, nextDeadline: futureProjects[0] || null };
-    }, [projects]);
+    }, [myProjects]);
 
 
     // -- Action Handlers (Replicated from page.tsx) --
@@ -92,9 +109,18 @@ export default function UebersichtPage() {
 
     // Projects
     const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
-        await supabase.from('projects').insert([{
+        const { data: newProject } = await supabase.from('projects').insert([{
             title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung'
-        }]);
+        }]).select().single();
+
+        if (newProject && activeUser) {
+            await supabase.from('project_members').insert([{
+                project_id: newProject.id,
+                employee_id: activeUser.id,
+                role: 'member'
+            }]);
+        }
+
         fetchData();
         setCreateProjectOpen(false);
     };
@@ -124,15 +150,22 @@ export default function UebersichtPage() {
         setConfirmOpen(true);
     };
 
+    const handleJoinProject = async (projectId: string) => {
+        if (!activeUser) return;
+        const { error } = await supabase.from('project_members').insert([{
+            project_id: projectId,
+            employee_id: activeUser.id,
+            role: 'member'
+        }]);
+        if (error) console.error(error);
+        fetchData();
+        // Keep modal open to show status change
+        // setCreateProjectOpen(false); 
+    };
+
     return (
         <div className="flex h-full">
-            {/* Sidebar (Hidden if Viewing Project?) - Original Logic: hidden if selectedProject. 
-                Wait, user requirements usually imply Sidebar stays. 
-                But in 'page.tsx', ContextSidebar was hidden if ViewState != 'projects_overview' or if selectedProject was set?
-                Looking at page.tsx:
-                {currentView === 'projects_overview' && !selectedProject && ( ... ContextSidebar )}
-                So yes, sidebar hides when detail view opens.
-            */}
+            {/* Sidebar (Hidden if Viewing Project?) */}
             {!selectedProject && (
                 <div className="flex-shrink-0 h-full">
                     <ContextSidebar
@@ -163,7 +196,7 @@ export default function UebersichtPage() {
                     />
                 ) : (
                     <DashboardView
-                        projects={projects}
+                        projects={myProjects}
                         clients={clients}
                         employees={employees}
                         stats={stats}
@@ -178,7 +211,17 @@ export default function UebersichtPage() {
             {/* Modals */}
             <ClientModal isOpen={clientModalOpen} client={editingClient} onClose={() => setClientModalOpen(false)} onSave={handleSaveClient} onDelete={() => { }} />
             <EmployeeModal isOpen={employeeModalOpen} employee={editingEmployee} onClose={() => setEmployeeModalOpen(false)} onSave={handleSaveEmployee} onDelete={() => { }} />
-            <CreateProjectModal isOpen={createProjectOpen} clients={clients} employees={employees} onClose={() => setCreateProjectOpen(false)} onCreate={handleCreateProject} />
+            <CreateProjectModal
+                isOpen={createProjectOpen}
+                clients={clients}
+                employees={employees}
+                projects={projects}
+                joinedProjectIds={joinedProjectIds}
+                currentUserId={activeUser?.id || ''}
+                onClose={() => setCreateProjectOpen(false)}
+                onCreate={handleCreateProject}
+                onJoin={handleJoinProject}
+            />
             <ConfirmModal isOpen={confirmOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={() => { confirmConfig.action(); setConfirmOpen(false); }} onCancel={() => setConfirmOpen(false)} />
         </div>
     );
