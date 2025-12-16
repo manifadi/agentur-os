@@ -73,13 +73,13 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                                 {row.allocations.map(alloc => (
                                     <tr key={alloc.id} className="border-b border-gray-200 hover:bg-blue-50/20 h-9 group">
-                                        <td className="px-0 border border-gray-200">
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
                                             <div className="px-2 text-gray-600 truncate select-none text-[11px] py-1 font-medium">{alloc.projects?.clients?.name || '-'}</div>
                                         </td>
-                                        <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-center font-mono text-gray-900 text-[11px] placeholder:text-gray-300"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-center font-mono text-gray-900 text-[11px] placeholder:text-gray-300 block"
                                                 value={alloc.projects?.job_number || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'job_number', e.target.value); }}
                                             />
@@ -87,24 +87,26 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none font-bold text-gray-900 text-[11px] placeholder:text-gray-300"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none font-bold text-gray-900 text-[11px] placeholder:text-gray-300 block"
                                                 value={alloc.projects?.title || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'title', e.target.value); }}
                                             />
                                         </td>
 
-                                        <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
+
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-gray-900 text-[11px] placeholder:text-gray-400"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-gray-900 text-[11px] placeholder:text-gray-400 block"
                                                 value={alloc.task_description || ''}
                                                 onChange={(e) => onUpdateAllocation(alloc.id, 'task_description', e.target.value)}
                                                 placeholder="..."
                                             />
                                         </td>
-                                        <td className="px-0 border border-gray-200 h-full p-0 relative">
+
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative">
                                             <select
-                                                className={`appearance-none absolute inset-0 w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer ${getStatusStyle(alloc.projects?.status || '')}`}
+                                                className={`appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer block ${getStatusStyle(alloc.projects?.status || '')}`}
                                                 value={alloc.projects?.status || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'status', e.target.value); }}
                                             >
@@ -112,9 +114,10 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                             </select>
                                         </td>
 
-                                        <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
+
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
                                             <select
-                                                className="appearance-none absolute inset-0 w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-500 text-center"
+                                                className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-500 text-center block"
                                                 value={alloc.projects?.project_manager_id || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'project_manager_id', e.target.value || null); }}
                                             >
@@ -125,11 +128,11 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                                         {
                                             ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => (
-                                                <td key={day} className={`px-0 border border-gray-200 text-center h-full p-0 relative bg-white`}>
+                                                <td key={day} className={`px-0 border border-gray-200 text-center h-9 p-0 relative bg-white`}>
                                                     <input
                                                         type="number"
                                                         step="0.25"
-                                                        className={`appearance-none absolute inset-0 w-full h-full text-center bg-transparent focus:bg-blue-50 focus:outline-none font-medium ${(alloc as any)[day] > 0 ? 'text-gray-900' : 'text-gray-300'}`}
+                                                        className={`appearance-none w-full h-full text-center bg-transparent focus:bg-blue-50 focus:outline-none font-medium block ${(alloc as any)[day] > 0 ? 'text-gray-900' : 'text-gray-300'}`}
                                                         value={(alloc as any)[day] || ''}
                                                         onChange={(e) => onUpdateAllocation(alloc.id, day, parseFloat(e.target.value) || 0)}
                                                     />
@@ -137,10 +140,11 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                             ))
                                         }
 
-                                        <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
+
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-[10px] text-gray-500 placeholder:text-gray-300"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-[10px] text-gray-500 placeholder:text-gray-300 block"
                                                 value={alloc.comment || ''}
                                                 onChange={(e) => onUpdateAllocation(alloc.id, 'comment', e.target.value)}
                                             />
@@ -265,9 +269,9 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
     return (
         <>
             <tr className="border-b border-gray-200 hover:bg-gray-50 h-10 group transition-colors">
-                <td className="border-r border-gray-300 px-0 h-full p-0 relative">
+                <td className="border-r border-gray-300 px-0 h-10 p-0 relative">
                     <input
-                        className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent text-[10px] placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        className="appearance-none w-full h-full px-2 bg-transparent text-[10px] placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors block"
                         placeholder="Neuer Kunde..."
                         value={client}
                         onChange={e => setClient(e.target.value)}
@@ -275,7 +279,7 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                         onBlur={() => { if (title) trySubmit(); }}
                     />
                 </td>
-                <td className="px-0 border-r border-gray-300 h-full p-0 relative">
+                <td className="px-0 border-r border-gray-300 h-10 p-0 relative">
                     <div className="absolute inset-0 w-full h-full">
                         <input
                             type="text"
@@ -289,9 +293,9 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                         {!jobNr && <Search size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </div>
                 </td>
-                <td className="border-r border-gray-300 px-0 h-full p-0 relative">
+                <td className="border-r border-gray-300 px-0 h-10 p-0 relative">
                     <input
-                        className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent text-xs font-bold placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        className="appearance-none w-full h-full px-2 bg-transparent text-xs font-bold placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors block"
                         placeholder="Neues Projekt..."
                         value={title}
                         onChange={e => setTitle(e.target.value)}
