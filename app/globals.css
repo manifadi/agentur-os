@@ -15,6 +15,20 @@
     --background-end-rgb: 0, 0, 0;
   }
 }
+@layer base {
+  input, select, textarea {
+    @apply appearance-none rounded-none outline-none bg-transparent;
+  }
+  
+  /* Safari-specific fix for search inputs to remove cancel button if needed, 
+     but generally appearance-none handles most. 
+     Explicitly setting margins/paddings to 0 if not handled by Tailwind preflight can help too. */
+  
+  /* Ensure default text color is inherited or set to a dark color to avoid "undefined" visibility issues */
+  input, select, textarea {
+    @apply text-gray-900 border-0 placeholder:text-gray-400;
+  }
+}
 
 body {
   color: rgb(var(--foreground-rgb));
@@ -24,4 +38,5 @@ body {
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+  @apply antialiased; /* Better font rendering on macOS/Safari */
 }

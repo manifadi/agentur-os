@@ -206,7 +206,7 @@ export default function ResourcePlanner({ employees, projects, currentUser }: Re
                 </div>
                 <div>
                     <select
-                        className="bg-white border border-gray-200 text-sm font-medium rounded-lg px-3 py-2 w-48 focus:ring-2 focus:ring-gray-900 outline-none"
+                        className="appearance-none bg-white border border-gray-200 text-sm font-medium rounded-lg px-3 py-2 w-48 focus:ring-2 focus:ring-gray-900 outline-none"
                         value={selectedDeptId}
                         onChange={(e) => setSelectedDeptId(e.target.value)}
                     >

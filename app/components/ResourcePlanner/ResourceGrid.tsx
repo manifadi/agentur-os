@@ -79,7 +79,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-center font-mono text-gray-500 text-[11px]"
+                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-center font-mono text-gray-900 text-[11px] placeholder:text-gray-300"
                                                 value={alloc.projects?.job_number || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'job_number', e.target.value); }}
                                             />
@@ -87,7 +87,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none font-bold text-gray-800 text-[11px]"
+                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none font-bold text-gray-900 text-[11px] placeholder:text-gray-300"
                                                 value={alloc.projects?.title || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'title', e.target.value); }}
                                             />
@@ -96,7 +96,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-gray-600 text-[11px]"
+                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-gray-900 text-[11px] placeholder:text-gray-400"
                                                 value={alloc.task_description || ''}
                                                 onChange={(e) => onUpdateAllocation(alloc.id, 'task_description', e.target.value)}
                                                 placeholder="..."
@@ -104,7 +104,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         </td>
                                         <td className="px-0 border border-gray-200 h-full p-0 relative">
                                             <select
-                                                className={`absolute inset-0 w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer ${getStatusStyle(alloc.projects?.status || '')}`}
+                                                className={`appearance-none absolute inset-0 w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer ${getStatusStyle(alloc.projects?.status || '')}`}
                                                 value={alloc.projects?.status || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'status', e.target.value); }}
                                             >
@@ -114,7 +114,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                                         <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
                                             <select
-                                                className="absolute inset-0 w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-500 text-center"
+                                                className="appearance-none absolute inset-0 w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-500 text-center"
                                                 value={alloc.projects?.project_manager_id || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'project_manager_id', e.target.value || null); }}
                                             >
@@ -129,7 +129,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                                     <input
                                                         type="number"
                                                         step="0.25"
-                                                        className={`absolute inset-0 w-full h-full text-center bg-transparent focus:bg-blue-50 focus:outline-none font-medium ${(alloc as any)[day] > 0 ? 'text-gray-900' : 'text-gray-300'}`}
+                                                        className={`appearance-none absolute inset-0 w-full h-full text-center bg-transparent focus:bg-blue-50 focus:outline-none font-medium ${(alloc as any)[day] > 0 ? 'text-gray-900' : 'text-gray-300'}`}
                                                         value={(alloc as any)[day] || ''}
                                                         onChange={(e) => onUpdateAllocation(alloc.id, day, parseFloat(e.target.value) || 0)}
                                                     />
@@ -140,7 +140,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         <td className="px-0 border border-gray-200 h-full p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-[10px] text-gray-500"
+                                                className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-[10px] text-gray-500 placeholder:text-gray-300"
                                                 value={alloc.comment || ''}
                                                 onChange={(e) => onUpdateAllocation(alloc.id, 'comment', e.target.value)}
                                             />
@@ -267,7 +267,7 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
             <tr className="border-b border-gray-200 hover:bg-gray-50 h-10 group transition-colors">
                 <td className="border-r border-gray-300 px-0 h-full p-0 relative">
                     <input
-                        className="absolute inset-0 w-full h-full px-2 bg-transparent text-[10px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent text-[10px] placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                         placeholder="Neuer Kunde..."
                         value={client}
                         onChange={e => setClient(e.target.value)}
@@ -280,7 +280,7 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                         <input
                             type="text"
                             placeholder="Nr..."
-                            className="w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-mono placeholder:text-gray-300 transition-colors"
+                            className="appearance-none w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-mono text-gray-900 placeholder:text-gray-300 transition-colors"
                             value={jobNr}
                             onChange={e => setJobNr(e.target.value)}
                             onBlur={handleJobNrBlur}
@@ -291,7 +291,7 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                 </td>
                 <td className="border-r border-gray-300 px-0 h-full p-0 relative">
                     <input
-                        className="absolute inset-0 w-full h-full px-2 bg-transparent text-xs font-bold placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        className="appearance-none absolute inset-0 w-full h-full px-2 bg-transparent text-xs font-bold placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                         placeholder="Neues Projekt..."
                         value={title}
                         onChange={e => setTitle(e.target.value)}
@@ -346,7 +346,7 @@ function MissingInfoModal({ onSave, onCancel }: { onSave: (client: string, jobNr
                         <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Kunde</label>
                         <input
                             autoFocus
-                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="appearance-none w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="Kundenname..."
                             value={localClient}
                             onChange={e => setLocalClient(e.target.value)}
@@ -356,7 +356,7 @@ function MissingInfoModal({ onSave, onCancel }: { onSave: (client: string, jobNr
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Job Nr.</label>
                         <input
-                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="appearance-none w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="Job Nr..."
                             value={localJobNr}
                             onChange={e => setLocalJobNr(e.target.value)}
