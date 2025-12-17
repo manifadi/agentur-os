@@ -3,6 +3,33 @@ export interface Client {
     name: string;
     logo_url?: string | null;
     organization_id: string;
+    description?: string;
+    notes?: string;
+    address?: string;
+    general_email?: string;
+    general_phone?: string;
+    website?: string;
+}
+
+export interface ClientLog {
+    id: string;
+    client_id: string;
+    author_id: string;
+    title: string;
+    content: string;
+    created_at: string;
+    organization_id: string;
+    employees?: Employee; // Joined author
+}
+
+export interface ClientContact {
+    id: string;
+    client_id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    organization_id: string;
 }
 
 export interface Employee {

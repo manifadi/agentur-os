@@ -152,7 +152,13 @@ export default function UserDashboard({ currentUser, projects, allocations, memb
                                     title={t.title}
                                     subtitle={`${t.project.job_number} • ${t.project.clients?.name}`}
                                     onClick={() => onSelectProject(t.project)}
-                                    action={<ArrowRight size={16} className="text-gray-300" />}
+                                    action={
+                                        t.deadline ? (
+                                            <span className={`text-[10px] font-medium mr-2 ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-400'}`}>
+                                                {new Date(t.deadline).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
+                                            </span>
+                                        ) : <ArrowRight size={16} className="text-gray-300" />
+                                    }
                                 />
                             ))}
                         </div>

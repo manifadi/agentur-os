@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucide, Shield } from 'lucide-react';
+import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucide, Shield, Building2 } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
 import AdminUserManagement from './AdminUserManagement';
 import AdminProjectList from './AdminProjectList';
+import AdminClientManagement from './AdminClientManagement';
 import { useApp } from '../../context/AppContext';
 
 interface SettingsProps {
@@ -17,7 +18,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
     const { projects, clients } = useApp(); // Get global projects and clients
     const [currentUser, setCurrentUser] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients'>('profile');
 
     // Form State
     const [name, setName] = useState('');
@@ -91,11 +92,19 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                         >
                             <SettingsIconLucide size={14} /> Alle Projekte
                         </button>
+                        <button
+                            onClick={() => setActiveTab('clients')}
+                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'clients' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
+                        >
+                            <Building2 size={14} /> Kunden
+                        </button>
                     </>
                 )}
             </div>
 
             {activeTab === 'profile' ? (
+                // ... content ... 
+
                 <>
                     <p className="text-gray-500 mb-8">Verwalte dein Profil und deine App-Einstellungen.</p>
 
@@ -147,7 +156,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel</label>
-                                            <input type="text" className="w-full p-2 border border-gray-200 rounded-lg" placeholder="z.B. Senior Designer" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+                                            <div className="w-full p-2 border border-gray-100 bg-gray-50 rounded-lg text-gray-500 text-sm">{jobTitle || 'Kein Titel'}</div>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Abteilung / Rolle</label>
@@ -239,6 +248,10 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                     */}
                     <AdminProjectList projects={projects} clients={clients} />
                     <p>Projekte werden geladen...</p>
+                </div>
+            ) : activeTab === 'clients' && currentUser?.role === 'admin' ? (
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <AdminClientManagement clients={clients} onUpdate={onUpdate} />
                 </div>
             ) : currentUser ? (
                 <AdminUserManagement

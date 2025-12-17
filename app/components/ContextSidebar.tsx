@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Briefcase, Plus, Users, Settings, Pencil, Search, X } from 'lucide-react';
+import { Briefcase, Plus, Users, Settings, Pencil, Search, X, ArrowRight } from 'lucide-react';
 import { Client, Employee } from '../types';
 
 interface ContextSidebarProps {
@@ -70,7 +70,7 @@ export default function ContextSidebar({
                                 {client.logo_url ? <div className="w-6 h-6 bg-white rounded border border-gray-100 flex items-center justify-center p-0.5 shrink-0"><img src={client.logo_url} className="w-full h-full object-contain" /></div> : <div className="w-6 h-6 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-[8px] text-gray-400 shrink-0 font-bold">{client.name.substring(0, 2).toUpperCase()}</div>}
                                 <span className="truncate">{client.name}</span>
                             </button>
-                            <button onClick={() => openClientModal(client)} className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-gray-600"><Settings size={12} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); window.location.href = `/clients/${client.id}`; }} className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-blue-600"><ArrowRight size={12} /></button>
                         </div>
                     ))}
                     {filteredClients.length === 0 && (

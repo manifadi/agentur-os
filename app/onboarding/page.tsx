@@ -79,19 +79,53 @@ export default function OnboardingPage() {
         setLoading(true);
         const fullName = `${firstName} ${lastName}`.trim();
 
-        const { error } = await supabase.from('registration_requests').insert([{
-            email: session.user.email,
-            name: fullName,
-            organization_id: orgId || null,
-            status: 'pending'
-        }]);
+        // 1. Check if email is already in ANY organization
+        const { data: existingUser } = await supabase.from('employees').select('id, organization_id').eq('email', session.user.email).maybeSingle();
 
-        if (error) {
-            console.error(error);
-            alert(`Fehler beim Senden der Anfrage: ${error.message}`);
-        } else {
-            setStatus('submitted');
+        if (existingUser) {
+            alert('Du bist bereits Teil einer Organisation! Bitte melde dich an.');
+            // Optionally redirect or force logout?
+            setLoading(false);
+            return;
         }
+
+        // 2. Check for existing request to Update vs Insert
+        const { data: existingReq } = await supabase.from('registration_requests')
+            .select('id, status')
+            .eq('email', session.user.email)
+            .maybeSingle();
+
+        if (existingReq) {
+            // Update existing request
+            const { error } = await supabase.from('registration_requests').update({
+                name: fullName,
+                organization_id: orgId || null,
+                status: 'pending' // Reset to pending if it was rejected or anything else
+            }).eq('id', existingReq.id);
+
+            if (error) {
+                console.error(error);
+                alert(`Fehler beim Aktualisieren der Anfrage: ${error.message}`);
+            } else {
+                setStatus('submitted');
+            }
+        } else {
+            // Insert new request
+            const { error } = await supabase.from('registration_requests').insert([{
+                email: session.user.email,
+                name: fullName,
+                organization_id: orgId || null,
+                status: 'pending'
+            }]);
+
+            if (error) {
+                console.error(error);
+                alert(`Fehler beim Senden der Anfrage: ${error.message}`);
+            } else {
+                setStatus('submitted');
+            }
+        }
+
         setLoading(false);
     };
 

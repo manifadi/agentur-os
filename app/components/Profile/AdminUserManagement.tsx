@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
-import { Pencil, Save, X, Plus, Shield, ShieldAlert, User, UserPlus, Trash } from 'lucide-react';
+import { Pencil, X, Plus, Shield, ShieldAlert, User, UserPlus, Trash, Building2, Mail } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 
 interface AdminUserManagementProps {
@@ -11,17 +11,136 @@ interface AdminUserManagementProps {
     onUpdate: () => void;
 }
 
+interface UserModalProps {
+    isOpen: boolean;
+    mode: 'create' | 'edit';
+    user: Partial<Employee>;
+    departments: Department[];
+    onClose: () => void;
+    onSave: (user: Partial<Employee>) => Promise<void>;
+    isLoading: boolean;
+}
 
+function UserModal({ isOpen, mode, user, departments, onClose, onSave, isLoading }: UserModalProps) {
+    const [formData, setFormData] = useState<Partial<Employee>>(user);
 
-// ... (in imports)
+    useEffect(() => {
+        setFormData(user);
+    }, [user, isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">{mode === 'create' ? 'Neuen Mitarbeiter anlegen' : 'Mitarbeiter bearbeiten'}</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><X size={20} /></button>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Name</label>
+                            <input
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                value={formData.name || ''}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="Max Mustermann"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kürzel</label>
+                            <input
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition uppercase"
+                                value={formData.initials || ''}
+                                onChange={e => setFormData({ ...formData, initials: e.target.value })}
+                                placeholder="MM"
+                                maxLength={3}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Email (Login)</label>
+                        <div className="relative">
+                            <input
+                                className="w-full pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                value={formData.email || ''}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                placeholder="name@agentur.com"
+                                type="email"
+                            />
+                            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Rolle</label>
+                            <select
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                value={formData.role || 'user'}
+                                onChange={e => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
+                            >
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Abteilung</label>
+                            <select
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                value={formData.department_id || ''}
+                                onChange={e => setFormData({ ...formData, department_id: e.target.value })}
+                            >
+                                <option value="">Keine Abteilung</option>
+                                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Job Titel</label>
+                        <input
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                            value={formData.job_title || ''}
+                            onChange={e => setFormData({ ...formData, job_title: e.target.value })}
+                            placeholder="z.B. Senior Designer"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 justify-end mt-8">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition">Abbrechen</button>
+                    <button
+                        onClick={() => onSave(formData)}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm flex items-center gap-2"
+                    >
+                        {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                        {mode === 'create' ? 'Anlegen' : 'Speichern'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function AdminUserManagement({ employees, departments, currentEmployee, onUpdate }: AdminUserManagementProps) {
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState<Partial<Employee>>({});
-    const [isCreating, setIsCreating] = useState(false);
-    const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({ role: 'user' });
     const [loading, setLoading] = useState(false);
     const [requests, setRequests] = useState<any[]>([]);
+
+    // Modal State
+    const [modalState, setModalState] = useState<{
+        isOpen: boolean;
+        mode: 'create' | 'edit';
+        user: Partial<Employee>;
+    }>({
+        isOpen: false,
+        mode: 'create',
+        user: { role: 'user' }
+    });
 
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -45,140 +164,114 @@ export default function AdminUserManagement({ employees, departments, currentEmp
         if (currentEmployee.organization_id) {
             fetchRequests();
         }
-    }, [currentEmployee]);
+    }, [currentEmployee, currentEmployee.organization_id]);
 
     const fetchRequests = async () => {
-        console.log('AdminUserManagement: Fetching requests for org', currentEmployee.organization_id);
         const { data, error } = await supabase.from('registration_requests')
             .select('*')
             .eq('organization_id', currentEmployee.organization_id)
             .eq('status', 'pending');
-
-        if (error) {
-            console.error('Error fetching requests:', error);
-        } else {
-            console.log('Requests found:', data?.length);
-            if (data) setRequests(data);
-        }
+        if (data) setRequests(data);
     };
 
-    const handleApproveRequest = async (req: any) => {
-        // Optimistic UI Update
-        setRequests(prev => prev.filter(r => r.id !== req.id));
-        setLoading(true);
-
-        console.warn('[APPROVE] Starting approval for:', req);
-
-        // 0. Check if employee already exists (Idempotency)
-        const { data: existing } = await supabase.from('employees')
-            .select('id')
-            .eq('email', req.email)
-            .eq('organization_id', currentEmployee.organization_id)
-            .single();
-
-        if (existing) {
-            console.warn('[APPROVE] Employee already exists, skipping creation.');
-        } else {
-            const initials = req.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-
-            // 1. Create Employee
-            console.log('Creating employee...');
-            const { data: newEmp, error: empError } = await supabase.from('employees').insert([{
-                name: req.name,
-                email: req.email,
-                initials: initials,
-                organization_id: currentEmployee.organization_id,
-                role: 'user'
-            }]).select();
-
-            if (empError) {
-                console.error('[APPROVE] Error creating employee:', empError);
-                alert('Fehler beim Erstellen des Mitarbeiters: ' + empError.message);
-                fetchRequests(); // Rollback
-                setLoading(false);
-                return;
-            }
-            console.log('Employee created:', newEmp);
-        }
-
-        // 2. Update Request Status
-        console.warn('[APPROVE] PRE-UPDATE Status:', req.status, 'for ID:', req.id);
-
-        const { error: reqError, data: updatedReq } = await supabase.from('registration_requests')
-            .update({ status: 'approved' })
-            .eq('id', req.id)
-            .select();
-
-        if (reqError) {
-            console.error('[APPROVE] Error updating request:', reqError);
-            alert('Mitarbeiter angelegt, aber Status konnte nicht aktualisiert werden. Bitte RLS prüfen.');
-        } else {
-            console.warn('[APPROVE] POST-UPDATE Result:', updatedReq);
-        }
-
-        onUpdate();
-        setLoading(false);
-        console.log('Approve sequence complete.');
+    const handleOpenCreate = () => {
+        setModalState({ isOpen: true, mode: 'create', user: { role: 'user', organization_id: currentEmployee.organization_id } });
     };
 
-    const handleCreate = async () => {
-        setLoading(true);
-        const { error } = await supabase.from('employees').insert([{
-            ...newEmployee,
-            organization_id: currentEmployee.organization_id
-        }]);
+    const handleOpenEdit = (emp: Employee) => {
+        setModalState({ isOpen: true, mode: 'edit', user: emp });
+    };
 
-        if (error) {
-            alert('Fehler beim Erstellen: ' + error.message);
+    const handleModalSave = async (userData: Partial<Employee>) => {
+        setLoading(true);
+        if (modalState.mode === 'create') {
+            const { error } = await supabase.from('employees').insert([{
+                ...userData,
+                organization_id: currentEmployee.organization_id
+            }]);
+            if (error) alert('Fehler: ' + error.message);
         } else {
-            setIsCreating(false);
-            setNewEmployee({ role: 'user' });
+            // Edit
+            const { error } = await supabase.from('employees').update(userData).eq('id', userData.id);
+            if (error) alert('Fehler: ' + error.message);
+        }
+
+        if (!loading) {
             onUpdate();
+            setModalState(prev => ({ ...prev, isOpen: false }));
         }
         setLoading(false);
     };
 
-    const startEdit = (emp: Employee) => {
-        setEditingId(emp.id);
-        setEditForm({
-            name: emp.name,
-            initials: emp.initials,
-            email: emp.email,
-            role: emp.role,
-            department_id: emp.department_id,
-            job_title: emp.job_title
+    const handleDeleteEmployee = (id: string, name: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Mitarbeiter löschen',
+            message: `Möchten Sie ${name} wirklich löschen? Dies kann nicht rückgängig gemacht werden.`,
+            confirmText: 'Löschen',
+            action: async () => {
+                setLoading(true);
+                const { error } = await supabase.from('employees').delete().eq('id', id);
+                if (error) {
+                    alert('Fehler beim Löschen: ' + error.message);
+                } else {
+                    onUpdate();
+                }
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                setLoading(false);
+            },
+            type: 'danger'
         });
     };
 
-    const handleSave = async () => {
-        if (!editingId) return;
-        setLoading(true);
-        const { error } = await supabase.from('employees').update(editForm).eq('id', editingId);
-        if (error) {
-            alert('Fehler beim Speichern: ' + error.message);
-        } else {
-            setEditingId(null);
-            setEditForm({});
-            onUpdate();
-        }
-        setLoading(false);
+    const handleRejectRequest = (req: any) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Anfrage ablehnen',
+            message: `Möchten Sie die Anfrage von ${req.name} wirklich ablehnen?`,
+            confirmText: 'Ja, ablehnen',
+            action: async () => {
+                setLoading(true);
+                const { error } = await supabase.from('registration_requests')
+                    .update({ status: 'rejected' })
+                    .eq('id', req.id);
+
+                if (error) {
+                    alert('Fehler: ' + error.message); // Keep basic alert for error handling for now
+                } else {
+                    setRequests(prev => prev.filter(r => r.id !== req.id));
+                }
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                setLoading(false);
+            },
+            type: 'danger'
+        });
     };
 
-    const cancelEdit = () => {
-        setEditingId(null);
-        setEditForm({});
-    };
-
-    const handleDeleteEmployee = async (id: string, name: string) => {
-        if (!confirm(`Möchten Sie ${name} wirklich löschen?`)) return;
+    const handleApproveRequest = async (req: any) => {
         setLoading(true);
-        await supabase.from('employees').delete().eq('id', id);
+        const initials = req.name.substring(0, 2).toUpperCase();
+        await supabase.from('employees').insert([{
+            name: req.name, email: req.email, initials, role: 'user', organization_id: currentEmployee.organization_id
+        }]);
+        await supabase.from('registration_requests').update({ status: 'approved' }).eq('id', req.id);
         onUpdate();
+        setRequests(prev => prev.filter(r => r.id !== req.id));
         setLoading(false);
     };
 
     return (
         <div className="space-y-8">
+            <UserModal
+                isOpen={modalState.isOpen}
+                mode={modalState.mode}
+                user={modalState.user}
+                departments={departments}
+                onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+                onSave={handleModalSave}
+                isLoading={loading}
+            />
+
             {/* Registration Requests */}
             {requests.length > 0 && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
@@ -191,6 +284,7 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                                     <div className="text-sm text-gray-500">{req.email}</div>
                                 </div>
                                 <div className="flex gap-2">
+                                    <button onClick={() => handleRejectRequest(req)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">Ablehnen</button>
                                     <button onClick={() => handleApproveRequest(req)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition">Bestätigen</button>
                                 </div>
                             </div>
@@ -203,32 +297,10 @@ export default function AdminUserManagement({ employees, departments, currentEmp
             <div>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-gray-900">Mitarbeiter & Rollen</h2>
-                    <button onClick={() => setIsCreating(true)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition ${isCreating ? 'bg-gray-100 text-gray-500' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
+                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-sm">
                         <UserPlus size={16} /> Mitarbeiter anlegen
                     </button>
                 </div>
-
-                {isCreating && (
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 animate-in slide-in-from-top-2">
-                        <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Neuen Mitarbeiter anlegen</h3>
-                        <div className="flex gap-3 items-start">
-                            <div className="flex-1 space-y-2">
-                                <input placeholder="Name" className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newEmployee.name || ''} onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} />
-                            </div>
-                            <div className="w-48 space-y-2">
-                                <input placeholder="Job Titel" className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newEmployee.job_title || ''} onChange={e => setNewEmployee({ ...newEmployee, job_title: e.target.value })} />
-                            </div>
-                            <div className="w-32 space-y-2">
-                                <input placeholder="Kürzel (z.B. MF)" maxLength={2} className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase" value={newEmployee.initials || ''} onChange={e => setNewEmployee({ ...newEmployee, initials: e.target.value })} />
-                            </div>
-                            <div className="w-64 space-y-2">
-                                <input placeholder="Email (für Login)" className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newEmployee.email || ''} onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} />
-                            </div>
-                            <button onClick={handleCreate} className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition" title="Speichern"><Plus size={20} /></button>
-                            <button onClick={() => setIsCreating(false)} className="bg-gray-200 text-gray-500 p-2 rounded-lg hover:bg-gray-300 transition" title="Abbrechen"><X size={20} /></button>
-                        </div>
-                    </div>
-                )}
 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <table className="w-full text-left text-sm">
@@ -243,81 +315,41 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {employees.map(emp => {
-                                const isEditing = editingId === emp.id;
                                 const isMe = currentEmployee.id === emp.id;
                                 return (
                                     <tr key={emp.id} className="hover:bg-gray-50/50 transition">
                                         <td className="p-4">
-                                            {isEditing ? (
-                                                <div className="flex flex-col gap-2">
-                                                    <div className="flex gap-2">
-                                                        <input className="border rounded px-2 py-1 w-full text-sm" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
-                                                        <input className="border rounded px-2 py-1 w-20 text-sm" value={editForm.initials || ''} onChange={e => setEditForm({ ...editForm, initials: e.target.value })} />
-                                                    </div>
-                                                    <input placeholder="Job Titel" className="border rounded px-2 py-1 w-full text-xs text-gray-500" value={editForm.job_title || ''} onChange={e => setEditForm({ ...editForm, job_title: e.target.value })} />
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{emp.initials}</div>
+                                                <div>
+                                                    <div className="font-medium text-gray-900">{emp.name}</div>
+                                                    {emp.job_title && <div className="text-xs text-gray-400">{emp.job_title}</div>}
                                                 </div>
-                                            ) : (
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{emp.initials}</div>
-                                                    <div>
-                                                        <div className="font-medium text-gray-900">{emp.name}</div>
-                                                        {emp.job_title && <div className="text-xs text-gray-400">{emp.job_title}</div>}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            </div>
                                         </td>
                                         <td className="p-4">
-                                            {isEditing ? (
-                                                <select className="border rounded px-2 py-1 text-sm bg-white" value={editForm.role || 'user'} onChange={e => setEditForm({ ...editForm, role: e.target.value as 'admin' | 'user' })}>
-                                                    <option value="user">User</option>
-                                                    <option value="admin">Admin</option>
-                                                </select>
-                                            ) : (
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                    {emp.role === 'admin' ? <Shield size={10} /> : <User size={10} />}
-                                                    {emp.role === 'admin' ? 'Admin' : 'User'}
-                                                </span>
-                                            )}
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                {emp.role === 'admin' ? <Shield size={10} /> : <User size={10} />}
+                                                {emp.role === 'admin' ? 'Admin' : 'User'}
+                                            </span>
                                         </td>
                                         <td className="p-4">
-                                            {isEditing ? (
-                                                <select className="border rounded px-2 py-1 text-sm bg-white" value={editForm.department_id || ''} onChange={e => setEditForm({ ...editForm, department_id: e.target.value })}>
-                                                    <option value="">Keine</option>
-                                                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                                </select>
-                                            ) : (
-                                                <span className="text-gray-500">{departments.find(d => d.id === emp.department_id)?.name || '-'}</span>
-                                            )}
+                                            <span className="text-gray-500">{departments.find(d => d.id === emp.department_id)?.name || '-'}</span>
                                         </td>
                                         <td className="p-4 w-64">
-                                            {isEditing ? (
-                                                <input className="border rounded px-2 py-1 w-full text-sm" value={editForm.email || ''} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
-                                            ) : (
-                                                <span className="text-gray-400 truncate block w-48">{emp.email || '-'}</span>
-                                            )}
+                                            <span className="text-gray-400 truncate block w-48">{emp.email || '-'}</span>
                                         </td>
                                         <td className="p-4 text-right">
-                                            {isEditing ? (
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={handleSave} className="p-1.5 text-green-600 hover:bg-green-50 rounded"><Save size={16} /></button>
-                                                    <button onClick={cancelEdit} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded"><X size={16} /></button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex justify-end gap-1">
-                                                    <button onClick={() => startEdit(emp)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition">
-                                                        <Pencil size={16} />
+                                            <div className="flex justify-end gap-1">
+                                                <button onClick={() => handleOpenEdit(emp)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Bearbeiten">
+                                                    <Pencil size={16} />
+                                                </button>
+                                                {!isMe && (
+                                                    <button onClick={() => handleDeleteEmployee(emp.id, emp.name)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Mitarbeiter entfernen">
+                                                        <Trash size={16} />
                                                     </button>
-                                                    {!isMe && (
-                                                        <button
-                                                            onClick={() => handleDeleteEmployee(emp.id, emp.name)}
-                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
-                                                            title="Mitarbeiter entfernen"
-                                                        >
-                                                            <Trash size={16} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 )
@@ -326,7 +358,6 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                     </table>
                 </div>
             </div>
-
             <ConfirmModal
                 isOpen={confirmModal.isOpen}
                 onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
@@ -334,6 +365,8 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 title={confirmModal.title}
                 message={confirmModal.message}
                 type={confirmModal.type}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText}
             />
         </div>
     );

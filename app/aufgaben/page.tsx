@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import GlobalTasks from '../components/Tasks/GlobalTasks';
 
 export default function AufgabenPage() {
-    const { projects, employees, fetchData } = useApp();
+    const { projects, employees, fetchData, currentUser } = useApp();
     const router = useRouter();
 
     return (
@@ -16,6 +16,7 @@ export default function AufgabenPage() {
                 employees={employees}
                 onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
                 onUpdate={fetchData}
+                currentUser={currentUser}
             />
         </div>
     );

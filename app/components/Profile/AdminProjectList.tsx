@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Project, Client } from '../../types';
 import ProjectList from '../Projects/ProjectList';
@@ -9,6 +10,7 @@ interface AdminProjectListProps {
 }
 
 export default function AdminProjectList({ projects, clients }: AdminProjectListProps) {
+    const router = useRouter();
     const [search, setSearch] = useState('');
     const [clientFilter, setClientFilter] = useState('');
 
@@ -47,7 +49,7 @@ export default function AdminProjectList({ projects, clients }: AdminProjectList
             <ProjectList
                 projects={filteredProjects}
                 selectedClient={null}
-                onSelectProject={() => { }} // Admin view maybe just read-only or we can implement navigation/edit later
+                onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
                 showOpenTodos={false}
             />
         </div>

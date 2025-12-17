@@ -6,6 +6,7 @@ import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { supabase } from '../../supabaseClient';
 import TodoList from './TodoList';
 import Logbook from './Logbook';
+import { useApp } from '../../context/AppContext';
 
 interface ProjectDetailProps {
     project: Project;
@@ -17,6 +18,7 @@ interface ProjectDetailProps {
 }
 
 export default function ProjectDetail({ project, employees, onClose, onUpdateProject, onDeleteProject, currentEmployee }: ProjectDetailProps) {
+    const { clients } = useApp();
     const [todos, setTodos] = useState<Todo[]>([]);
     const [logs, setLogs] = useState<ProjectLog[]>([]);
     const [loading, setLoading] = useState(false);
@@ -32,7 +34,8 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         status: project.status,
         deadline: project.deadline || '',
         google_doc_url: project.google_doc_url || '',
-        pmId: project.project_manager_id || ''
+        pmId: project.project_manager_id || '',
+        clientId: project.client_id
     });
 
     const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -76,16 +79,16 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     };
 
     // --- TODO HANDLERS ---
-    const handleAddTodo = async (title: string, assigneeId: string | null) => {
-        const { data } = await supabase.from('todos').insert([{ project_id: project.id, title, assigned_to: assigneeId || null }]).select(`*, employees(id, initials, name)`);
+    const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null) => {
+        const { data } = await supabase.from('todos').insert([{ project_id: project.id, title, assigned_to: assigneeId || null, deadline: deadline || null }]).select(`*, employees(id, initials, name)`);
         if (data) setTodos([...todos, data[0] as any]);
     };
     const handleToggleTodo = async (id: string, currentStatus: boolean) => {
         setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: !currentStatus } : t));
         await supabase.from('todos').update({ is_done: !currentStatus }).eq('id', id);
     };
-    const handleUpdateTodo = async (id: string, title: string, assigneeId: string | null) => {
-        const { data } = await supabase.from('todos').update({ title, assigned_to: assigneeId || null }).eq('id', id).select(`*, employees(id, initials, name)`);
+    const handleUpdateTodo = async (id: string, title: string, assigneeId: string | null, deadline: string | null) => {
+        const { data } = await supabase.from('todos').update({ title, assigned_to: assigneeId || null, deadline: deadline || null }).eq('id', id).select(`*, employees(id, initials, name)`);
         if (data) setTodos(prev => prev.map(t => t.id === id ? data[0] as any : t));
     };
     const handleDeleteTodo = async (id: string) => {
@@ -137,7 +140,8 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             status: editData.status,
             deadline: editData.deadline || null,
             google_doc_url: editData.google_doc_url,
-            project_manager_id: editData.pmId || null
+            project_manager_id: editData.pmId || null,
+            client_id: editData.clientId
         });
         setIsEditing(false);
     };
@@ -214,6 +218,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">Einstellungen</h2><button onClick={() => setIsEditing(false)}><ArrowLeft size={20} className="text-gray-400 rotate-180" /></button></div>
                         <div className="space-y-4">
+                            <div><label className="text-xs font-semibold text-gray-500 uppercase">Kunde</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.clientId} onChange={(e) => setEditData({ ...editData, clientId: e.target.value })}>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                             <div><label className="text-xs font-semibold text-gray-500 uppercase">Status</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.status} onChange={(e) => setEditData({ ...editData, status: e.target.value })}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                             <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-gray-500 uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.jobNr} onChange={(e) => setEditData({ ...editData, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-gray-500 uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.title} onChange={(e) => setEditData({ ...editData, title: e.target.value })} /></div></div>
                             <div><label className="text-xs font-semibold text-gray-500 uppercase">Google Doc Link</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.google_doc_url} onChange={(e) => setEditData({ ...editData, google_doc_url: e.target.value })} /></div>
