@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { Project, Client, Employee, Department } from '../types';
+import { Project, Client, Employee, Department, TimeEntry } from '../types';
 
 interface AppContextType {
     session: any;
@@ -9,6 +9,7 @@ interface AppContextType {
     departments: any[];
     allocations: any[];
     members: any[]; // Project Members
+    timeEntries: TimeEntry[]; // [NEW]
     currentUser?: Employee;
     loading: boolean;
 
@@ -16,6 +17,7 @@ interface AppContextType {
     setProjects: (projects: any[]) => void;
     setClients: (clients: Client[]) => void;
     setEmployees: (employees: Employee[]) => void;
+    setTimeEntries: (entries: TimeEntry[]) => void; // [NEW]
     fetchData: () => Promise<void>;
 
     // Actions that might be global
@@ -30,10 +32,12 @@ export const AppContext = createContext<AppContextType>({
     departments: [],
     allocations: [],
     members: [],
+    timeEntries: [],
     loading: true,
     setProjects: () => { },
     setClients: () => { },
     setEmployees: () => { },
+    setTimeEntries: () => { },
     fetchData: async () => { },
     handleLogout: async () => { },
 });

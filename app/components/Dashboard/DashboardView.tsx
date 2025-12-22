@@ -14,6 +14,8 @@ interface DashboardViewProps {
     onSelectProject: (project: Project) => void;
     onSelectClient: (client: Client) => void;
     onOpenCreateModal: () => void;
+    todaysHours: number; // NEW
+    onAddTime: () => void; // NEW
 }
 
 export default function DashboardView({
@@ -24,7 +26,9 @@ export default function DashboardView({
     selectedClient,
     onSelectProject,
     onSelectClient,
-    onOpenCreateModal
+    onOpenCreateModal,
+    todaysHours,
+    onAddTime
 }: DashboardViewProps) {
     // New Filter States
     const [activeStatus, setActiveStatus] = useState<string[]>([]);
@@ -103,7 +107,7 @@ export default function DashboardView({
             </header>
 
             {!selectedClient && activeStatus.length === 0 && !activePmId && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600"><Activity size={24} /></div>
                         <div>
@@ -125,6 +129,17 @@ export default function DashboardView({
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
                                 {stats.nextDeadline && stats.nextDeadline.deadline ? `Deadline: ${new Date(stats.nextDeadline.deadline).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}` : 'Alles erledigt'}
                             </div>
+                        </div>
+                    </div>
+                    {/* Time Tracking Widget */}
+                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 relative group cursor-pointer hover:border-blue-200 transition-colors" onClick={onAddTime}>
+                        <div className="w-12 h-12 rounded-xl bg-gray-900 flex items-center justify-center text-white"><Timer size={24} /></div>
+                        <div>
+                            <div className="text-2xl font-bold text-gray-900">{todaysHours.toLocaleString('de-DE')} h</div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Heute erfasst</div>
+                        </div>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"><Plus size={16} /></div>
                         </div>
                     </div>
                 </div>

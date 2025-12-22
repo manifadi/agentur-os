@@ -1,46 +1,63 @@
-import React, { useMemo } from 'react';
-import { Employee, Project, Todo } from '../../types';
-import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, CheckCircle2, Circle, Plus, UserPlus, FilePlus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Employee, Project, Todo, TimeEntry } from '../../types';
+import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, CheckCircle2, Circle, Plus, UserPlus, FilePlus, X } from 'lucide-react';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
+import { useApp } from '../../context/AppContext';
+import { supabase } from '../../supabaseClient';
+
+import TimeEntryModal from '../Modals/TimeEntryModal';
 
 interface UserDashboardProps {
-    currentUser: Employee | undefined;
-    projects: Project[];
-    allocations: any[];
-    members: any[]; // Project Members
     onSelectProject: (p: Project) => void;
     onToggleTodo: (id: string, isDone: boolean) => void;
     onQuickAction: (action: string) => void;
 }
 
-export default function UserDashboard({ currentUser, projects, allocations, members, onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
-    if (!currentUser) return null;
+export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
+    const { currentUser, projects, allocations, members, timeEntries, fetchData } = useApp();
+    const [showAddTimeModal, setShowAddTimeModal] = useState(false);
+
+    // Add Time State - Removed as now handled by Modal
+    // const [newTime, setNewTime] = useState({ projectId: '', positionId: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
+    // const [submittingTime, setSubmittingTime] = useState(false);
+
+
 
     // 1. My Open Tasks (Assigned & !Done)
-    const myTasks = projects.flatMap(p =>
+    const myTasks = currentUser ? projects.flatMap(p =>
         (p.todos || [])
             .filter(t => t.assigned_to === currentUser.id && !t.is_done)
             .map(t => ({ ...t, project: p }))
-    );
+    ) : [];
+
+    // [NEW] Today's Time Entries
+    const todayEntries = useMemo(() => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        return (timeEntries || []).filter((t: any) => t.date === todayStr);
+    }, [timeEntries]);
+
+    const todayTotal = todayEntries.reduce((acc: number, t: any) => acc + (Number(t.hours) || 0), 0);
+
+    // handleAddTime moved to TimeEntryModal
 
     // 2. My Projects
-    const myProjects = projects.filter(p => {
+    const myProjects = currentUser ? projects.filter(p => {
         const isPM = p.project_manager_id === currentUser.id;
         const hasTasks = p.todos?.some(t => t.assigned_to === currentUser.id && !t.is_done);
         const isMember = members?.some((m: any) => m.project_id === p.id && m.employee_id === currentUser.id);
         const hasAllocations = allocations?.some((a: any) => a.project_id === p.id && a.employee_id === currentUser.id);
         return isPM || hasTasks || isMember || hasAllocations;
-    });
+    }) : [];
 
     // 3. Upcoming Deadlines (Derived for 3rd Box)
-    const deadlines = myProjects
+    const deadlines = projects // Use all projects for deadlines or filtered? Using filtered myProjects is safer if logic exists.
         .filter(p => p.deadline && new Date(p.deadline) > new Date())
         .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
         .slice(0, 5);
 
     // 4. Weekly Data (unchanged logic, just ensuring it's here)
     const weeklyData = useMemo(() => {
-        if (!allocations) return { days: [], rows: [], total: 0, dailyTotals: {} };
+        if (!allocations || !currentUser) return { days: [], rows: [], total: 0, dailyTotals: {} };
         // ... (Simplified re-implementation for brevity, relying on identical logic as before)
         // Note: For this tool call, I'll copy the logic if I can, but to save space/complexity I'll trust the previous logic was fine. 
         // Actually, I need the logic to render the bottom table. I will include a stripped down version or assume the full re-write.
@@ -84,7 +101,7 @@ export default function UserDashboard({ currentUser, projects, allocations, memb
         });
 
         return { days: dateLabels, rows: Object.values(projectGroups), total: grandTotal, dailyTotals };
-    }, [allocations, currentUser.id, projects]);
+    }, [allocations, currentUser?.id, projects]);
 
 
     // --- APPLE DESIGN COMPONENTS ---
@@ -117,6 +134,8 @@ export default function UserDashboard({ currentUser, projects, allocations, memb
             {action && <div className="shrink-0">{action}</div>}
         </div>
     );
+
+    if (!currentUser) return null;
 
     return (
         <div className="h-[calc(100vh-2rem)] flex flex-col p-6 max-w-[1920px] mx-auto space-y-8 animate-in fade-in duration-500">
@@ -165,28 +184,36 @@ export default function UserDashboard({ currentUser, projects, allocations, memb
                     )}
                 </BentoBox>
 
-                {/* 2. PROJECTS */}
-                <BentoBox title="Aktive Projekte" icon={Briefcase} count={myProjects.length} color="purple">
-                    {myProjects.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-gray-400">Keine Projekte.</div>
-                    ) : (
-                        <div className="space-y-1">
-                            {myProjects.map(p => (
-                                <ListItem
-                                    key={p.id}
-                                    icon={<div className="w-2 h-2 rounded-full bg-gray-300"></div>}
-                                    title={p.title}
-                                    subtitle={p.status}
-                                    onClick={() => onSelectProject(p)}
-                                    action={
-                                        p.deadline && <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${getDeadlineColorClass(p.deadline).replace('text-', 'bg-').replace('font-mono', '') + '/10 text-' + getDeadlineColorClass(p.deadline).replace('text-', '')}`}>
-                                            {new Date(p.deadline).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
-                                        </span>
-                                    }
-                                />
-                            ))}
-                        </div>
-                    )}
+                {/* 2. TIME TRACKING (Replaces Active Projects) */}
+                <BentoBox title="Stundenerfassung" icon={Clock} count={todayTotal > 0 ? `${todayTotal.toFixed(1)} h` : undefined} color="orange">
+                    <div className="flex flex-col h-full">
+                        {todayEntries.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                                <p className="text-sm">Noch keine Stunden heute.</p>
+                            </div>
+                        ) : (
+                            <div className="flex-1 space-y-1 overflow-y-auto min-h-0">
+                                {todayEntries.map((t: any) => (
+                                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-orange-50/50 border border-orange-100/50 hover:bg-orange-50 transition">
+                                        <div className="min-w-0 flex-1 mr-4">
+                                            <div className="font-bold text-gray-900 truncate text-sm">
+                                                {t.positions?.title || t.projects?.title || 'Unbekannt'}
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {t.projects?.clients?.name} • {t.description || '-'}
+                                            </div>
+                                        </div>
+                                        <div className="font-mono font-bold text-orange-600 text-sm whitespace-nowrap">
+                                            {Number(t.hours).toFixed(2)} h
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <button onClick={() => setShowAddTimeModal(true)} className="mt-4 w-[90%] mx-auto py-2.5 bg-gray-900 hover:bg-black text-white rounded-full text-sm font-bold flex items-center justify-center gap-2 transition shadow-sm hover:shadow-md">
+                            <Plus size={16} /> Stunden hinzufügen
+                        </button>
+                    </div>
                 </BentoBox>
 
                 {/* 3. DEADLINES / UPDATES */}
@@ -253,6 +280,18 @@ export default function UserDashboard({ currentUser, projects, allocations, memb
                     </table>
                 </div>
             </div>
+            {/* ADD TIME MODAL */}
+            {/* ADD TIME MODAL */}
+            <TimeEntryModal
+                isOpen={showAddTimeModal}
+                onClose={() => setShowAddTimeModal(false)}
+                currentUser={currentUser}
+                projects={projects}
+                onEntryCreated={() => {
+                    fetchData(); // Refresh data
+                    setShowAddTimeModal(false);
+                }}
+            />
         </div>
     );
 }

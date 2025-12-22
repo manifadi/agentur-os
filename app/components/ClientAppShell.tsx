@@ -28,6 +28,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [projects, setProjects] = useState<Project[]>([]);
     const [allocations, setAllocations] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
+    const [timeEntries, setTimeEntries] = useState<any[]>([]); // [NEW]
 
     // State mapping for Sidebar highlighting
     // Mapping: URL path -> ViewState ID used in Sidebar (or just simplified)
@@ -94,47 +95,60 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         const orgId = currentUserData.organization_id;
 
         // 2. Fetch scoped data
-        const [
-            { data: clientsData },
-            { data: employeesData },
-            { data: departmentsData },
-            { data: allocationsData },
-            { data: membersData }, // project_members doesn't have org_id directly usually, but projects do.
-            { data: projectsData }
-        ] = await Promise.all([
-            supabase.from('clients').select('*').eq('organization_id', orgId).order('name'),
-            supabase.from('employees').select('*').eq('organization_id', orgId).order('name'),
-            supabase.from('departments').select('*').eq('organization_id', orgId).order('name'),
-            supabase.from('resource_allocations').select('*')
-                .eq('organization_id', orgId)
-                .eq('employee_id', currentUserData.id)
-                .gte('year', new Date().getFullYear() - 1),
-            supabase.from('project_members').select('*'), // TODO: Filter this? Ideally, RLS handles it. OR we filter locally based on projects we get.
-            supabase.from('projects').select(`
+        try {
+            const [
+                { data: clientsData },
+                { data: employeesData },
+                { data: departmentsData },
+                { data: allocationsData },
+                { data: membersData }, // project_members doesn't have org_id directly usually, but projects do.
+                { data: projectsData },
+                { data: timeEntriesData } // [NEW] Catch the 7th result
+            ] = await Promise.all([
+                supabase.from('clients').select('*').eq('organization_id', orgId).order('name'),
+                supabase.from('employees').select('*').eq('organization_id', orgId).order('name'),
+                supabase.from('departments').select('*').eq('organization_id', orgId).order('name'),
+                supabase.from('resource_allocations').select('*')
+                    .eq('organization_id', orgId)
+                    .eq('employee_id', currentUserData.id)
+                    .gte('year', new Date().getFullYear() - 1),
+                supabase.from('project_members').select('*'), // TODO: Filter this? Ideally, RLS handles it. OR we filter locally based on projects we get.
+                supabase.from('projects').select(`
                 *, 
                 employees ( id, name, initials ), 
                 clients ( name, logo_url ), 
-                todos ( * )
-            `).eq('organization_id', orgId).order('created_at', { ascending: false })
-        ]);
+                todos ( * ),
+                positions:project_positions ( * )
+            `).eq('organization_id', orgId).order('created_at', { ascending: false }),
+                // [NEW] Fetch recent time entries for Dashboard
+                supabase.from('time_entries').select(`*, projects(job_number, title, clients(name)), positions:agency_positions(title)`)
+                    .eq('employee_id', currentUserData.id)
+                    .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString()) // Last 30 days
+                    .order('date', { ascending: false })
+            ]);
 
-        if (clientsData) setClients(clientsData);
-        if (employeesData) setEmployees(employeesData);
-        if (departmentsData) setDepartments(departmentsData);
-        if (allocationsData) setAllocations(allocationsData);
-        if (membersData) setMembers(membersData);
+            if (clientsData) setClients(clientsData);
+            if (employeesData) setEmployees(employeesData);
+            if (departmentsData) setDepartments(departmentsData);
+            if (allocationsData) setAllocations(allocationsData);
+            if (membersData) setMembers(membersData);
+            if (timeEntriesData) setTimeEntries(timeEntriesData as any); // Type assertion until robust
 
-        if (projectsData) {
-            // Process stats / computed fields
-            const projectsWithStats = projectsData.map(proj => {
-                const totalTodos = proj.todos ? proj.todos.length : 0;
-                const doneTodos = proj.todos ? proj.todos.filter((t: Todo) => t.is_done).length : 0;
-                const openTodosPreview = proj.todos ? proj.todos.filter((t: Todo) => !t.is_done).slice(0, 3) : [];
-                return { ...proj, totalTodos, doneTodos, openTodosPreview };
-            });
-            setProjects(projectsWithStats as any);
+            if (projectsData) {
+                // Process stats / computed fields
+                const projectsWithStats = projectsData.map(proj => {
+                    const totalTodos = proj.todos ? proj.todos.length : 0;
+                    const doneTodos = proj.todos ? proj.todos.filter((t: Todo) => t.is_done).length : 0;
+                    const openTodosPreview = proj.todos ? proj.todos.filter((t: Todo) => !t.is_done).slice(0, 3) : [];
+                    return { ...proj, totalTodos, doneTodos, openTodosPreview };
+                });
+                setProjects(projectsWithStats as any);
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleLogout = async () => {
@@ -178,7 +192,9 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             setClients,
             setEmployees,
             fetchData,
-            handleLogout
+            handleLogout,
+            timeEntries, // [NEW]
+            setTimeEntries  // [NEW]
         }}>
             <div className={`flex h-screen w-screen overflow-hidden ${appleBg} antialiased selection:bg-blue-500/30 scroll-smooth`}>
                 {/* SIDEBAR */}

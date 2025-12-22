@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import DashboardView from '../components/Dashboard/DashboardView';
 import ContextSidebar from '../components/ContextSidebar';
 import ProjectDetail from '../components/Projects/ProjectDetail';
+import TimeEntryModal from '../components/Modals/TimeEntryModal'; // NEW
 import ClientModal from '../components/Modals/ClientModal';
 import EmployeeModal from '../components/Modals/EmployeeModal';
 import CreateProjectModal from '../components/Modals/CreateProjectModal';
@@ -18,7 +19,7 @@ export default function UebersichtPage() {
     const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees, setProjects } = useApp();
 
     // Calculate joined IDs for modal
-    const activeUser = employees.find(e => e.email === session?.user?.email);
+    const activeUser = employees.find(e => e.email?.toLowerCase() === session?.user?.email?.toLowerCase());
     const joinedProjectIds = members
         ?.filter((m: any) => m.employee_id === activeUser?.id)
         .map((m: any) => m.project_id) || [];
@@ -49,6 +50,8 @@ export default function UebersichtPage() {
     const [createProjectOpen, setCreateProjectOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: () => { } });
+    const [todaysHours, setTodaysHours] = useState(0); // NEW
+    const [timeModalOpen, setTimeModalOpen] = useState(false); // NEW
 
     // URL Param Sync
     useEffect(() => {
@@ -58,6 +61,25 @@ export default function UebersichtPage() {
             if (found) setSelectedProject(found);
         }
     }, [searchParams, projects]);
+
+    // NEW: Fetch Today's Hours
+    useEffect(() => {
+        if (activeUser) fetchTodaysHours();
+    }, [activeUser]);
+
+    const fetchTodaysHours = async () => {
+        if (!activeUser) return;
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await supabase.from('time_entries')
+            .select('hours')
+            .eq('employee_id', activeUser.id)
+            .eq('date', today);
+
+        if (data) {
+            const sum = data.reduce((acc, curr) => acc + (Number(curr.hours) || 0), 0);
+            setTodaysHours(sum);
+        }
+    };
 
     // Filter Logic for Stats (using myProjects instead of all projects)
     const stats = useMemo(() => {
@@ -82,7 +104,7 @@ export default function UebersichtPage() {
             if (logoUrl) await deleteFileFromSupabase(logoUrl, 'logos');
             logoUrl = await uploadFileToSupabase(logo, 'logos');
         }
-        const p = { name, logo_url: logoUrl };
+        const p = { name, logo_url: logoUrl, organization_id: activeUser?.organization_id };
         if (editingClient) {
             const { data } = await supabase.from('clients').update(p).eq('id', editingClient.id).select();
             if (data) setClients(clients.map(c => c.id === data[0].id ? data[0] : c));
@@ -110,7 +132,7 @@ export default function UebersichtPage() {
     // Projects
     const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
         const { data: newProject } = await supabase.from('projects').insert([{
-            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung'
+            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', organization_id: activeUser?.organization_id
         }]).select().single();
 
         if (newProject && activeUser) {
@@ -142,7 +164,7 @@ export default function UebersichtPage() {
             message: "Sicher?",
             action: async () => {
                 await supabase.from('projects').delete().eq('id', selectedProject.id);
-                setProjects(prev => prev.filter(p => p.id !== selectedProject.id));
+                setProjects(projects.filter(p => p.id !== selectedProject.id));
                 setSelectedProject(null);
                 router.replace('/uebersicht'); // Clear URL param
             }
@@ -203,14 +225,17 @@ export default function UebersichtPage() {
                         selectedClient={selectedClient}
                         onSelectProject={(p) => setSelectedProject(p)}
                         onSelectClient={setSelectedClient}
+
                         onOpenCreateModal={() => setCreateProjectOpen(true)}
+                        todaysHours={todaysHours}
+                        onAddTime={() => setTimeModalOpen(true)}
                     />
                 )}
             </div>
 
             {/* Modals */}
-            <ClientModal isOpen={clientModalOpen} client={editingClient} onClose={() => setClientModalOpen(false)} onSave={handleSaveClient} onDelete={() => { }} />
-            <EmployeeModal isOpen={employeeModalOpen} employee={editingEmployee} onClose={() => setEmployeeModalOpen(false)} onSave={handleSaveEmployee} onDelete={() => { }} />
+            <ClientModal isOpen={clientModalOpen} client={editingClient} onClose={() => setClientModalOpen(false)} onSave={handleSaveClient} onDelete={async () => { }} />
+            <EmployeeModal isOpen={employeeModalOpen} employee={editingEmployee} onClose={() => setEmployeeModalOpen(false)} onSave={handleSaveEmployee} onDelete={async () => { }} />
             <CreateProjectModal
                 isOpen={createProjectOpen}
                 clients={clients}
@@ -222,6 +247,18 @@ export default function UebersichtPage() {
                 onCreate={handleCreateProject}
                 onJoin={handleJoinProject}
             />
+            {activeUser && (
+                <TimeEntryModal
+                    isOpen={timeModalOpen}
+                    onClose={() => setTimeModalOpen(false)}
+                    currentUser={activeUser}
+                    projects={projects}
+                    onEntryCreated={() => {
+                        fetchTodaysHours();
+                        setTimeModalOpen(false);
+                    }}
+                />
+            )}
             <ConfirmModal isOpen={confirmOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={() => { confirmConfig.action(); setConfirmOpen(false); }} onCancel={() => setConfirmOpen(false)} />
         </div>
     );

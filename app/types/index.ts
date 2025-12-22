@@ -41,6 +41,7 @@ export interface Employee {
     email?: string;
     role?: 'admin' | 'user';
     organization_id?: string;
+    hourly_rate?: number; // [NEW]
 }
 
 export interface Department {
@@ -98,6 +99,31 @@ export interface Project {
     totalTodos?: number;
     doneTodos?: number;
     openTodosPreview?: Todo[];
+    sections?: ProjectSection[];
+    positions?: ProjectPosition[];
+}
+
+export interface ProjectSection {
+    id: string;
+    project_id: string;
+    title: string;
+    description?: string;
+    order_index: number;
+    positions?: ProjectPosition[]; // Joined
+}
+
+export interface ProjectPosition {
+    id: string;
+    project_id: string;
+    section_id?: string;
+    position_nr?: string;
+    title: string;
+    description?: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    total_price: number;
+    order_index: number;
 }
 
 export interface ResourceAllocation {
@@ -113,8 +139,25 @@ export interface ResourceAllocation {
     friday: number;
     comment?: string;
     task_description?: string; // New field
+    position_id?: string | null; // [NEW] Link to specific position
     projects?: Project;
+    positions?: ProjectPosition; // [NEW] Joined data
     organization_id: string;
+}
+
+export interface TimeEntry {
+    id: string;
+    project_id: string;
+    position_id?: string | null;
+    agency_position_id?: string | null; // NEW
+    employee_id: string;
+    date: string;
+    hours: number;
+    description?: string;
+    created_at?: string;
+    // Joined
+    projects?: Project;
+    positions?: ProjectPosition;
 }
 
 // Map for grid: Employee -> Allocations[]
@@ -140,3 +183,11 @@ export interface RegistrationRequest {
 }
 
 export type ViewState = 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'settings';
+
+export interface AgencyPosition {
+    id: string;
+    title: string;
+    hourly_rate: number;
+    category?: string;
+    organization_id: string;
+}

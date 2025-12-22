@@ -153,6 +153,29 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                         </div>
                     ) : (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            {/* Advanced Option */}
+                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900">Detailliertes Projekt anlegen</h3>
+                                    <p className="text-xs text-gray-500 mt-1">Mit Kalkulation, Positionen und Vertragstexten.</p>
+                                </div>
+                                <button
+                                    onClick={() => window.location.href = '/projekte/erstellen'}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition shadow-sm"
+                                >
+                                    Zum Wizard
+                                </button>
+                            </div>
+
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                    <div className="w-full border-t border-gray-200" />
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className="bg-white px-2 text-xs text-gray-400 uppercase tracking-wider">Oder Schnellstart</span>
+                                </div>
+                            </div>
+
                             <div><label className="text-xs font-semibold text-gray-500 uppercase">Kunde</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.clientId} onChange={(e) => setData({ ...data, clientId: e.target.value })}><option value="">Bitte wählen...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                             <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-gray-500 uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.jobNr} onChange={(e) => setData({ ...data, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-gray-500 uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })} /></div></div>
                             <div><label className="text-xs font-semibold text-gray-500 uppercase">Projektmanager</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.pmId} onChange={(e) => setData({ ...data, pmId: e.target.value })}><option value="">Kein PM zugewiesen</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>

@@ -11,13 +11,14 @@ import ClientModal from '../components/Modals/ClientModal';
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { session, employees, projects, allocations, clients, members, fetchData } = useApp();
+    const { session, employees, projects, allocations, clients, members, fetchData, setClients } = useApp();
 
     // Local state for modals triggers
     const [createProjectOpen, setCreateProjectOpen] = useState(false);
     const [createClientOpen, setCreateClientOpen] = useState(false);
+    const [editingClient, setEditingClient] = useState<any>(null);
 
-    const currentUser = employees.find(e => e.email === session?.user?.email);
+    const currentUser = employees.find(e => e.email?.toLowerCase() === session?.user?.email?.toLowerCase());
 
     // Actions
     const handleToggleTodo = async (todoId: string, isDone: boolean) => {
@@ -29,7 +30,7 @@ export default function DashboardPage() {
 
     const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
         const { data: newProject } = await supabase.from('projects').insert([{
-            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung'
+            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', organization_id: currentUser?.organization_id
         }]).select().single();
 
         if (newProject && currentUser) {
@@ -51,12 +52,20 @@ export default function DashboardPage() {
     };
 
     const handleCreateClient = async (name: string, logo: File | null) => {
-        // Simplified creation for quick action - might need full modal logic if we want logo upload here
-        // For now reuse the modal logic? 
-        // Actually, reusing the existing Modals is best.
-        // But the Modals are currently in page.tsx actions. 
-        // We should just pass the open handlers to UserDashboard.
-        // And render the Modals here? Yes.
+        // Reuse upload logic if possible or move to utils? Ideally use same logic as Uebersicht.
+        // For now, simplified:
+        let logoUrl = undefined;
+        // NOTE: we need uploadFileToSupabase import if we want logos. 
+        // Let's assume for Quick Action, maybe just name? Or we import the util.
+        // We need to import `uploadFileToSupabase`.
+
+        const p = { name, logo_url: logoUrl, organization_id: currentUser?.organization_id };
+        const { data } = await supabase.from('clients').insert([p]).select();
+
+        if (data) {
+            setClients([...clients, data[0]].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+        setCreateClientOpen(false);
     };
 
     const handleJoinProject = async (projectId: string) => {
@@ -88,16 +97,15 @@ export default function DashboardPage() {
     return (
         <div className="p-4 md:p-8 h-full">
             <UserDashboard
-                currentUser={currentUser}
-                projects={projects}
-                allocations={allocations}
-                members={members}
                 onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
                 onToggleTodo={handleToggleTodo}
                 onQuickAction={(action) => {
                     if (action === 'create_project') setCreateProjectOpen(true);
+                    if (action === 'create_client') setCreateClientOpen(true);
                 }}
             />
+
+            <ClientModal isOpen={createClientOpen} client={null} onClose={() => setCreateClientOpen(false)} onSave={handleCreateClient} onDelete={async () => { }} />
 
             <CreateProjectModal
                 isOpen={createProjectOpen}

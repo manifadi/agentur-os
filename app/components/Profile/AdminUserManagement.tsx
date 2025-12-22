@@ -16,12 +16,13 @@ interface UserModalProps {
     mode: 'create' | 'edit';
     user: Partial<Employee>;
     departments: Department[];
+    agencyPositions: any[]; // Added prop
     onClose: () => void;
     onSave: (user: Partial<Employee>) => Promise<void>;
     isLoading: boolean;
 }
 
-function UserModal({ isOpen, mode, user, departments, onClose, onSave, isLoading }: UserModalProps) {
+function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, onSave, isLoading }: UserModalProps) {
     const [formData, setFormData] = useState<Partial<Employee>>(user);
 
     useEffect(() => {
@@ -33,12 +34,14 @@ function UserModal({ isOpen, mode, user, departments, onClose, onSave, isLoading
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200">
+                {/* ... header ... */}
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-900">{mode === 'create' ? 'Neuen Mitarbeiter anlegen' : 'Mitarbeiter bearbeiten'}</h3>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><X size={20} /></button>
                 </div>
 
                 <div className="space-y-4">
+                    {/* ... name/initials ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Name</label>
@@ -101,13 +104,20 @@ function UserModal({ isOpen, mode, user, departments, onClose, onSave, isLoading
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Job Titel</label>
-                        <input
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Job Titel (Position)</label>
+                        <select
                             className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                             value={formData.job_title || ''}
                             onChange={e => setFormData({ ...formData, job_title: e.target.value })}
-                            placeholder="z.B. Senior Designer"
-                        />
+                        >
+                            <option value="">Bitte wählen...</option>
+                            {agencyPositions.map((p, idx) => (
+                                <option key={idx} value={p.title}>
+                                    {p.title} ({p.hourly_rate} €)
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Definiert den Stundensatz für diesen Mitarbeiter.</p>
                     </div>
                 </div>
 
@@ -130,6 +140,15 @@ function UserModal({ isOpen, mode, user, departments, onClose, onSave, isLoading
 export default function AdminUserManagement({ employees, departments, currentEmployee, onUpdate }: AdminUserManagementProps) {
     const [loading, setLoading] = useState(false);
     const [requests, setRequests] = useState<any[]>([]);
+    const [agencyPositions, setAgencyPositions] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchPositions = async () => {
+            const { data } = await supabase.from('agency_positions').select('title, hourly_rate').order('title');
+            if (data) setAgencyPositions(data);
+        };
+        fetchPositions();
+    }, []);
 
     // Modal State
     const [modalState, setModalState] = useState<{
@@ -267,6 +286,7 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 mode={modalState.mode}
                 user={modalState.user}
                 departments={departments}
+                agencyPositions={agencyPositions} // Passed prop
                 onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
                 onSave={handleModalSave}
                 isLoading={loading}

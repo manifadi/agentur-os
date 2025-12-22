@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Trash2, Settings, FileText, Upload } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog } from '../../types';
 import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
@@ -7,6 +7,7 @@ import { supabase } from '../../supabaseClient';
 import TodoList from './TodoList';
 import Logbook from './Logbook';
 import { useApp } from '../../context/AppContext';
+import TimeEntryModal from '../Modals/TimeEntryModal';
 
 interface ProjectDetailProps {
     project: Project;
@@ -21,7 +22,10 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const { clients } = useApp();
     const [todos, setTodos] = useState<Todo[]>([]);
     const [logs, setLogs] = useState<ProjectLog[]>([]);
+    const [timeEntries, setTimeEntries] = useState<any[]>([]);
+    const [sections, setSections] = useState<any[]>([]); // Detailed sections with positions
     const [loading, setLoading] = useState(false);
+    const [showTimeModal, setShowTimeModal] = useState(false);
 
     // Edit Modal State (Local to ProjectDetail or separate?)
     // For simplicity, we can reuse the "Settings" modal logic here or keep it simple.
@@ -54,29 +58,72 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         const { data: l } = await supabase.from('project_logs').select('*').eq('project_id', project.id).order('entry_date', { ascending: false });
 
         if (l) {
-            // Filter logs for privacy inside the client for now (since we don't have RLS set up fully for this custom logic yet, or to keep it simple)
-            // Logic: Show if is_public OR if it belongs to me.
-            // If currentEmployee is undefined (not linked), show only public? Or show all?
-            // "Die anderen Accounts... sollten ihre eigenen Logbücher schreiben müssen bzw. sollte es auch gehen, die Logbücher... für andere freigeben."
-            // Implication: Private by default.
-
-            // If I am not identified, I probably only see Public logs.
-            const myId = currentEmployee?.id;
-            const filteredLogs = l.filter((log: ProjectLog) => {
-                if (log.is_public) return true;
-                if (myId && log.employee_id === myId) return true;
-                // If it's a legacy log (no employee_id), maybe show it? Or hide? 
-                // Let's hide legacy private logs if we want strict privacy, but maybe show them if they have no owner.
-                // For safety: if no employee_id, it might be system or old. Let's show specific old ones or default to visible?
-                // User said: "Kommentare... nicht für alle zugänglich... nur pro person."
-                // So if no owner, it's effectively "orphan". Let's show it or else it's lost.
-                if (!log.employee_id) return true;
-                return false;
-            });
-            setLogs(filteredLogs as any);
+            setLogs(l as any);
         }
+
+        // Fetch Detailed Sections & Positions
+        const { data: s } = await supabase
+            .from('project_sections')
+            .select(`*, positions:project_positions(*)`)
+            .eq('project_id', project.id)
+            .order('order_index');
+
+        if (s) setSections(s);
+
+        // Fetch Time Entries (Actuals) for Reporting
+        const { data: te, error: teError } = await supabase
+            .from('time_entries')
+            .select(`
+                id,
+                project_id,
+                employee_id,
+                position_id,
+                agency_position_id,
+                date,
+                hours,
+                description,
+                created_at,
+                employees ( id, name, initials, hourly_rate, job_title )
+            `)
+            .eq('project_id', project.id);
+
+        if (teError) {
+            console.error('Error fetching time entries:', teError);
+        }
+
+        if (te) setTimeEntries(te as any);
+
         setLoading(false);
     };
+
+    // Reporting Calculations
+    const totalRevenue = sections.reduce((acc, s) => acc + (s.positions?.reduce((sum: number, p: any) => sum + (p.quantity * p.unit_price), 0) || 0), 0);
+
+    // Group actuals by employee
+    const employeeCosts = useMemo(() => {
+        const groups: Record<string, { employee: Employee, hours: number, cost: number }> = {};
+        timeEntries.forEach(t => {
+            const empId = t.employee_id;
+            if (!groups[empId]) {
+                groups[empId] = { employee: t.employees, hours: 0, cost: 0 };
+            }
+            const h = Number(t.hours) || 0;
+
+            // Rate Fallback Logic
+            let rate = t.employees?.hourly_rate || 0;
+            if (!rate && t.employees?.job_title === 'Digital Consultant') {
+                rate = 133;
+            }
+
+            groups[empId].hours += h;
+            groups[empId].cost += h * rate;
+        });
+        return Object.values(groups);
+    }, [timeEntries]);
+
+    const totalCost = employeeCosts.reduce((acc, c) => acc + c.cost, 0);
+    const totalHours = employeeCosts.reduce((acc, c) => acc + c.hours, 0);
+    const margin = totalRevenue - totalCost;
 
     // --- TODO HANDLERS ---
     const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null) => {
@@ -108,17 +155,20 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             employee_id: currentEmployee?.id || null,
             is_public: isPublic
         };
-        const { data } = await supabase.from('project_logs').insert([p]).select();
-        if (data) setLogs([data[0] as any, ...logs].sort((a, b) => new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()));
+        const { error } = await supabase.from('project_logs').insert([p]);
+        if (error) console.error(error);
+        fetchDetails();
     };
     const handleUpdateLog = async (id: string, title: string, content: string, date: string, image: string | null, isPublic: boolean) => {
-        const { data } = await supabase.from('project_logs').update({ title, content, entry_date: date, image_url: image, is_public: isPublic }).eq('id', id).select();
-        if (data) setLogs(prev => prev.map(l => l.id === id ? data[0] as any : l).sort((a, b) => new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()));
+        const { error } = await supabase.from('project_logs').update({ title, content, entry_date: date, image_url: image, is_public: isPublic }).eq('id', id);
+        if (error) console.error(error);
+        fetchDetails();
     };
     const handleDeleteLog = async (id: string) => {
         if (!confirm("Logbuch-Eintrag löschen?")) return;
-        await supabase.from('project_logs').delete().eq('id', id);
-        setLogs(prev => prev.filter(l => l.id !== id));
+        const { error } = await supabase.from('project_logs').delete().eq('id', id);
+        if (error) console.error(error);
+        fetchDetails();
     };
 
     // --- PROJECT UPDATE HANDLERS ---
@@ -151,8 +201,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                 <button onClick={onClose} className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"><ArrowLeft size={16} className="mr-1" /> Zurück zur Übersicht</button>
                 <div className="flex gap-2 self-end">
+                    <button onClick={() => setShowTimeModal(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black shadow-sm transition"><Upload size={16} /> Zeit erfassen</button>
+                    <button onClick={() => window.location.href = `/projekte/erstellen?edit=${project.id}`} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Bearbeiten</button>
                     <button onClick={onDeleteProject} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
-                    <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Einstellungen</button>
                 </div>
             </div>
 
@@ -173,26 +224,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[calc(100vh-200px)]">
-                <Logbook
-                    logs={logs}
-                    onAdd={handleAddLog}
-                    onUpdate={handleUpdateLog}
-                    onDelete={handleDeleteLog}
-                    onUploadImage={(f) => uploadFileToSupabase(f, 'documents')}
-                    currentEmployeeId={currentEmployee?.id}
-                />
-
-                <div className="flex flex-col gap-6 h-full order-1 lg:order-2">
-                    <TodoList
-                        todos={todos}
-                        employees={employees}
-                        onAdd={handleAddTodo}
-                        onToggle={handleToggleTodo}
-                        onUpdate={handleUpdateTodo}
-                        onDelete={handleDeleteTodo}
-                    />
-
-                    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col h-48">
+                {/* LEFT COLUMN: Logbook & Details */}
+                <div className="flex flex-col gap-6 h-full overflow-y-auto">
+                    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[200px]">
                         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400" /> Projektdetails</h2>
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-400 relative overflow-hidden group">
                             {uploadingPdf ? <div className="animate-pulse text-sm">Lade Datei hoch...</div> : project.offer_pdf_url ? (
@@ -209,6 +243,27 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
                             {project.google_doc_url ? (<a href={project.google_doc_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full text-blue-600 bg-blue-50 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition">Google Doc öffnen ↗</a>) : (<div className="text-center text-sm text-gray-400">Kein Google Doc verknüpft</div>)}
                         </div>
                     </div>
+
+                    <Logbook
+                        logs={logs}
+                        onAdd={handleAddLog}
+                        onUpdate={handleUpdateLog}
+                        onDelete={handleDeleteLog}
+                        onUploadImage={(f) => uploadFileToSupabase(f, 'documents')}
+                        currentEmployeeId={currentEmployee?.id}
+                    />
+                </div>
+
+                {/* RIGHT COLUMN: Tasks (Budget Removed) */}
+                <div className="flex flex-col gap-6 h-full overflow-y-auto">
+                    <TodoList
+                        todos={todos}
+                        employees={employees}
+                        onAdd={handleAddTodo}
+                        onToggle={handleToggleTodo}
+                        onUpdate={handleUpdateTodo}
+                        onDelete={handleDeleteTodo}
+                    />
                 </div>
             </div>
 
@@ -227,6 +282,20 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
                         </div>
                     </div>
                 </div>
+            )}
+
+            {currentEmployee && (
+                <TimeEntryModal
+                    isOpen={showTimeModal}
+                    onClose={() => setShowTimeModal(false)}
+                    currentUser={currentEmployee}
+                    projects={[project]}
+                    preselectedProject={project}
+                    onEntryCreated={() => {
+                        fetchDetails();
+                        setShowTimeModal(false);
+                    }}
+                />
             )}
         </>
     );

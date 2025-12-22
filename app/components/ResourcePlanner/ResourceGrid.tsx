@@ -36,6 +36,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                         <th className="px-3 border text-center border-gray-300 w-32 bg-gray-100">Kunde</th>
                         <th className="px-3 border text-center border-gray-300 w-24 bg-gray-100">Job Nr.</th>
                         <th className="px-3 border text-left border-gray-300 w-48 bg-gray-100">Projekt</th>
+                        <th className="px-3 border text-left border-gray-300 w-32 bg-gray-100">Position</th>
                         <th className="px-3 border text-left border-gray-300 w-48 bg-gray-100">Aufgabe</th>
                         <th className="px-3 border text-center border-gray-300 w-24 bg-gray-100">Status</th>
                         <th className="px-3 border text-center border-gray-300 w-16 bg-gray-100">PM</th>
@@ -65,7 +66,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                         return (
                             <React.Fragment key={row.employee.id}>
                                 <tr className="bg-white border-b border-gray-300">
-                                    <td colSpan={13} className="px-3 py-2 border border-gray-300 border-l-4 border-l-gray-900 sticky left-0 z-0 bg-gray-50">
+                                    <td colSpan={14} className="px-3 py-2 border border-gray-300 border-l-4 border-l-gray-900 sticky left-0 z-0 bg-gray-50">
                                         <div className="font-black text-sm text-gray-900">{row.employee.name}</div>
                                         {row.employee.job_title && <div className="text-[10px] text-gray-500 font-normal">{row.employee.job_title}</div>}
                                     </td>
@@ -91,6 +92,28 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                                 value={alloc.projects?.title || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'title', e.target.value); }}
                                             />
+                                        </td>
+
+                                        {/* POSITION DROPDOWN */}
+                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
+                                            {alloc.projects?.positions && alloc.projects.positions.length > 0 ? (
+                                                <select
+                                                    className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-700 block"
+                                                    value={alloc.position_id || ''}
+                                                    onChange={(e) => onUpdateAllocation(alloc.id, 'position_id', e.target.value || null)}
+                                                >
+                                                    <option value="">- Position -</option>
+                                                    {alloc.projects.positions
+                                                        .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                                                        .map(p => (
+                                                            <option key={p.id} value={p.id}>
+                                                                {p.position_nr ? `${p.position_nr} ` : ''}{p.title}
+                                                            </option>
+                                                        ))}
+                                                </select>
+                                            ) : (
+                                                <div className="w-full h-full flex items-center px-2 text-[10px] text-gray-300 select-none">-</div>
+                                            )}
                                         </td>
 
 
@@ -177,7 +200,7 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                     {/* GLOBAL TOTALS */}
                     <tr className="bg-gray-900 text-white font-bold border-t-2 border-gray-900 sticky bottom-0 z-10">
-                        <td colSpan={6} className="px-2 py-2 text-right uppercase tracking-wider text-xs">Gesamt Stunden</td>
+                        <td colSpan={7} className="px-2 py-2 text-right uppercase tracking-wider text-xs">Gesamt Stunden</td>
                         <td className="text-center py-2 border-l border-gray-700">{globalTotals.mo}</td>
                         <td className="text-center py-2 border-l border-gray-700">{globalTotals.di}</td>
                         <td className="text-center py-2 border-l border-gray-700">{globalTotals.mi}</td>
@@ -305,7 +328,6 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                 </td>
                 <td className="border-r border-gray-300"></td>
                 <td className="border-r border-gray-300"></td>
-                <td className="border-r border-gray-300"></td>
                 <td className="border-r border-gray-300 bg-red-50/10"></td>
                 <td className="border-r border-gray-300 bg-red-50/10"></td>
                 <td className="border-r border-gray-300"></td>
@@ -316,7 +338,7 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
             </tr>
             {showModal && (
                 <tr>
-                    <td colSpan={13} className="p-0 border-none relative">
+                    <td colSpan={14} className="p-0 border-none relative">
                         <MissingInfoModal
                             onSave={(c, j) => {
                                 setShowModal(false);

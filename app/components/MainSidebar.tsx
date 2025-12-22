@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { LayoutGrid, Globe, FolderKanban, Users, LogOut, Settings as SettingsIcon, Clock } from 'lucide-react';
+import { LayoutGrid, Globe, FolderKanban, Users, LogOut, Settings as SettingsIcon, Clock, Timer } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface MainSidebarProps {
@@ -48,6 +48,7 @@ export default function MainSidebar({ currentView, setCurrentView, handleLogout 
                 <NavItem view="projects_overview" href="/uebersicht" icon={FolderKanban} tooltip="Projekte" />
                 <NavItem view="global_tasks" href="/aufgaben" icon={Globe} tooltip="Alle Aufgaben" />
                 <NavItem view="resource_planning" href="/ressourcen" icon={Clock} tooltip="Ressourcen" />
+                <NavItem view="time_tracking" href="/zeiterfassung" icon={Timer} tooltip="Zeiterfassung" />
             </nav>
 
             {/* Footer */}

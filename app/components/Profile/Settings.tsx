@@ -5,6 +5,7 @@ import { supabase } from '../../supabaseClient';
 import AdminUserManagement from './AdminUserManagement';
 import AdminProjectList from './AdminProjectList';
 import AdminClientManagement from './AdminClientManagement';
+import AdminRateManagement from './AdminRateManagement';
 import { useApp } from '../../context/AppContext';
 
 interface SettingsProps {
@@ -18,7 +19,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
     const { projects, clients } = useApp(); // Get global projects and clients
     const [currentUser, setCurrentUser] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients' | 'rates'>('profile');
 
     // Form State
     const [name, setName] = useState('');
@@ -98,6 +99,12 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                         >
                             <Building2 size={14} /> Kunden
                         </button>
+                        <button
+                            onClick={() => setActiveTab('rates')}
+                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'rates' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
+                        >
+                            <SettingsIconLucide size={14} /> Stundensätze
+                        </button>
                     </>
                 )}
             </div>
@@ -155,8 +162,20 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel</label>
-                                            <div className="w-full p-2 border border-gray-100 bg-gray-50 rounded-lg text-gray-500 text-sm">{jobTitle || 'Kein Titel'}</div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel (Position)</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    className="w-full p-2 border border-blue-100 bg-blue-50/50 text-gray-700 rounded-lg font-medium cursor-not-allowed"
+                                                    value={jobTitle || 'Keine Position zugewiesen'}
+                                                    disabled
+                                                />
+                                                <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300" />
+                                            </div>
+                                            <p className="text-xs text-blue-400 mt-1 italic">
+                                                Die Position kann nur durch die Team-Verwaltung geändert werden.
+                                            </p>
+                                            <div className="text-xs text-gray-400 mt-1">Wird aus den Agentur-Positionen geladen.</div>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Abteilung / Rolle</label>
@@ -253,6 +272,8 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                     <AdminClientManagement clients={clients} onUpdate={onUpdate} />
                 </div>
+            ) : activeTab === 'rates' && currentUser?.role === 'admin' ? (
+                <AdminRateManagement />
             ) : currentUser ? (
                 <AdminUserManagement
                     employees={employees}
