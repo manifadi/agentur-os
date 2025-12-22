@@ -25,8 +25,23 @@ export default function CreateProjectWizard() {
         pmId: '',
         descriptionInternal: '',
         descriptionExternal: '',
-        status: 'Bearbeitung'
+        status: 'Bearbeitung',
+        deadline: '',
+        googleDocUrl: ''
     });
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    // Check Admin Role
+    React.useEffect(() => {
+        const checkRole = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email) {
+                const emp = employees.find(e => e.email === user.email);
+                if (emp?.role === 'admin') setIsAdmin(true);
+            }
+        };
+        checkRole();
+    }, [employees]);
 
     // Calculation State
     interface WizardSection {
@@ -78,7 +93,9 @@ export default function CreateProjectWizard() {
                 pmId: proj.project_manager_id || '',
                 descriptionInternal: '', // Add columns if you add them to DB
                 descriptionExternal: '',
-                status: proj.status
+                status: proj.status,
+                deadline: proj.deadline || '',
+                googleDocUrl: proj.google_doc_url || ''
             });
         }
 
@@ -247,6 +264,8 @@ export default function CreateProjectWizard() {
                 client_id: basicInfo.clientId,
                 project_manager_id: basicInfo.pmId || null,
                 status: basicInfo.status,
+                deadline: basicInfo.deadline || null,
+                google_doc_url: basicInfo.googleDocUrl || null,
                 // description_internal: basicInfo.descriptionInternal, // Add to DB schema if needed
                 // description_external: basicInfo.descriptionExternal
             };
@@ -429,6 +448,36 @@ export default function CreateProjectWizard() {
                         placeholder="Textbausteine für das Angebot..."
                     />
                 </div>
+            </div>
+
+            {/* NEW: Settings (Deadline & Google Doc) */}
+            <div className="grid grid-cols-2 gap-6 pt-4 border-t border-gray-100 mt-4">
+                <div>
+                    <label className="text-sm font-semibold text-gray-700 block mb-1">Deadline</label>
+                    <input
+                        type="date"
+                        className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition"
+                        value={basicInfo.deadline}
+                        onChange={e => setBasicInfo({ ...basicInfo, deadline: e.target.value })}
+                    />
+                </div>
+                {isAdmin && (
+                    <div>
+                        <label className="text-sm font-semibold text-gray-700 block mb-1">Google Docs Link (Admin)</label>
+                        <div className="relative">
+                            <input
+                                type="url"
+                                className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition pl-10"
+                                value={basicInfo.googleDocUrl}
+                                onChange={e => setBasicInfo({ ...basicInfo, googleDocUrl: e.target.value })}
+                                placeholder="https://docs.google.com/..."
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Briefcase size={16} />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
