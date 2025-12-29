@@ -16,7 +16,6 @@ export default function AdminAgencySettings() {
 
     useEffect(() => {
         fetchSettings();
-        fetchTemplates();
     }, []);
 
     const fetchSettings = async () => {
@@ -53,9 +52,10 @@ export default function AdminAgencySettings() {
                 setErrorMsg("Fehler beim Laden der Einstellungen: " + settingsError.message + " (" + settingsError.code + ")");
             } else if (data) {
                 setSettings(data);
+                fetchTemplates(data.organization_id);
             } else {
                 // Initialize defaults if no record exists yet
-                setSettings({
+                const initialSettings = {
                     id: '',
                     organization_id: emp.organization_id,
                     company_name: '',
@@ -67,7 +67,9 @@ export default function AdminAgencySettings() {
                     commercial_register: '',
                     footer_text: '',
                     logo_url: ''
-                });
+                };
+                setSettings(initialSettings);
+                fetchTemplates(emp.organization_id);
             }
         } catch (e: any) {
             console.error("Unexpected Error:", e);
@@ -77,8 +79,11 @@ export default function AdminAgencySettings() {
         }
     };
 
-    const fetchTemplates = async () => {
-        const { data } = await supabase.from('organization_templates').select('*').order('created_at', { ascending: true });
+    const fetchTemplates = async (orgId: string) => {
+        const { data } = await supabase.from('organization_templates')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: true });
         if (data) setTemplates(data as any);
     };
 
@@ -129,7 +134,7 @@ export default function AdminAgencySettings() {
         if (error) alert(error.message);
         else {
             setNewTemplate({ name: '', content: '', type: 'intro' });
-            fetchTemplates();
+            fetchTemplates(settings.organization_id);
         }
         setTLoading(false);
     };
@@ -137,7 +142,7 @@ export default function AdminAgencySettings() {
     const handleDeleteTemplate = async (id: string) => {
         if (!confirm('Vorlage löschen?')) return;
         await supabase.from('organization_templates').delete().eq('id', id);
-        fetchTemplates();
+        if (settings?.organization_id) fetchTemplates(settings.organization_id);
     };
 
     const safeUpdate = (field: keyof AgencySettings, value: string) => {
