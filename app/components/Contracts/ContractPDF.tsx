@@ -215,7 +215,7 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                 <View style={styles.metaContainer}>
                     <View style={styles.addressBlock}>
 
-                        <Text style={{ fontSize: 9, marginTop: 4 }}>{client?.company_name || client?.name}</Text>
+                        <Text style={{ fontSize: 9, marginTop: 4 }}>{client?.full_name || client?.name}</Text>
                         <Text style={{ fontSize: 9 }}>{client?.address}</Text>
                         <Text style={{ fontSize: 9 }}>{project.invoice_contact?.name || client?.full_name || ''}</Text>
                         <Text style={{ fontSize: 9 }}>{client?.uid_number ? `UID: ${client.uid_number}` : ''}</Text>
