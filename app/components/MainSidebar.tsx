@@ -4,7 +4,7 @@ import { LayoutGrid, Globe, FolderKanban, Users, LogOut, Settings as SettingsIco
 import { ViewState } from '../types';
 
 interface MainSidebarProps {
-    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'settings';
+    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'settings';
     setCurrentView: (view: any) => void;
     handleLogout: () => void;
 }

@@ -1,45 +1,116 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, ImageIcon, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Building2 } from 'lucide-react';
 import { Client } from '../../types';
 
 interface ClientModalProps {
     isOpen: boolean;
-    client: Client | null;
     onClose: () => void;
-    onSave: (name: string, logo: File | null) => Promise<void>;
-    onDelete: (id: string) => Promise<void>;
+    onSave: (clientData: any) => Promise<void>;
+    client?: Client | null;
 }
 
-export default function ClientModal({ isOpen, client, onClose, onSave, onDelete }: ClientModalProps) {
+export default function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProps) {
+    const [loading, setLoading] = useState(false);
     const [name, setName] = useState('');
-    const [logo, setLogo] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const logoInputRef = useRef<HTMLInputElement>(null);
+    const [fullName, setFullName] = useState('');
+    const [address, setAddress] = useState('');
+    const [uid, setUid] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [website, setWebsite] = useState('');
 
     useEffect(() => {
-        if (isOpen) {
-            setName(client ? client.name : '');
-            setLogo(null);
+        if (client) {
+            setName(client.name);
+            setFullName(client.full_name || '');
+            setAddress(client.address || ''); // DB field is 'address'
+            setUid(client.uid_number || '');
+            setEmail(client.general_email || '');
+            setPhone(client.general_phone || '');
+            setWebsite(client.website || '');
+        } else {
+            setName('');
+            setFullName('');
+            setAddress('');
+            setUid('');
+            setEmail('');
+            setPhone('');
+            setWebsite('');
         }
-    }, [isOpen, client]);
+    }, [client, isOpen]);
 
     if (!isOpen) return null;
 
-    const handleSave = async () => {
-        setUploading(true);
-        await onSave(name, logo);
-        setUploading(false);
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await onSave({
+                name,
+                full_name: fullName,
+                address,
+                uid_number: uid,
+                general_email: email,
+                general_phone: phone,
+                website
+            });
+            onClose();
+        } catch (e: any) {
+            alert('Fehler: ' + e.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">{client ? 'Kunde bearbeiten' : 'Neuer Kunde'}</h2><button onClick={onClose}><X size={20} className="text-gray-400" /></button></div>
-                <div className="space-y-4">
-                    <div><label className="text-xs font-semibold text-gray-500 uppercase">Firmenname</label><input autoFocus type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50 mt-1" value={name} onChange={(e) => setName(e.target.value)} /></div>
-                    <div><label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Logo (Optional)</label><div className="flex items-center gap-2"><button onClick={() => logoInputRef.current?.click()} className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg flex items-center gap-2 text-gray-600"><ImageIcon size={14} /> {logo ? 'Datei gewählt' : 'Logo wählen'}</button>{client?.logo_url && !logo && <span className="text-xs text-green-600">Aktuelles Logo vorhanden</span>}</div><input type="file" accept="image/*" ref={logoInputRef} className="hidden" onChange={(e) => e.target.files && setLogo(e.target.files[0])} /></div>
-                    <div className="pt-2 flex gap-3">{client && <button onClick={() => onDelete(client.id)} className="p-2.5 rounded-lg border border-red-100 text-red-500 hover:bg-red-50"><Trash2 size={16} /></button>}<button onClick={handleSave} disabled={uploading} className="flex-1 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 shadow-lg disabled:opacity-50">{uploading ? 'Speichert...' : 'Speichern'}</button></div>
+            <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold flex items-center gap-2"><Building2 size={24} /> {client ? 'Kunde bearbeiten' : 'Neuer Kunde'}</h2>
+                    <button onClick={onClose}><X size={24} className="text-gray-400 hover:text-gray-900" /></button>
                 </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kurzname (Anzeige)*</label>
+                        <input required className="w-full p-2 border rounded-lg" value={name} onChange={e => setName(e.target.value)} placeholder="z.B. ACME" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Vollständiger Name (Vertrag)</label>
+                        <input className="w-full p-2 border rounded-lg" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="z.B. ACME GmbH & Co KG" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Anschrift</label>
+                        <textarea className="w-full p-2 border rounded-lg resize-none h-20" value={address} onChange={e => setAddress(e.target.value)} placeholder="Straße, PLZ, Ort" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">UID-Nummer</label>
+                            <input className="w-full p-2 border rounded-lg" value={uid} onChange={e => setUid(e.target.value)} placeholder="ATU..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email (Allgemein)</label>
+                            <input className="w-full p-2 border rounded-lg" value={email} onChange={e => setEmail(e.target.value)} placeholder="info@..." />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefon (Allgemein)</label>
+                            <input className="w-full p-2 border rounded-lg" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+43..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Webseite</label>
+                            <input className="w-full p-2 border rounded-lg" value={website} onChange={e => setWebsite(e.target.value)} placeholder="www..." />
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-lg">Abbrechen</button>
+                        <button type="submit" disabled={loading} className="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
+                            <Save size={16} /> Speichern
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

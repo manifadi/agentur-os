@@ -3,6 +3,8 @@ import { Client } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { Trash2, AlertTriangle, Building2, ArrowRight } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
+import ClientModal from '../Modals/ClientModal';
+import { useApp } from '../../context/AppContext'; // Need context to refetch? Or props? Props have onUpdate.
 
 interface AdminClientManagementProps {
     clients: Client[];
@@ -15,6 +17,22 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
     // Deletion State
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [confirmStep, setConfirmStep] = useState<'none' | 'initial' | 'final'>('none');
+
+    // Edit State
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+
+    const openEdit = (client: Client) => {
+        setEditingClient(client);
+        setIsEditOpen(true);
+    };
+
+    const handleSaveClient = async (data: any) => {
+        if (!editingClient) return;
+        const { error } = await supabase.from('clients').update(data).eq('id', editingClient.id);
+        if (error) throw error;
+        onUpdate();
+    };
 
     const initiateDelete = (id: string) => {
         setDeletingId(id);
@@ -98,6 +116,13 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
                                         <ArrowRight size={16} />
                                     </button>
                                     <button
+                                        onClick={() => openEdit(client)}
+                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition"
+                                        title="Kunde bearbeiten"
+                                    >
+                                        <Building2 size={16} />
+                                    </button>
+                                    <button
                                         onClick={() => initiateDelete(client.id)}
                                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                                         title="Kunde löschen"
@@ -134,6 +159,14 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
                 type="danger"
                 confirmText="Ja, alles löschen"
                 cancelText="Zurück"
+            />
+
+            {/* EDIT MODAL */}
+            <ClientModal
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                onSave={handleSaveClient}
+                client={editingClient}
             />
         </div>
     );

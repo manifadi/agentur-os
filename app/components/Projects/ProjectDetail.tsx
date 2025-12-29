@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload } from 'lucide-react';
-import { Project, Employee, Todo, ProjectLog } from '../../types';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X } from 'lucide-react';
+import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
 import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { supabase } from '../../supabaseClient';
@@ -8,6 +8,10 @@ import TodoList from './TodoList';
 import Logbook from './Logbook';
 import { useApp } from '../../context/AppContext';
 import TimeEntryModal from '../Modals/TimeEntryModal';
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import ContractPDF from '../Contracts/ContractPDF';
+import ProjectContractTab from './ProjectContractTab';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 interface ProjectDetailProps {
     project: Project;
@@ -15,22 +19,23 @@ interface ProjectDetailProps {
     onClose: () => void;
     onUpdateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     onDeleteProject: () => void;
-    currentEmployee?: Employee; // New
+    currentEmployee?: Employee;
 }
 
 export default function ProjectDetail({ project, employees, onClose, onUpdateProject, onDeleteProject, currentEmployee }: ProjectDetailProps) {
     const { clients } = useApp();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
     const [todos, setTodos] = useState<Todo[]>([]);
     const [logs, setLogs] = useState<ProjectLog[]>([]);
     const [timeEntries, setTimeEntries] = useState<any[]>([]);
-    const [sections, setSections] = useState<any[]>([]); // Detailed sections with positions
+    const [sections, setSections] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [showTimeModal, setShowTimeModal] = useState(false);
 
-    // Edit Modal State (Local to ProjectDetail or separate?)
-    // For simplicity, we can reuse the "Settings" modal logic here or keep it simple.
-    // Actually, let's keep the Edit Modal integrated or separate? 
-    // The original had a modal. Let's keep it local here.
+    // Edit Modal State
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState({
         title: project.title,
@@ -45,87 +50,105 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const pdfInputRef = useRef<HTMLInputElement>(null);
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
+    // Contract Logic
+    const [activeTab, setActiveTab] = useState<'details' | 'contract'>('details');
+    const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
+    const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
+    const [contractIntro, setContractIntro] = useState('');
+    const [contractOutro, setContractOutro] = useState('');
+    const [showPDFPreview, setShowPDFPreview] = useState(false);
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+    const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Sync Tab with URL
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'contract' || tab === 'details') {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (tab: 'details' | 'contract') => {
+        setActiveTab(tab);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', tab);
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
+    // Outside click for status dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+                setIsStatusDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleStatusUpdate = async (newStatus: string) => {
+        await onUpdateProject(project.id, { status: newStatus });
+        setIsStatusDropdownOpen(false);
+    };
+
+    useEffect(() => {
+        if (project) {
+            setContractIntro(project.contract_intro || '');
+            setContractOutro(project.contract_outro || '');
+            fetchContractData();
+        }
+    }, [project.id]);
+
+    const fetchContractData = async () => {
+        // 1. Get Agency Settings (based on Org)
+        const { data: settings } = await supabase.from('agency_settings').select('*').eq('organization_id', project.organization_id).maybeSingle();
+        if (settings) setAgencySettings(settings);
+
+        // 2. Get Templates
+        const { data: tmps } = await supabase.from('organization_templates').select('*').eq('organization_id', project.organization_id);
+        if (tmps) setTemplates(tmps as any);
+    };
+
+    const handleSaveContractText = async () => {
+        const { error } = await supabase.from('projects').update({
+            contract_intro: contractIntro,
+            contract_outro: contractOutro
+        }).eq('id', project.id);
+
+        if (error) alert('Fehler beim Speichern: ' + error.message);
+        else alert('Vertragsdaten gespeichert.');
+    };
+
+    const applyTemplate = (type: 'intro' | 'outro', content: string) => {
+        if (type === 'intro') setContractIntro(content);
+        else setContractOutro(content);
+    };
+
     useEffect(() => {
         fetchDetails();
     }, [project.id]);
 
     const fetchDetails = async () => {
         setLoading(true);
-        const { data: t } = await supabase.from('todos').select(`*, employees ( id, initials, name )`).eq('project_id', project.id).order('created_at', { ascending: true });
+        // Add email and phone to employee selection
+        const { data: t } = await supabase.from('todos').select(`*, employees(id, initials, name, email, phone)`).eq('project_id', project.id).order('created_at', { ascending: true });
         if (t) setTodos(t as any);
 
-        // Fetch Logs
         const { data: l } = await supabase.from('project_logs').select('*').eq('project_id', project.id).order('entry_date', { ascending: false });
+        if (l) setLogs(l as any);
 
-        if (l) {
-            setLogs(l as any);
-        }
-
-        // Fetch Detailed Sections & Positions
-        const { data: s } = await supabase
-            .from('project_sections')
-            .select(`*, positions:project_positions(*)`)
-            .eq('project_id', project.id)
-            .order('order_index');
-
+        const { data: s } = await supabase.from('project_sections').select(`*, positions: project_positions(*)`).eq('project_id', project.id).order('order_index');
         if (s) setSections(s);
 
-        // Fetch Time Entries (Actuals) for Reporting
-        const { data: te, error: teError } = await supabase
-            .from('time_entries')
-            .select(`
-                id,
-                project_id,
-                employee_id,
-                position_id,
-                agency_position_id,
-                date,
-                hours,
-                description,
-                created_at,
-                employees ( id, name, initials, hourly_rate, job_title )
-            `)
-            .eq('project_id', project.id);
-
-        if (teError) {
-            console.error('Error fetching time entries:', teError);
-        }
-
+        const { data: te } = await supabase.from('time_entries').select(`
+id, project_id, employee_id, position_id, agency_position_id, date, hours, description, created_at,
+    employees(id, name, initials, hourly_rate, job_title)
+        `).eq('project_id', project.id);
         if (te) setTimeEntries(te as any);
 
         setLoading(false);
     };
 
-    // Reporting Calculations
-    const totalRevenue = sections.reduce((acc, s) => acc + (s.positions?.reduce((sum: number, p: any) => sum + (p.quantity * p.unit_price), 0) || 0), 0);
-
-    // Group actuals by employee
-    const employeeCosts = useMemo(() => {
-        const groups: Record<string, { employee: Employee, hours: number, cost: number }> = {};
-        timeEntries.forEach(t => {
-            const empId = t.employee_id;
-            if (!groups[empId]) {
-                groups[empId] = { employee: t.employees, hours: 0, cost: 0 };
-            }
-            const h = Number(t.hours) || 0;
-
-            // Rate Fallback Logic
-            let rate = t.employees?.hourly_rate || 0;
-            if (!rate && t.employees?.job_title === 'Digital Consultant') {
-                rate = 133;
-            }
-
-            groups[empId].hours += h;
-            groups[empId].cost += h * rate;
-        });
-        return Object.values(groups);
-    }, [timeEntries]);
-
-    const totalCost = employeeCosts.reduce((acc, c) => acc + c.cost, 0);
-    const totalHours = employeeCosts.reduce((acc, c) => acc + c.hours, 0);
-    const margin = totalRevenue - totalCost;
-
-    // --- TODO HANDLERS ---
     const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null) => {
         const { data } = await supabase.from('todos').insert([{ project_id: project.id, title, assigned_to: assigneeId || null, deadline: deadline || null }]).select(`*, employees(id, initials, name)`);
         if (data) setTodos([...todos, data[0] as any]);
@@ -144,34 +167,21 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         setTodos(prev => prev.filter(t => t.id !== id));
     };
 
-    // --- LOG HANDLERS ---
     const handleAddLog = async (title: string, content: string, date: string, image: string | null, isPublic: boolean) => {
-        const p = {
-            project_id: project.id,
-            title,
-            content,
-            image_url: image,
-            entry_date: date,
-            employee_id: currentEmployee?.id || null,
-            is_public: isPublic
-        };
-        const { error } = await supabase.from('project_logs').insert([p]);
-        if (error) console.error(error);
+        const p = { project_id: project.id, title, content, image_url: image, entry_date: date, employee_id: currentEmployee?.id || null, is_public: isPublic };
+        await supabase.from('project_logs').insert([p]);
         fetchDetails();
     };
     const handleUpdateLog = async (id: string, title: string, content: string, date: string, image: string | null, isPublic: boolean) => {
-        const { error } = await supabase.from('project_logs').update({ title, content, entry_date: date, image_url: image, is_public: isPublic }).eq('id', id);
-        if (error) console.error(error);
+        await supabase.from('project_logs').update({ title, content, entry_date: date, image_url: image, is_public: isPublic }).eq('id', id);
         fetchDetails();
     };
     const handleDeleteLog = async (id: string) => {
         if (!confirm("Logbuch-Eintrag löschen?")) return;
-        const { error } = await supabase.from('project_logs').delete().eq('id', id);
-        if (error) console.error(error);
+        await supabase.from('project_logs').delete().eq('id', id);
         fetchDetails();
     };
 
-    // --- PROJECT UPDATE HANDLERS ---
     const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -211,7 +221,32 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
                 <div>
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{project.job_number}</div>
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2 break-words">{project.title}</h1>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyle(project.status)}`}>{project.status}</span>
+                    <div className="relative" ref={statusDropdownRef}>
+                        <button
+                            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all hover:brightness-95 flex items-center gap-1 ${getStatusStyle(project.status)}`}
+                        >
+                            {project.status}
+                        </button>
+
+                        {isStatusDropdownOpen && (
+                            <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                                {STATUS_OPTIONS.map((status) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => handleStatusUpdate(status)}
+                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between group transition-colors ${project.status === status ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${getStatusStyle(status).split(' ')[0]}`}></div>
+                                            {status}
+                                        </span>
+                                        {project.status === status && <div className="w-1 h-1 bg-blue-600 rounded-full" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="text-left md:text-right w-full md:w-auto">
                     <div className="text-sm text-gray-500 mb-1">Projektmanager</div>
@@ -223,51 +258,79 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[calc(100vh-200px)]">
-                {/* LEFT COLUMN: Logbook & Details */}
-                <div className="flex flex-col gap-6 h-full overflow-y-auto">
-                    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[200px]">
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400" /> Projektdetails</h2>
-                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 relative overflow-hidden group">
-                            {uploadingPdf ? <div className="animate-pulse text-sm">Lade Datei hoch...</div> : project.offer_pdf_url ? (
-                                <div className="flex items-center gap-4 w-full justify-center">
-                                    <a href={project.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 hover:bg-gray-100 transition"><FileText size={16} /> Angebot ansehen</a>
-                                    <button onClick={() => pdfInputRef.current?.click()} className="text-xs text-gray-400 hover:text-gray-600">Ändern</button>
-                                </div>
-                            ) : (
-                                <button onClick={() => pdfInputRef.current?.click()} className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><Upload size={16} /> PDF hochladen</button>
-                            )}
-                            <input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} />
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                            {project.google_doc_url ? (<a href={project.google_doc_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full text-blue-600 bg-blue-50 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition">Google Doc öffnen ↗</a>) : (<div className="text-center text-sm text-gray-400">Kein Google Doc verknüpft</div>)}
-                        </div>
-                    </div>
-
-                    <Logbook
-                        logs={logs}
-                        onAdd={handleAddLog}
-                        onUpdate={handleUpdateLog}
-                        onDelete={handleDeleteLog}
-                        onUploadImage={(f) => uploadFileToSupabase(f, 'documents')}
-                        currentEmployeeId={currentEmployee?.id}
-                    />
-                </div>
-
-                {/* RIGHT COLUMN: Tasks (Budget Removed) */}
-                <div className="flex flex-col gap-6 h-full overflow-y-auto">
-                    <TodoList
-                        todos={todos}
-                        employees={employees}
-                        onAdd={handleAddTodo}
-                        onToggle={handleToggleTodo}
-                        onUpdate={handleUpdateTodo}
-                        onDelete={handleDeleteTodo}
-                    />
-                </div>
+            {/* TABS HEADER */}
+            <div className="flex gap-6 border-b border-gray-100 mb-6">
+                <button
+                    onClick={() => handleTabChange('details')}
+                    className={`pb-3 text-sm font-bold transition ${activeTab === 'details' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
+                >
+                    Projekt Details
+                </button>
+                <button
+                    onClick={() => handleTabChange('contract')}
+                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'contract' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
+                >
+                    <FileText size={16} /> Vertrag & Angebot
+                </button>
             </div>
 
-            {/* EDIT MODAL */}
+            {activeTab === 'details' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[calc(100vh-200px)]">
+                    {/* LEFT COLUMN: Logbook & Details */}
+                    <div className="flex flex-col gap-6 h-full overflow-y-auto">
+                        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[200px]">
+                            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400" /> Projektdetails</h2>
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 relative overflow-hidden group">
+                                {uploadingPdf ? <div className="animate-pulse text-sm">Lade Datei hoch...</div> : project.offer_pdf_url ? (
+                                    <div className="flex items-center gap-4 w-full justify-center">
+                                        <a href={project.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 hover:bg-gray-100 transition"><FileText size={16} /> Angebot ansehen</a>
+                                        <button onClick={() => pdfInputRef.current?.click()} className="text-xs text-gray-400 hover:text-gray-600">Ändern</button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => pdfInputRef.current?.click()} className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><Upload size={16} /> PDF hochladen</button>
+                                )}
+                                <input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} />
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                {project.google_doc_url ? (<a href={project.google_doc_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full text-blue-600 bg-blue-50 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition">Google Doc öffnen ↗</a>) : (<div className="text-center text-sm text-gray-400">Kein Google Doc verknüpft</div>)}
+                            </div>
+                        </div>
+
+                        <Logbook
+                            logs={logs}
+                            onAdd={handleAddLog}
+                            onUpdate={handleUpdateLog}
+                            onDelete={handleDeleteLog}
+                            onUploadImage={(f) => uploadFileToSupabase(f, 'documents')}
+                            currentEmployeeId={currentEmployee?.id}
+                        />
+                    </div>
+
+                    {/* RIGHT COLUMN: Tasks */}
+                    <div className="flex flex-col gap-6 h-full overflow-y-auto">
+                        <TodoList
+                            todos={todos}
+                            employees={employees}
+                            onAdd={handleAddTodo}
+                            onToggle={handleToggleTodo}
+                            onUpdate={handleUpdateTodo}
+                            onDelete={handleDeleteTodo}
+                        />
+                    </div>
+                </div>
+            )}
+
+
+
+            {activeTab === 'contract' && (
+                <ProjectContractTab
+                    project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
+                    agencySettings={agencySettings}
+                    templates={templates}
+                    onUpdateProject={onUpdateProject}
+                />
+            )}
+
             {isEditing && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">

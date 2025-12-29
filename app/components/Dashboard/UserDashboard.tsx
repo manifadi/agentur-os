@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
 
 import TimeEntryModal from '../Modals/TimeEntryModal';
+import GlobalSearch from '../GlobalSearch';
 
 interface UserDashboardProps {
     onSelectProject: (p: Project) => void;
@@ -140,13 +141,19 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     return (
         <div className="h-[calc(100vh-2rem)] flex flex-col p-6 max-w-[1920px] mx-auto space-y-8 animate-in fade-in duration-500">
             {/* HERADER */}
-            <header className="shrink-0 flex justify-between items-end">
+            <header className="shrink-0 flex justify-between items-center gap-8">
                 <div>
                     <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">Guten Morgen, {currentUser.name.split(' ')[0]}.</h1>
                     <p className="text-lg text-gray-500 font-medium">Hier ist dein Überblick für heute.</p>
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={() => onQuickAction('create_project')} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform"><Plus size={18} /> Projekt</button>
+
+                {/* Global Search */}
+                <div className="flex-1 max-w-2xl">
+                    <GlobalSearch />
+                </div>
+
+                <div className="flex gap-3 shrink-0">
+                    <button onClick={() => onQuickAction('create_project')} style={{ minWidth: 'fit-content' }} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform whitespace-nowrap"><Plus size={18} /> Projekt hinzufügen</button>
                     <button onClick={() => onQuickAction('create_client')} className="flex items-center gap-2 bg-white/80 backdrop-blur border border-white/60 text-gray-900 px-5 py-2.5 rounded-full text-sm font-bold hover:bg-white transition shadow-sm hover:shadow-md"><UserPlus size={18} /> Kunde</button>
                 </div>
             </header>

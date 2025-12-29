@@ -89,7 +89,7 @@ export default function DashboardView({
                         onSelectProject={onSelectProject}
                         onSelectClient={onSelectClient}
                     />
-                    <button onClick={onOpenCreateModal} className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition"><FilePlus size={16} /> Projekt hinzufügen</button>
+                    <button onClick={onOpenCreateModal} style={{ minWidth: 'fit-content' }} className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition"><FilePlus size={16} /> Projekt hinzufügen</button>
 
                     {/* FILTER MENU */}
                     <div className="ml-2">

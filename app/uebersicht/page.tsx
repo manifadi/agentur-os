@@ -53,14 +53,19 @@ export default function UebersichtPage() {
     const [todaysHours, setTodaysHours] = useState(0); // NEW
     const [timeModalOpen, setTimeModalOpen] = useState(false); // NEW
 
-    // URL Param Sync
+    // URL Param Sync & State Management
     useEffect(() => {
-        const pId = searchParams.get('projectId');
+        const pId = searchParams.get('project_id') || searchParams.get('projectId');
         if (pId && projects.length > 0) {
             const found = projects.find(p => p.id === pId);
-            if (found) setSelectedProject(found);
+            if (found && found.id !== selectedProject?.id) {
+                setSelectedProject(found);
+            }
+        } else if (!pId && selectedProject) {
+            // Check if we should close (e.g. back button pressed)
+            setSelectedProject(null);
         }
-    }, [searchParams, projects]);
+    }, [searchParams, projects, selectedProject]);
 
     // NEW: Fetch Today's Hours
     useEffect(() => {
@@ -147,13 +152,27 @@ export default function UebersichtPage() {
         setCreateProjectOpen(false);
     };
 
+    const handleSelectProject = (project: Project) => {
+        setSelectedProject(project);
+        // Use shallow: true doesn't seem to work with built-in router for params sometimes in Next 13 app dir, 
+        // but push works. We want to be able to share the URL.
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('project_id', project.id);
+        router.push(`/uebersicht?${params.toString()}`);
+    };
+
+    const handleCloseProject = () => {
+        setSelectedProject(null);
+        router.push('/uebersicht');
+    };
+
     const handleUpdateProject = async (id: string, updates: Partial<Project>) => {
         const { data } = await supabase.from('projects').update(updates).eq('id', id).select();
         if (data) {
             await fetchData();
             const updated = projects.find(p => p.id === id);
-            // We need to fetch data again to get relations, but mostly we just need to keep `selectedProject` in sync
-            if (updated) setSelectedProject({ ...updated, ...updates } as any); // Type cast simplified
+            // Keep selectedProject in sync, but no URL change needed
+            if (updated) setSelectedProject({ ...updated, ...updates } as any);
         }
     };
 
@@ -165,8 +184,7 @@ export default function UebersichtPage() {
             action: async () => {
                 await supabase.from('projects').delete().eq('id', selectedProject.id);
                 setProjects(projects.filter(p => p.id !== selectedProject.id));
-                setSelectedProject(null);
-                router.replace('/uebersicht'); // Clear URL param
+                handleCloseProject();
             }
         });
         setConfirmOpen(true);
@@ -181,13 +199,11 @@ export default function UebersichtPage() {
         }]);
         if (error) console.error(error);
         fetchData();
-        // Keep modal open to show status change
-        // setCreateProjectOpen(false); 
     };
 
     return (
         <div className="flex h-full">
-            {/* Sidebar (Hidden if Viewing Project?) */}
+            {/* Sidebar */}
             {!selectedProject && (
                 <div className="flex-shrink-0 h-full">
                     <ContextSidebar
@@ -208,11 +224,7 @@ export default function UebersichtPage() {
                         project={selectedProject}
                         employees={employees}
                         currentEmployee={activeUser}
-                        onClose={() => {
-                            setSelectedProject(null);
-                            router.replace('/uebersicht');
-                            fetchData();
-                        }}
+                        onClose={handleCloseProject}
                         onUpdateProject={handleUpdateProject}
                         onDeleteProject={handleDeleteProject}
                     />
@@ -223,7 +235,7 @@ export default function UebersichtPage() {
                         employees={employees}
                         stats={stats}
                         selectedClient={selectedClient}
-                        onSelectProject={(p) => setSelectedProject(p)}
+                        onSelectProject={handleSelectProject}
                         onSelectClient={setSelectedClient}
 
                         onOpenCreateModal={() => setCreateProjectOpen(true)}

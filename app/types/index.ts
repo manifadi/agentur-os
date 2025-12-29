@@ -9,6 +9,9 @@ export interface Client {
     general_email?: string;
     general_phone?: string;
     website?: string;
+    full_name?: string; // NEW
+    // address?: string; // Already exists in line 8
+    uid_number?: string; // NEW
 }
 
 export interface ClientLog {
@@ -42,6 +45,7 @@ export interface Employee {
     role?: 'admin' | 'user';
     organization_id?: string;
     hourly_rate?: number; // [NEW]
+    phone?: string; // [NEW]
 }
 
 export interface Department {
@@ -89,10 +93,14 @@ export interface Project {
     google_doc_url?: string | null;
     offer_pdf_url?: string | null;
     organization_id: string;
+    contract_intro?: string; // NEW
+    contract_outro?: string; // NEW
+    invoice_contact_id?: string | null; // NEW // NEW
 
     // Joined data
     clients?: Client;
     employees?: Employee;
+    invoice_contact?: ClientContact; // Joined
     todos?: Todo[];
 
     // Computed
@@ -122,6 +130,8 @@ export interface ProjectPosition {
     quantity: number;
     unit: string;
     unit_price: number;
+    hourly_rate: number; // For PDF
+    hours_sold: number; // For PDF
     total_price: number;
     order_index: number;
 }
@@ -190,4 +200,30 @@ export interface AgencyPosition {
     hourly_rate: number;
     category?: string;
     organization_id: string;
+}
+
+export interface AgencySettings {
+    id: string;
+    organization_id: string;
+    company_name: string;
+    address: string;
+    website?: string; // NEW
+    general_email?: string; // NEW
+    general_phone?: string; // NEW
+    tax_id: string;
+    bank_name: string;
+    iban: string;
+    bic: string;
+    commercial_register: string;
+    footer_text: string;
+    logo_url: string;
+    document_header_url?: string;
+}
+
+export interface OrganizationTemplate {
+    id: string;
+    organization_id: string;
+    name: string;
+    content: string;
+    type: 'intro' | 'outro';
 }

@@ -115,8 +115,8 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 supabase.from('project_members').select('*'), // TODO: Filter this? Ideally, RLS handles it. OR we filter locally based on projects we get.
                 supabase.from('projects').select(`
                 *, 
-                employees ( id, name, initials ), 
-                clients ( name, logo_url ), 
+                employees ( id, name, initials, email, phone ), 
+                clients ( * ), 
                 todos ( * ),
                 positions:project_positions ( * )
             `).eq('organization_id', orgId).order('created_at', { ascending: false }),
@@ -165,13 +165,13 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     // Only if MainSidebar expects strict types, otherwise we might need to update MainSidebarProps
     // Current MainSidebar Expects: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'settings'
     const getSidebarView = () => {
-        switch (pathname) {
-            case '/uebersicht': return 'projects_overview';
-            case '/aufgaben': return 'global_tasks';
-            case '/ressourcen': return 'resource_planning';
-            case '/einstellungen': return 'settings';
-            default: return 'dashboard';
-        }
+        if (!pathname) return 'dashboard';
+        if (pathname.startsWith('/uebersicht')) return 'projects_overview';
+        if (pathname.startsWith('/aufgaben')) return 'global_tasks';
+        if (pathname.startsWith('/ressourcen')) return 'resource_planning';
+        if (pathname.startsWith('/zeiterfassung')) return 'time_tracking';
+        if (pathname.startsWith('/einstellungen')) return 'settings';
+        return 'dashboard';
     };
 
     // Derived Current User
@@ -207,6 +207,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                                 case 'projects_overview': router.push('/uebersicht'); break;
                                 case 'global_tasks': router.push('/aufgaben'); break;
                                 case 'resource_planning': router.push('/ressourcen'); break;
+                                case 'time_tracking': router.push('/zeiterfassung'); break;
                                 case 'settings': router.push('/einstellungen'); break;
                             }
                         }}

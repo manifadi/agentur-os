@@ -6,6 +6,7 @@ import AdminUserManagement from './AdminUserManagement';
 import AdminProjectList from './AdminProjectList';
 import AdminClientManagement from './AdminClientManagement';
 import AdminRateManagement from './AdminRateManagement';
+import AdminAgencySettings from './AdminAgencySettings';
 import { useApp } from '../../context/AppContext';
 
 interface SettingsProps {
@@ -19,7 +20,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
     const { projects, clients } = useApp(); // Get global projects and clients
     const [currentUser, setCurrentUser] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients' | 'rates'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients' | 'rates' | 'agency'>('profile');
 
     // Form State
     const [name, setName] = useState('');
@@ -27,6 +28,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
     const [deptId, setDeptId] = useState('');
     const [jobTitle, setJobTitle] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
 
     // Effect to auto-select if session matches
     useEffect(() => {
@@ -39,6 +41,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 setDeptId(found.department_id || '');
                 setJobTitle(found.job_title || '');
                 setEmail(found.email || '');
+                setPhone(found.phone || '');
             }
         }
     }, [employees, session]);
@@ -51,7 +54,8 @@ export default function Settings({ session, employees, departments, onUpdate }: 
             initials: initials.toUpperCase(),
             department_id: deptId || null,
             job_title: jobTitle,
-            email: email || null
+            email: email || null,
+            phone: phone || null
         }).eq('id', currentUser.id);
         onUpdate();
         setLoading(false);
@@ -105,6 +109,12 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                         >
                             <SettingsIconLucide size={14} /> Stundensätze
                         </button>
+                        <button
+                            onClick={() => setActiveTab('agency')}
+                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'agency' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
+                        >
+                            <Building2 size={14} /> Unternehmen
+                        </button>
                     </>
                 )}
             </div>
@@ -136,6 +146,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                                 setDeptId(emp.department_id || '');
                                                 setJobTitle(emp.job_title || '');
                                                 setEmail(emp.email || '');
+                                                setPhone(emp.phone || '');
                                             }
                                         }}
                                         value={currentUser?.id || ''}
@@ -160,6 +171,10 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kürzel (2 Zeichen)</label>
                                                 <input type="text" maxLength={2} className="w-full p-2 border border-gray-200 rounded-lg font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
                                             </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Telefon (für Verträge)</label>
+                                            <input type="text" className="w-full p-2 border border-gray-200 rounded-lg font-medium" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+43 660 ..." />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel (Position)</label>
@@ -266,7 +281,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                         Actually, let's keep it simple: A list of all projects with filter.
                     */}
                     <AdminProjectList projects={projects} clients={clients} />
-                    <p>Projekte werden geladen...</p>
+                    {/* <p>Projekte werden geladen...</p> REMOVED */}
                 </div>
             ) : activeTab === 'clients' && currentUser?.role === 'admin' ? (
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -274,6 +289,8 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 </div>
             ) : activeTab === 'rates' && currentUser?.role === 'admin' ? (
                 <AdminRateManagement />
+            ) : activeTab === 'agency' && currentUser?.role === 'admin' ? (
+                <AdminAgencySettings />
             ) : currentUser ? (
                 <AdminUserManagement
                     employees={employees}
