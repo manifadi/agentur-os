@@ -218,6 +218,7 @@ export interface AgencySettings {
     footer_text: string;
     logo_url: string;
     document_header_url?: string;
+    resource_planner_departments?: string[];
 }
 
 export interface OrganizationTemplate {

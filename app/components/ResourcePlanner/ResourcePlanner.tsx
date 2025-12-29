@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { Employee, Project, Department, AllocationRow, ResourceAllocation } from '../../types';
+import { Employee, Project, Department, AllocationRow, ResourceAllocation, AgencySettings } from '../../types';
 import { getStatusStyle } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import ResourceGrid from './ResourceGrid';
@@ -19,6 +19,7 @@ export default function ResourcePlanner({ employees, projects, currentUser }: Re
     const [selectedDeptId, setSelectedDeptId] = useState<string>(currentUser?.department_id || '');
     const [allocations, setAllocations] = useState<ResourceAllocation[]>([]);
     const [loading, setLoading] = useState(false);
+    const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
 
     // Get ISO Week
     const getWeekNumber = (d: Date) => {
@@ -42,15 +43,32 @@ export default function ResourcePlanner({ employees, projects, currentUser }: Re
 
     useEffect(() => {
         const init = async () => {
-            const { data } = await supabase.from('departments').select('*').order('name');
-            if (data) {
-                setDepartments(data);
-                // If no selection yet (or 'Alle' legacy), try to set to user dept -> first dept
-                if (!selectedDeptId || selectedDeptId === 'Alle') {
-                    if (currentUser?.department_id) {
-                        setSelectedDeptId(currentUser.department_id);
-                    } else if (data.length > 0) {
-                        setSelectedDeptId(data[0].id);
+            // 1. Fetch Settings to get configured departments
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: emp } = await supabase.from('employees').select('organization_id').eq('id', user.id).single();
+                if (emp) {
+                    const { data: settings } = await supabase.from('agency_settings').select('*').eq('organization_id', emp.organization_id).single();
+                    if (settings) setAgencySettings(settings);
+
+                    // 2. Fetch Departments
+                    const { data: depts } = await supabase.from('departments').select('*').eq('organization_id', emp.organization_id).order('name');
+                    if (depts) {
+                        // Filter departments based on settings
+                        let filteredDepts = depts;
+                        if (settings?.resource_planner_departments && settings.resource_planner_departments.length > 0) {
+                            filteredDepts = depts.filter(d => settings.resource_planner_departments.includes(d.id));
+                        }
+                        setDepartments(filteredDepts);
+
+                        // If no selection yet, try to set to user dept or first filtered dept
+                        if (!selectedDeptId || !filteredDepts.find(d => d.id === selectedDeptId)) {
+                            if (currentUser?.department_id && filteredDepts.find(d => d.id === currentUser.department_id)) {
+                                setSelectedDeptId(currentUser.department_id);
+                            } else if (filteredDepts.length > 0) {
+                                setSelectedDeptId(filteredDepts[0].id);
+                            }
+                        }
                     }
                 }
             }
@@ -194,24 +212,29 @@ export default function ResourcePlanner({ employees, projects, currentUser }: Re
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 px-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight mb-1 flex items-center gap-2"><Calendar size={24} /> Ressourcenplanung</h1>
                     <p className="text-gray-500 text-sm">Kapazitäten verwalten</p>
                 </div>
-                <div className="flex items-center gap-4 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                    <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-gray-100 rounded-md"><ChevronLeft size={18} /></button>
-                    <div className="text-sm font-bold w-32 text-center select-none">KW {currentWeek} <span className="text-gray-400 font-normal">| {currentYear}</span></div>
-                    <button onClick={() => changeWeek(1)} className="p-2 hover:bg-gray-100 rounded-md"><ChevronRight size={18} /></button>
+
+                <div className="flex items-center gap-4 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                    <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors"><ChevronLeft size={18} /></button>
+                    <div className="text-sm font-bold w-32 text-center select-none text-gray-900 leading-none">KW {currentWeek} <span className="text-gray-400 font-normal ml-1">| {currentYear}</span></div>
+                    <button onClick={() => changeWeek(1)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors"><ChevronRight size={18} /></button>
                 </div>
-                <div>
+
+                <div className="relative group">
                     <select
-                        className="appearance-none bg-white border border-gray-200 text-sm font-medium rounded-lg px-3 py-2 w-48 focus:ring-2 focus:ring-gray-900 outline-none"
+                        className="appearance-none bg-white border border-gray-200 text-sm font-bold rounded-xl pl-4 pr-10 py-2.5 min-w-[160px] focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none shadow-sm cursor-pointer transition-all hover:border-gray-300"
                         value={selectedDeptId}
                         onChange={(e) => setSelectedDeptId(e.target.value)}
                     >
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-gray-600 transition-colors">
+                        <ChevronRight size={14} className="rotate-90" />
+                    </div>
                 </div>
             </header>
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Briefcase, Calculator, Users, Clock, Plus, X, BarChart3 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import ConfirmModal from '../../components/Modals/ConfirmModal';
 
 import { supabase } from '../../supabaseClient';
 
@@ -16,6 +17,11 @@ export default function CreateProjectWizard() {
     const { clients, employees, fetchData } = useApp();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+
+    // Initial state for comparison
+    const [initialBasicInfo, setInitialBasicInfo] = useState<any>(null);
+    const [initialSections, setInitialSections] = useState<any[]>([]);
 
     // Form State
     const [basicInfo, setBasicInfo] = useState({
@@ -73,8 +79,28 @@ export default function CreateProjectWizard() {
             loadProjectData(editId);
         } else {
             generateJobNumber(); // Only generate for NEW projects
+            // Store empty initial state for new projects
+            setInitialBasicInfo({
+                title: '',
+                jobNr: '', // Will be updated by generateJobNumber soon
+                clientId: '',
+                pmId: '',
+                descriptionInternal: '',
+                descriptionExternal: '',
+                status: 'Bearbeitung',
+                deadline: '',
+                googleDocUrl: ''
+            });
+            setInitialSections([{ id: '1', title: '1. Phase: Konzeption', description: '', positions: [] }]);
         }
     }, [editId]);
+
+    // Update initial jobNr once it's generated for NEW projects
+    React.useEffect(() => {
+        if (!isEditMode && basicInfo.jobNr && initialBasicInfo && !initialBasicInfo.jobNr) {
+            setInitialBasicInfo((prev: any) => ({ ...prev, jobNr: basicInfo.jobNr }));
+        }
+    }, [basicInfo.jobNr]);
 
     const fetchAgencyPositions = async () => {
         const { data } = await supabase.from('agency_positions').select('*').order('hourly_rate', { ascending: false });
@@ -83,60 +109,93 @@ export default function CreateProjectWizard() {
 
     const loadProjectData = async (id: string) => {
         setLoading(true);
-        // 1. Fetch Project
-        const { data: proj } = await supabase.from('projects').select('*').eq('id', id).single();
-        if (proj) {
-            setBasicInfo({
-                title: proj.title,
-                jobNr: proj.job_number,
-                clientId: proj.client_id,
-                pmId: proj.project_manager_id || '',
-                descriptionInternal: '', // Add columns if you add them to DB
-                descriptionExternal: '',
-                status: proj.status,
-                deadline: proj.deadline || '',
-                googleDocUrl: proj.google_doc_url || ''
-            });
-        }
+        try {
+            // 1. Fetch Project
+            const { data: proj } = await supabase.from('projects').select('*').eq('id', id).single();
+            if (proj) {
+                setBasicInfo({
+                    title: proj.title,
+                    jobNr: proj.job_number,
+                    clientId: proj.client_id,
+                    pmId: proj.project_manager_id || '',
+                    descriptionInternal: '', // Add columns if you add them to DB
+                    descriptionExternal: '',
+                    status: proj.status,
+                    deadline: proj.deadline || '',
+                    googleDocUrl: proj.google_doc_url || ''
+                });
+            }
 
-        // 2. Fetch Sections & Positions
-        const { data: secs } = await supabase
-            .from('project_sections')
-            .select(`*, positions:project_positions(*)`)
-            .eq('project_id', id)
-            .order('order_index', { ascending: true });
+            // 2. Fetch Sections & Positions
+            const { data: secs } = await supabase
+                .from('project_sections')
+                .select(`*, positions:project_positions(*)`)
+                .eq('project_id', id)
+                .order('order_index', { ascending: true });
 
-        if (secs) {
-            const mappedSections = secs.map((s: any) => ({
-                id: s.id,
-                title: s.title,
-                description: s.description || '',
-                positions: (s.positions || [])
-                    .sort((a: any, b: any) => a.order_index - b.order_index)
-                    .map((p: any) => ({
-                        id: p.id,
-                        title: p.title,
-                        description: p.description || '',
-                        quantity: p.quantity || 0,
-                        unit: p.unit || 'Stunden',
-                        unitPrice: p.unit_price || 0
-                    }))
-            }));
-            setSections(mappedSections);
-        }
+            if (secs) {
+                const mappedSections = secs.map((s: any) => ({
+                    id: s.id,
+                    title: s.title,
+                    description: s.description || '',
+                    positions: (s.positions || [])
+                        .sort((a: any, b: any) => a.order_index - b.order_index)
+                        .map((p: any) => ({
+                            id: p.id,
+                            title: p.title,
+                            description: p.description || '',
+                            quantity: p.quantity || 0,
+                            unit: p.unit || 'Stunden',
+                            unitPrice: p.unit_price || 0
+                        }))
+                }));
+                setSections(mappedSections);
+            }
 
-        // 3. Fetch Time Entries (Actuals)
-        const { data: te } = await supabase
-            .from('time_entries')
-            .select(`
+            // 3. Fetch Time Entries (Actuals)
+            const { data: te } = await supabase
+                .from('time_entries')
+                .select(`
                 *,
                 employees ( id, name, initials, hourly_rate ),
                 agency_positions ( id, title, hourly_rate )
             `)
-            .eq('project_id', id);
-        if (te) setTimeEntries(te);
+                .eq('project_id', id);
+            if (te) setTimeEntries(te);
 
-        setLoading(false);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Store initial state after loading data
+    React.useEffect(() => {
+        if (isEditMode && !loading && basicInfo.title && initialBasicInfo === null) {
+            setInitialBasicInfo({ ...basicInfo });
+            setInitialSections(JSON.parse(JSON.stringify(sections)));
+        }
+    }, [isEditMode, loading, basicInfo, sections]);
+
+    const hasUnsavedChanges = () => {
+        if (!initialBasicInfo) return false;
+
+        // Compare Basic Info
+        const basicChanged = JSON.stringify(basicInfo) !== JSON.stringify(initialBasicInfo);
+
+        // Compare Sections & Positions (deep comparison)
+        const sectionsChanged = JSON.stringify(sections) !== JSON.stringify(initialSections);
+
+        return basicChanged || sectionsChanged;
+    };
+
+    const handleCancel = () => {
+        if (hasUnsavedChanges()) {
+            setShowCancelModal(true);
+        } else {
+            router.back();
+        }
     };
 
     const addSection = () => {
@@ -753,7 +812,7 @@ export default function CreateProjectWizard() {
                         <h1 className="text-xl font-bold text-gray-900">{isEditMode ? 'Projekt bearbeiten' : 'Neues Projekt anlegen'}</h1>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => { }} className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 transition">Abbrechen</button>
+                        <button onClick={handleCancel} className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 transition">Abbrechen</button>
                         <button onClick={handleSave} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-gray-800 transition shadow-lg shadow-gray-900/10 disabled:opacity-50">
                             {loading ? 'Speichere...' : <><Save size={16} /> Projekt speichern</>}
                         </button>
@@ -822,6 +881,16 @@ export default function CreateProjectWizard() {
                     {step === 4 && renderStep4()}
                 </div>
             </div>
+            <ConfirmModal
+                isOpen={showCancelModal}
+                title="Ungespeicherte Änderungen"
+                message="Ungespeicherte Änderungen werden hiermit gelöscht."
+                onConfirm={() => router.back()}
+                onCancel={() => setShowCancelModal(false)}
+                confirmText="Verwerfen"
+                cancelText="Weiter bearbeiten"
+                type="danger"
+            />
         </div>
     );
 }

@@ -4,9 +4,9 @@ import { Project, AgencySettings, Client, Employee } from '../../types';
 
 const styles = StyleSheet.create({
     page: {
-        paddingTop: 110, // Space for Fixed Header
-        paddingBottom: 80, // Space for Fixed Footer
-        paddingHorizontal: 40,
+        paddingTop: 120, // More space for Fixed Header
+        paddingBottom: 100, // Fixed Footer buffer
+        paddingHorizontal: 50,
         fontFamily: 'Helvetica',
         fontSize: 9,
         color: '#111827',
@@ -15,40 +15,38 @@ const styles = StyleSheet.create({
     // FIXED HEADER
     headerFixed: {
         position: 'absolute',
-        top: 30,
-        left: 40,
-        right: 40,
+        top: 20,
+        left: 50,
+        right: 50,
         height: 80,
     },
     headerLogo: {
         width: '100%',
         height: '100%',
         objectFit: 'contain',
-        objectPosition: 'left', // Keep it left aligned
+        objectPosition: 'left',
     },
 
-    // META BLOCK (Not fixed, first page only usually, but user wants structure)
-    // We keep address/meta in flow, so it pushes content down.
+    // META BLOCK
     metaContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 30,
         marginTop: 0,
         alignItems: 'flex-start',
     },
     addressBlock: {
-        width: '40%',
+        width: '45%',
         paddingTop: 10,
-        fontSize: 10,
     },
     senderLine: {
         fontSize: 6,
         color: '#666',
-        marginBottom: 8,
+        marginBottom: 4,
         textDecoration: 'underline',
     },
     metaBlock: {
-        width: '55%',
+        width: '50%',
         alignItems: 'flex-end',
     },
     metaRow: {
@@ -64,7 +62,7 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     metaValue: {
-        width: 160,
+        width: 140,
         textAlign: 'right',
         fontSize: 8,
         fontWeight: 'bold',
@@ -72,22 +70,22 @@ const styles = StyleSheet.create({
 
     // TITLE
     titleBlock: {
-        marginBottom: 30,
+        marginBottom: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#E5E7EB',
-        paddingBottom: 10,
+        paddingBottom: 8,
     },
     mainTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 4,
     },
     subTitle: {
-        fontSize: 12,
+        fontSize: 10,
         color: '#4B5563',
     },
 
-    // TABLE (Restored "Tabular" Look: Gray Header, Borders)
+    // TABLE
     table: {
         width: '100%',
         marginBottom: 20,
@@ -98,8 +96,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#E5E7EB',
-        backgroundColor: '#F9FAFB', // Restored Gray Background
-        paddingVertical: 8,
+        backgroundColor: '#F9FAFB',
+        paddingVertical: 6,
         paddingHorizontal: 4,
         alignItems: 'center',
     },
@@ -107,48 +105,52 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#F3F4F6',
-        paddingVertical: 8,
+        paddingVertical: 6,
         paddingHorizontal: 4,
         alignItems: 'flex-start',
     },
 
     // Columns
-    colNum: { width: '10%', fontSize: 9, color: '#6B7280' },
-    colDesc: { width: '45%', fontSize: 9 },
-    colQty: { width: '15%', textAlign: 'right', fontSize: 9 },
-    colUnit: { width: '15%', textAlign: 'right', fontSize: 9 },
-    colTotal: { width: '15%', textAlign: 'right', fontSize: 9 },
+    colNum: { width: '8%', fontSize: 8, color: '#6B7280' },
+    colDesc: { width: '47%', fontSize: 8 },
+    colQty: { width: '15%', textAlign: 'right', fontSize: 8 },
+    colUnit: { width: '15%', textAlign: 'right', fontSize: 8 },
+    colTotal: { width: '15%', textAlign: 'right', fontSize: 8 },
 
     // TEXT
     textBlock: {
-        marginBottom: 20,
+        marginBottom: 15,
         textAlign: 'justify',
-        fontSize: 9,
+        fontSize: 8.5,
+        lineHeight: 1.5,
     },
 
     // TOTALS
     totalBlock: {
         marginTop: 10,
         alignSelf: 'flex-end',
-        width: '40%',
+        width: '45%',
     },
     totalRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 4,
-        paddingVertical: 2,
+        marginBottom: 3,
+        paddingVertical: 1,
     },
-    totalLabel: { fontSize: 9 },
-    totalLabelBold: { fontSize: 10, fontWeight: 'bold' },
-    totalValue: { fontSize: 9, textAlign: 'right' },
-    totalValueBold: { fontSize: 10, fontWeight: 'bold', textAlign: 'right' },
+    totalLabel: { fontSize: 8.5 },
+    totalLabelBold: { fontSize: 9, fontWeight: 'bold' },
+    totalValue: { fontSize: 8.5, textAlign: 'right' },
+    totalValueBold: { fontSize: 9, fontWeight: 'bold', textAlign: 'right' },
 
     // FIXED FOOTER
     footerFixed: {
         position: 'absolute',
-        bottom: 30,
-        left: 40,
-        right: 40,
+        bottom: 25,
+        left: 50,
+        right: 50,
+        borderTopWidth: 0.5,
+        borderTopColor: '#E5E7EB',
+        paddingTop: 10,
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
@@ -157,14 +159,14 @@ const styles = StyleSheet.create({
     },
     footerLine: {
         fontSize: 6,
-        color: '#000',
-        marginBottom: 2,
+        color: '#6B7280', // Softer gray for cleaner look
+        marginBottom: 1,
     },
     redLine: {
-        width: 20,
-        height: 2,
+        width: 15,
+        height: 1.5,
         backgroundColor: '#E11D48',
-        marginBottom: 8,
+        marginBottom: 4,
     }
 });
 
@@ -356,18 +358,18 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                 <View style={styles.footerFixed} fixed>
                     <View style={styles.footerCol}>
                         <View style={styles.redLine} />
-                        <Text style={[styles.footerLine, { fontWeight: 'bold' }]}>{agency?.company_name}</Text>
+                        <Text style={[styles.footerLine, { fontWeight: 'bold', color: '#111827' }]}>{agency?.company_name}</Text>
                         <Text style={styles.footerLine}>{agency?.general_phone}</Text>
                         <Text style={styles.footerLine}>{agency?.general_email}</Text>
                         <Text style={styles.footerLine}>{agency?.website}</Text>
                     </View>
                     <View style={styles.footerCol}>
-                        <View style={{ height: 10 }} />
                         <Text style={styles.footerLine}>{agency?.address}</Text>
-                        <Text style={styles.footerLine}>{agency?.footer_text}</Text>
+                        <View style={{ marginTop: 2 }}>
+                            <Text style={styles.footerLine}>{agency?.footer_text}</Text>
+                        </View>
                     </View>
                     <View style={[styles.footerCol, { alignItems: 'flex-end' }]}>
-                        <View style={{ height: 10 }} />
                         <Text style={styles.footerLine}>UID: {agency?.tax_id}</Text>
                         <Text style={styles.footerLine}>FN: {agency?.commercial_register}</Text>
                         <Text style={styles.footerLine}>Bank: {agency?.bank_name}</Text>

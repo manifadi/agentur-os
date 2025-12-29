@@ -28,28 +28,28 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
     }));
 
     return (
-        <div className="bg-white border border-gray-300 overflow-x-auto shadow-sm max-h-[calc(100vh-140px)]">
+        <div className="bg-white overflow-x-auto max-h-[calc(100vh-140px)]">
             <table className="w-full text-left border-collapse min-w-[1400px] text-xs">
-                <thead className="bg-gray-100 text-gray-900 border-b border-gray-300 sticky top-0 z-10 shadow-sm font-bold">
+                <thead className="bg-gray-50/50 text-gray-500 sticky top-0 z-10 font-bold">
                     <tr className="h-10">
                         {/* 6 Columns */}
-                        <th className="px-3 border text-center border-gray-300 w-32 bg-gray-100">Kunde</th>
-                        <th className="px-3 border text-center border-gray-300 w-24 bg-gray-100">Job Nr.</th>
-                        <th className="px-3 border text-left border-gray-300 w-48 bg-gray-100">Projekt</th>
-                        <th className="px-3 border text-left border-gray-300 w-32 bg-gray-100">Position</th>
-                        <th className="px-3 border text-left border-gray-300 w-48 bg-gray-100">Aufgabe</th>
-                        <th className="px-3 border text-center border-gray-300 w-24 bg-gray-100">Status</th>
-                        <th className="px-3 border text-center border-gray-300 w-16 bg-gray-100">PM</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-center w-32 font-bold uppercase tracking-wider text-[10px]">Kunde</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-center w-24 font-bold uppercase tracking-wider text-[10px]">Job Nr.</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-left w-48 font-bold uppercase tracking-wider text-[10px]">Projekt</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-left w-32 font-bold uppercase tracking-wider text-[10px]">Position</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-left w-48 font-bold uppercase tracking-wider text-[10px]">Aufgabe</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-center w-24 font-bold uppercase tracking-wider text-[10px]">Status</th>
+                        <th className="px-3 border-b border-r border-gray-100 text-center w-16 font-bold uppercase tracking-wider text-[10px]">PM</th>
 
                         {/* Days */}
-                        <th className="px-1 border border-gray-300 w-12 text-center bg-gray-50">Mo</th>
-                        <th className="px-1 border border-gray-300 w-12 text-center bg-gray-50">Di</th>
-                        <th className="px-1 border border-gray-300 w-12 text-center bg-gray-50">Mi</th>
-                        <th className="px-1 border border-gray-300 w-12 text-center bg-gray-50">Do</th>
-                        <th className="px-1 border border-gray-300 w-12 text-center bg-gray-50">Fr</th>
+                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Mo</th>
+                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Di</th>
+                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Mi</th>
+                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Do</th>
+                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Fr</th>
 
-                        <th className="px-2 border border-gray-300 w-32 bg-gray-100 text-center">Kommentar</th>
-                        <th className="w-8 border border-gray-300 bg-gray-100"></th>
+                        <th className="px-2 border-b border-r border-gray-100 w-32 text-center">Kommentar</th>
+                        <th className="w-8 border-b border-gray-100 bg-gray-50/50"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -65,10 +65,10 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                         return (
                             <React.Fragment key={row.employee.id}>
-                                <tr className="bg-white border-b border-gray-300">
-                                    <td colSpan={14} className="px-3 py-2 border border-gray-300 border-l-4 border-l-gray-900 sticky left-0 z-0 bg-gray-50">
-                                        <div className="font-black text-sm text-gray-900">{row.employee.name}</div>
-                                        {row.employee.job_title && <div className="text-[10px] text-gray-500 font-normal">{row.employee.job_title}</div>}
+                                <tr className="bg-gray-50/30">
+                                    <td colSpan={14} className="px-3 py-2 border-b border-gray-100 border-l-4 border-l-gray-900 sticky left-0 z-0">
+                                        <div className="font-bold text-sm text-gray-900 tracking-tight">{row.employee.name}</div>
+                                        {row.employee.job_title && <div className="text-[10px] text-gray-400 font-medium uppercase mt-0.5">{row.employee.job_title}</div>}
                                     </td>
                                 </tr>
 
@@ -95,10 +95,10 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         </td>
 
                                         {/* POSITION DROPDOWN */}
-                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-gray-50 h-9 p-0 relative bg-white">
                                             {alloc.projects?.positions && alloc.projects.positions.length > 0 ? (
                                                 <select
-                                                    className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-700 block"
+                                                    className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-700 block hover:bg-gray-50/50"
                                                     value={alloc.position_id || ''}
                                                     onChange={(e) => onUpdateAllocation(alloc.id, 'position_id', e.target.value || null)}
                                                 >
@@ -112,24 +112,24 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                                         ))}
                                                 </select>
                                             ) : (
-                                                <div className="w-full h-full flex items-center px-2 text-[10px] text-gray-300 select-none">-</div>
+                                                <div className="w-full h-full flex items-center px-2 text-[10px] text-gray-200 select-none">-</div>
                                             )}
                                         </td>
 
 
-                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-gray-50 h-9 p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-gray-900 text-[11px] placeholder:text-gray-400 block"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50/30 focus:outline-none text-gray-900 text-[11px] placeholder:text-gray-300 block"
                                                 value={alloc.task_description || ''}
                                                 onChange={(e) => onUpdateAllocation(alloc.id, 'task_description', e.target.value)}
                                                 placeholder="..."
                                             />
                                         </td>
 
-                                        <td className="px-0 border border-gray-200 h-9 p-0 relative">
+                                        <td className="px-0 border-b border-r border-gray-50 h-9 p-0 relative">
                                             <select
-                                                className={`appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer block ${getStatusStyle(alloc.projects?.status || '')}`}
+                                                className={`appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer block font-bold ${getStatusStyle(alloc.projects?.status || '')}`}
                                                 value={alloc.projects?.status || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'status', e.target.value); }}
                                             >
@@ -138,9 +138,9 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         </td>
 
 
-                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-gray-50 h-9 p-0 relative bg-white">
                                             <select
-                                                className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-500 text-center block"
+                                                className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-400 text-center block hover:text-gray-700"
                                                 value={alloc.projects?.project_manager_id || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'project_manager_id', e.target.value || null); }}
                                             >
@@ -151,11 +151,11 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                                         {
                                             ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => (
-                                                <td key={day} className={`px-0 border border-gray-200 text-center h-9 p-0 relative bg-white`}>
+                                                <td key={day} className={`px-0 border-b border-r border-gray-50 text-center h-9 p-0 relative bg-white`}>
                                                     <input
                                                         type="number"
                                                         step="0.25"
-                                                        className={`appearance-none w-full h-full text-center bg-transparent focus:bg-blue-50 focus:outline-none font-medium block ${(alloc as any)[day] > 0 ? 'text-gray-900' : 'text-gray-300'}`}
+                                                        className={`appearance-none w-full h-full text-center bg-transparent focus:bg-blue-50/30 focus:outline-none font-bold block ${(alloc as any)[day] > 0 ? 'text-gray-900 border-b-2 border-b-blue-600/30' : 'text-gray-200'}`}
                                                         value={(alloc as any)[day] || ''}
                                                         onChange={(e) => onUpdateAllocation(alloc.id, day, parseFloat(e.target.value) || 0)}
                                                     />
@@ -164,17 +164,17 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         }
 
 
-                                        <td className="px-0 border border-gray-200 h-9 p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-gray-50 h-9 p-0 relative bg-white">
                                             <input
                                                 type="text"
-                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50 focus:outline-none text-[10px] text-gray-500 placeholder:text-gray-300 block"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-blue-50/30 focus:outline-none text-[10px] text-gray-400 placeholder:text-gray-200 block"
                                                 value={alloc.comment || ''}
                                                 onChange={(e) => onUpdateAllocation(alloc.id, 'comment', e.target.value)}
                                             />
                                         </td>
 
-                                        <td className="text-center border border-gray-200">
-                                            <button onClick={() => onDeleteAllocation(alloc.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12} /></button>
+                                        <td className="text-center border-b border-gray-50">
+                                            <button onClick={() => onDeleteAllocation(alloc.id)} className="text-gray-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12} /></button>
                                         </td>
                                     </tr >
                                 ))
@@ -199,14 +199,14 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                     })}
 
                     {/* GLOBAL TOTALS */}
-                    <tr className="bg-gray-900 text-white font-bold border-t-2 border-gray-900 sticky bottom-0 z-10">
-                        <td colSpan={7} className="px-2 py-2 text-right uppercase tracking-wider text-xs">Gesamt Stunden</td>
-                        <td className="text-center py-2 border-l border-gray-700">{globalTotals.mo}</td>
-                        <td className="text-center py-2 border-l border-gray-700">{globalTotals.di}</td>
-                        <td className="text-center py-2 border-l border-gray-700">{globalTotals.mi}</td>
-                        <td className="text-center py-2 border-l border-gray-700">{globalTotals.do}</td>
-                        <td className="text-center py-2 border-l border-gray-700">{globalTotals.fr}</td>
-                        <td colSpan={2} className="border-l border-gray-700"></td>
+                    <tr className="bg-gray-900 text-white font-bold sticky bottom-0 z-10">
+                        <td colSpan={7} className="px-4 py-3 text-right uppercase tracking-[0.2em] text-[10px] font-black">Gesamt Stunden</td>
+                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.mo}</td>
+                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.di}</td>
+                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.mi}</td>
+                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.do}</td>
+                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.fr}</td>
+                        <td colSpan={2} className="border-l border-gray-800 bg-gray-900"></td>
                     </tr>
                 </tbody >
             </table >
@@ -291,10 +291,10 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
 
     return (
         <>
-            <tr className="border-b border-gray-200 hover:bg-gray-50 h-10 group transition-colors">
-                <td className="border-r border-gray-300 px-0 h-10 p-0 relative">
+            <tr className="border-b border-gray-50 hover:bg-gray-50/50 h-10 group transition-colors">
+                <td className="border-r border-gray-50 px-0 h-10 p-0 relative">
                     <input
-                        className="appearance-none w-full h-full px-2 bg-transparent text-[10px] placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors block"
+                        className="appearance-none w-full h-full px-2 bg-transparent text-[11px] placeholder:text-gray-200 text-gray-900 focus:bg-white focus:outline-none transition-colors block"
                         placeholder="Neuer Kunde..."
                         value={client}
                         onChange={e => setClient(e.target.value)}
@@ -302,23 +302,23 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                         onBlur={() => { if (title) trySubmit(); }}
                     />
                 </td>
-                <td className="px-0 border-r border-gray-300 h-10 p-0 relative">
+                <td className="px-0 border-r border-gray-50 h-10 p-0 relative">
                     <div className="absolute inset-0 w-full h-full">
                         <input
                             type="text"
                             placeholder="Nr..."
-                            className="appearance-none w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-mono text-gray-900 placeholder:text-gray-300 transition-colors"
+                            className="appearance-none w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none text-[11px] font-mono text-gray-900 placeholder:text-gray-200 transition-colors"
                             value={jobNr}
                             onChange={e => setJobNr(e.target.value)}
                             onBlur={handleJobNrBlur}
                             onKeyDown={handleKeyDown}
                         />
-                        {!jobNr && <Search size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />}
+                        {!jobNr && <Search size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-200 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </div>
                 </td>
-                <td className="border-r border-gray-300 px-0 h-10 p-0 relative">
+                <td className="border-r border-gray-50 px-0 h-10 p-0 relative">
                     <input
-                        className="appearance-none w-full h-full px-2 bg-transparent text-xs font-bold placeholder:text-gray-400 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors block"
+                        className="appearance-none w-full h-full px-2 bg-transparent text-[11px] font-bold placeholder:text-gray-200 text-gray-900 focus:bg-white focus:outline-none transition-colors block italic"
                         placeholder="Neues Projekt..."
                         value={title}
                         onChange={e => setTitle(e.target.value)}
@@ -326,14 +326,14 @@ function GhostRow({ employeeId, projects, onCreate }: { employeeId: string, proj
                         onBlur={trySubmit}
                     />
                 </td>
-                <td className="border-r border-gray-300"></td>
-                <td className="border-r border-gray-300"></td>
-                <td className="border-r border-gray-300 bg-red-50/10"></td>
-                <td className="border-r border-gray-300 bg-red-50/10"></td>
-                <td className="border-r border-gray-300"></td>
-                <td className="border-r border-gray-300"></td>
-                <td className="border-r border-gray-300 bg-blue-50/10"></td>
-                <td className="border-r border-gray-300"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-gray-50"></td>
                 <td></td>
             </tr>
             {showModal && (

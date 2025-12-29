@@ -7,6 +7,7 @@ import { Building2, FileText, Plus, Trash2, Save, File, Upload } from 'lucide-re
 export default function AdminAgencySettings() {
     const [settings, setSettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
+    const [allDepartments, setAllDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [tLoading, setTLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function AdminAgencySettings() {
             } else if (data) {
                 setSettings(data);
                 fetchTemplates(data.organization_id);
+                fetchDepartments(data.organization_id);
             } else {
                 // Initialize defaults if no record exists yet
                 const initialSettings = {
@@ -66,10 +68,12 @@ export default function AdminAgencySettings() {
                     bic: '',
                     commercial_register: '',
                     footer_text: '',
-                    logo_url: ''
+                    logo_url: '',
+                    resource_planner_departments: []
                 };
                 setSettings(initialSettings);
                 fetchTemplates(emp.organization_id);
+                fetchDepartments(emp.organization_id);
             }
         } catch (e: any) {
             console.error("Unexpected Error:", e);
@@ -85,6 +89,11 @@ export default function AdminAgencySettings() {
             .eq('organization_id', orgId)
             .order('created_at', { ascending: true });
         if (data) setTemplates(data as any);
+    };
+
+    const fetchDepartments = async (orgId: string) => {
+        const { data } = await supabase.from('departments').select('*').eq('organization_id', orgId).order('name');
+        if (data) setAllDepartments(data);
     };
 
     const handleSaveSettings = async () => {
@@ -107,7 +116,8 @@ export default function AdminAgencySettings() {
             website: settings.website,
             footer_text: settings.footer_text,
             logo_url: settings.logo_url,
-            document_header_url: settings.document_header_url
+            document_header_url: settings.document_header_url,
+            resource_planner_departments: settings.resource_planner_departments || []
         }, { onConflict: 'organization_id' });
 
         if (error) {
@@ -228,6 +238,56 @@ export default function AdminAgencySettings() {
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="footer_text">Footer Text (für alle Dokumente)</label>
                     <textarea id="footer_text" name="footer_text" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white h-20" value={settings?.footer_text || ''} onChange={e => safeUpdate('footer_text', e.target.value)} placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
                 </div>
+
+                <div className="mt-6 flex justify-end">
+                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
+                        <Save size={16} /> Speichern
+                    </button>
+                </div>
+            </div>
+
+            {/* RESOURCE PLANNER SETTINGS */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <Building2 size={20} className="text-gray-400" /> Ressourcenplan Filter-Einstellungen
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">Wähle die Abteilungen aus, die im Ressourcenplan als Filter angezeigt werden sollen.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {allDepartments.map(dept => {
+                        const isSelected = settings?.resource_planner_departments?.includes(dept.id);
+
+                        return (
+                            <button
+                                key={dept.id}
+                                onClick={() => {
+                                    if (!settings) return;
+                                    const current = settings.resource_planner_departments || [];
+                                    if (isSelected) {
+                                        setSettings({ ...settings, resource_planner_departments: current.filter(id => id !== dept.id) });
+                                    } else {
+                                        setSettings({ ...settings, resource_planner_departments: [...current, dept.id] });
+                                    }
+                                }}
+                                className={`p-4 rounded-xl border text-left transition ${isSelected
+                                    ? 'border-gray-900 bg-gray-900 text-white shadow-md'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                                    }`}
+                            >
+                                <div className="font-bold text-sm">{dept.name}</div>
+                                <div className={`text-[10px] uppercase mt-1 ${isSelected ? 'text-gray-400' : 'text-gray-400'}`}>
+                                    {isSelected ? 'Ausgewählt' : 'Verfügbar'}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {allDepartments.length === 0 && (
+                    <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">
+                        Keine Abteilungen gefunden. Bitte erst Abteilungen anlegen.
+                    </div>
+                )}
 
                 <div className="mt-6 flex justify-end">
                     <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
