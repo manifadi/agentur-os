@@ -158,12 +158,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         router.push('/');
     };
 
+    const isResetPassword = pathname === '/reset-password';
+
     if (loadingSession) return <div className="flex h-screen items-center justify-center text-gray-400 font-medium">Lade App...</div>;
-    if (!session) return <LoginScreen />;
+    if (!session && !isResetPassword) return <LoginScreen />;
 
     // Helper to map pathname to legacy 'ViewState' for the Sidebar
-    // Only if MainSidebar expects strict types, otherwise we might need to update MainSidebarProps
-    // Current MainSidebar Expects: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'settings'
     const getSidebarView = () => {
         if (!pathname) return 'dashboard';
         if (pathname.startsWith('/uebersicht')) return 'projects_overview';
@@ -193,12 +193,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             setEmployees,
             fetchData,
             handleLogout,
-            timeEntries, // [NEW]
-            setTimeEntries  // [NEW]
+            timeEntries,
+            setTimeEntries
         }}>
             <div className={`flex h-screen w-screen overflow-hidden ${appleBg} antialiased selection:bg-blue-500/30 scroll-smooth`}>
                 {/* SIDEBAR */}
-                {!['/login', '/onboarding'].includes(pathname || '') && (
+                {!['/login', '/onboarding', '/reset-password'].includes(pathname || '') && (
                     <MainSidebar
                         currentView={getSidebarView()}
                         setCurrentView={(v) => {
@@ -216,8 +216,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 )}
 
                 {/* MAIN CONTENT AREA */}
-                <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative ml-20">
-                    {/* Glassmorphism Header Background Effect if needed here */}
+                <main className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative ${isResetPassword || pathname === '/onboarding' ? '' : 'ml-20'}`}>
                     {children}
                 </main>
             </div>
