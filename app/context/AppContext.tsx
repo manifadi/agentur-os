@@ -11,6 +11,7 @@ interface AppContextType {
     members: any[]; // Project Members
     timeEntries: TimeEntry[]; // [NEW]
     currentUser?: Employee;
+    agencySettings: AgencySettings | null;
     loading: boolean;
 
     // Setters / Refreshers
@@ -33,6 +34,7 @@ export const AppContext = createContext<AppContextType>({
     allocations: [],
     members: [],
     timeEntries: [],
+    agencySettings: null,
     loading: true,
     setProjects: () => { },
     setClients: () => { },

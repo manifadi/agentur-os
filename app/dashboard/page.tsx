@@ -11,14 +11,15 @@ import ClientModal from '../components/Modals/ClientModal';
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { session, employees, projects, allocations, clients, members, fetchData, setClients } = useApp();
+    const { session, employees, projects, allocations, clients, members, fetchData, setClients, currentUser } = useApp();
 
     // Local state for modals triggers
     const [createProjectOpen, setCreateProjectOpen] = useState(false);
     const [createClientOpen, setCreateClientOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<any>(null);
 
-    const currentUser = employees.find(e => e.email?.toLowerCase() === session?.user?.email?.toLowerCase());
+    // This line is duplicated in the original code, removing the second one.
+    // const currentUser = employees.find(e => e.email?.toLowerCase() === session?.user?.email?.toLowerCase());
 
     // Actions
     const handleToggleTodo = async (todoId: string, isDone: boolean) => {
@@ -38,6 +39,7 @@ export default function DashboardPage() {
             await supabase.from('project_members').insert([{
                 project_id: newProject.id,
                 employee_id: currentUser.id,
+                organization_id: currentUser.organization_id, // Added organization_id
                 role: 'member' // or 'owner' if we had that role
             }]);
 
@@ -51,20 +53,10 @@ export default function DashboardPage() {
         setCreateProjectOpen(false);
     };
 
-    const handleCreateClient = async (name: string, logo: File | null) => {
-        // Reuse upload logic if possible or move to utils? Ideally use same logic as Uebersicht.
-        // For now, simplified:
-        let logoUrl = undefined;
-        // NOTE: we need uploadFileToSupabase import if we want logos. 
-        // Let's assume for Quick Action, maybe just name? Or we import the util.
-        // We need to import `uploadFileToSupabase`.
-
-        const p = { name, logo_url: logoUrl, organization_id: currentUser?.organization_id };
+    const handleCreateClient = async (clientData: any) => {
+        const p = { ...clientData, organization_id: currentUser?.organization_id };
         const { data } = await supabase.from('clients').insert([p]).select();
-
-        if (data) {
-            setClients([...clients, data[0]].sort((a, b) => a.name.localeCompare(b.name)));
-        }
+        if (data) setClients([...clients, data[0]].sort((a, b) => a.name.localeCompare(b.name)));
         setCreateClientOpen(false);
     };
 
@@ -76,6 +68,7 @@ export default function DashboardPage() {
         const { error } = await supabase.from('project_members').insert([{
             project_id: projectId,
             employee_id: currentUser.id,
+            organization_id: currentUser.organization_id,
             role: 'member'
         }]);
 
@@ -105,7 +98,7 @@ export default function DashboardPage() {
                 }}
             />
 
-            <ClientModal isOpen={createClientOpen} client={null} onClose={() => setCreateClientOpen(false)} onSave={handleCreateClient} onDelete={async () => { }} />
+            <ClientModal isOpen={createClientOpen} client={null} onClose={() => setCreateClientOpen(false)} onSave={handleCreateClient} />
 
             <CreateProjectModal
                 isOpen={createProjectOpen}

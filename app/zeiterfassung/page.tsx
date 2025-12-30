@@ -25,6 +25,25 @@ export default function ZeiterfassungPage() {
     useEffect(() => {
         if (currentUser) {
             fetchEntries();
+
+            // Realtime listener for time entries of the current user
+            const channel = supabase
+                .channel(`user-time-entries-${currentUser.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'time_entries',
+                        filter: `employee_id=eq.${currentUser.id}`
+                    },
+                    () => fetchEntries()
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [currentDate, currentUser]);
 

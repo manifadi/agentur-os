@@ -14,7 +14,7 @@ export default function CreateProjectWizard() {
     const editId = searchParams.get('edit');
     const isEditMode = !!editId;
 
-    const { clients, employees, fetchData } = useApp();
+    const { clients, employees, fetchData, currentUser } = useApp();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -322,6 +322,7 @@ export default function CreateProjectWizard() {
                 job_number: basicInfo.jobNr,
                 client_id: basicInfo.clientId,
                 project_manager_id: basicInfo.pmId || null,
+                organization_id: currentUser?.organization_id,
                 status: basicInfo.status,
                 deadline: basicInfo.deadline || null,
                 google_doc_url: basicInfo.googleDocUrl || null,
@@ -378,11 +379,10 @@ export default function CreateProjectWizard() {
                 const s = sections[i];
                 const { data: sectionData, error: secError } = await supabase.from('project_sections').insert([{
                     project_id: projectId,
+                    organization_id: currentUser?.organization_id,
                     title: s.title,
                     description: s.description,
                     order_index: i
-                    // Note: If sections have organization_id, add it here too.
-                    // Assuming they don't based on previous context, or RLS handles it via join.
                 }]).select().single();
 
                 if (secError) throw secError;
@@ -390,6 +390,7 @@ export default function CreateProjectWizard() {
                 if (sectionData) {
                     const positionsToInsert = s.positions.map((p, idx) => ({
                         project_id: projectId,
+                        organization_id: currentUser?.organization_id,
                         section_id: sectionData.id,
                         title: p.title,
                         description: p.description,
@@ -411,11 +412,12 @@ export default function CreateProjectWizard() {
             if (!isEditMode) {
                 const currentUserEmail = (await supabase.auth.getUser()).data.user?.email;
                 if (currentUserEmail) {
-                    const { data: employee } = await supabase.from('employees').select('id').eq('email', currentUserEmail).single();
+                    const { data: employee } = await supabase.from('employees').select('id, organization_id').eq('email', currentUserEmail).single();
                     if (employee) {
                         await supabase.from('project_members').insert([{
                             project_id: projectId,
                             employee_id: employee.id,
+                            organization_id: employee.organization_id || currentUser?.organization_id,
                             role: 'member'
                         }]);
                     }

@@ -103,13 +103,8 @@ export default function UebersichtPage() {
     // -- Action Handlers (Replicated from page.tsx) --
 
     // Clients
-    const handleSaveClient = async (name: string, logo: File | null) => {
-        let logoUrl = editingClient?.logo_url;
-        if (logo) {
-            if (logoUrl) await deleteFileFromSupabase(logoUrl, 'logos');
-            logoUrl = await uploadFileToSupabase(logo, 'logos');
-        }
-        const p = { name, logo_url: logoUrl, organization_id: activeUser?.organization_id };
+    const handleSaveClient = async (clientData: any) => {
+        const p = { ...clientData, organization_id: activeUser?.organization_id };
         if (editingClient) {
             const { data } = await supabase.from('clients').update(p).eq('id', editingClient.id).select();
             if (data) setClients(clients.map(c => c.id === data[0].id ? data[0] : c));
@@ -119,6 +114,7 @@ export default function UebersichtPage() {
         }
         setClientModalOpen(false);
     };
+
 
     // Employees
     const handleSaveEmployee = async (name: string) => {
@@ -144,6 +140,7 @@ export default function UebersichtPage() {
             await supabase.from('project_members').insert([{
                 project_id: newProject.id,
                 employee_id: activeUser.id,
+                organization_id: activeUser.organization_id,
                 role: 'member'
             }]);
         }
@@ -195,6 +192,7 @@ export default function UebersichtPage() {
         const { error } = await supabase.from('project_members').insert([{
             project_id: projectId,
             employee_id: activeUser.id,
+            organization_id: activeUser.organization_id,
             role: 'member'
         }]);
         if (error) console.error(error);
@@ -246,7 +244,7 @@ export default function UebersichtPage() {
             </div>
 
             {/* Modals */}
-            <ClientModal isOpen={clientModalOpen} client={editingClient} onClose={() => setClientModalOpen(false)} onSave={handleSaveClient} onDelete={async () => { }} />
+            <ClientModal isOpen={clientModalOpen} client={editingClient} onClose={() => setClientModalOpen(false)} onSave={handleSaveClient} />
             <EmployeeModal isOpen={employeeModalOpen} employee={editingEmployee} onClose={() => setEmployeeModalOpen(false)} onSave={handleSaveEmployee} onDelete={async () => { }} />
             <CreateProjectModal
                 isOpen={createProjectOpen}

@@ -126,6 +126,40 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
 
     useEffect(() => {
         fetchDetails();
+
+        // Project-specific Realtime listener
+        const channel = supabase
+            .channel(`project-details-${project.id}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'todos', filter: `project_id=eq.${project.id}` },
+                () => fetchDetails()
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'project_logs', filter: `project_id=eq.${project.id}` },
+                () => fetchDetails()
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'time_entries', filter: `project_id=eq.${project.id}` },
+                () => fetchDetails()
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'project_sections', filter: `project_id=eq.${project.id}` },
+                () => fetchDetails()
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'project_positions', filter: `project_id=eq.${project.id}` },
+                () => fetchDetails()
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [project.id]);
 
     const fetchDetails = async () => {
@@ -150,30 +184,24 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
     };
 
     const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null) => {
-        const payload = {
+        const { data, error } = await supabase.from('todos').insert([{
             project_id: project.id,
+            organization_id: project.organization_id,
             title,
             assigned_to: assigneeId || null,
             deadline: deadline || null,
             is_done: false
-        } as any;
-
-        // Only add organization_id if it exists on the project
-        if (project.organization_id) {
-            payload.organization_id = project.organization_id;
-        }
-
-        const { data, error } = await supabase.from('todos')
-            .insert([payload])
-            .select(`*, employees(id, initials, name)`);
+        }]).select(`*, employees(id, initials, name)`);
 
         if (error) {
-            console.error("Error adding todo:", error);
-            alert("Fehler beim Erstellen der Aufgabe: " + error.message);
+            console.error('Error adding todo:', error);
+            alert('Fehler beim Hinzufügen der Aufgabe: ' + error.message);
             return;
         }
 
-        if (data) setTodos([...todos, data[0] as any]);
+        if (data) {
+            setTodos([...todos, data[0] as any]);
+        }
     };
     const handleToggleTodo = async (id: string, currentStatus: boolean) => {
         setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: !currentStatus } : t));

@@ -29,6 +29,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [allocations, setAllocations] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
     const [timeEntries, setTimeEntries] = useState<any[]>([]); // [NEW]
+    const [agencySettings, setAgencySettings] = useState<any>(null);
 
     // State mapping for Sidebar highlighting
     // Mapping: URL path -> ViewState ID used in Sidebar (or just simplified)
@@ -46,48 +47,21 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         return () => subscription.unsubscribe();
     }, []);
 
-    useEffect(() => {
-        if (session) fetchData();
-    }, [session]);
-
-    // GATEKEEPER: Check if user is approved
-    useEffect(() => {
-        if (!loading && session && pathname !== '/onboarding') {
-            const isApproved = employees.some(e => e.email === session.user.email);
-            if (!isApproved) {
-                // Strict check: If user is not in the loaded employees list, redirect.
-                // This covers: 
-                // 1. New users (no employee record)
-                // 2. Users not assigned to an organization (fetchData returns no employees for them)
-                router.replace('/onboarding');
-            }
-        }
-    }, [session, employees, loading, pathname, router]);
-
     const fetchData = async () => {
-        setLoading(true);
-
-        // 1. Get current employee to find organization_id
         if (!session?.user?.email) {
             setLoading(false);
             return;
         }
 
+        setLoading(true);
+
+        // 1. Get current employee to find organization_id
         const { data: currentUserData } = await supabase.from('employees')
             .select('*')
             .eq('email', session.user.email)
             .single();
 
         if (!currentUserData || !currentUserData.organization_id) {
-            // Cannot fetch organization data without an org ID.
-            // But we might need to load basic stuff? Or just stop.
-            // If we stop here, 'employees' state is empty, so Gatekeeper will hold.
-            // EXCEPT: Gatekeeper checks 'employees.some...' logic which depends on this fetch.
-            // Critical fix: We must at least load the USER record into 'employees' state 
-            // OR handle 'no org' state carefully.
-
-            // For now, if no org, we fetch NOTHING.
-            // The Gatekeeper will see empty employees and redirect to Onboarding.
             setLoading(false);
             return;
         }
@@ -101,9 +75,10 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 { data: employeesData },
                 { data: departmentsData },
                 { data: allocationsData },
-                { data: membersData }, // project_members doesn't have org_id directly usually, but projects do.
+                { data: membersData },
                 { data: projectsData },
-                { data: timeEntriesData } // [NEW] Catch the 7th result
+                { data: timeEntriesData },
+                { data: agencySettingsData }
             ] = await Promise.all([
                 supabase.from('clients').select('*').eq('organization_id', orgId).order('name'),
                 supabase.from('employees').select('*').eq('organization_id', orgId).order('name'),
@@ -112,19 +87,19 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     .eq('organization_id', orgId)
                     .eq('employee_id', currentUserData.id)
                     .gte('year', new Date().getFullYear() - 1),
-                supabase.from('project_members').select('*'), // TODO: Filter this? Ideally, RLS handles it. OR we filter locally based on projects we get.
+                supabase.from('project_members').select('*'),
                 supabase.from('projects').select(`
-                *, 
-                employees ( id, name, initials, email, phone ), 
-                clients ( * ), 
-                todos ( * ),
-                positions:project_positions ( * )
-            `).eq('organization_id', orgId).order('created_at', { ascending: false }),
-                // [NEW] Fetch recent time entries for Dashboard
+                        *, 
+                        employees ( id, name, initials, email, phone ), 
+                        clients ( * ), 
+                        todos ( * ),
+                        positions:project_positions ( * )
+                    `).eq('organization_id', orgId).order('created_at', { ascending: false }),
                 supabase.from('time_entries').select(`*, projects(job_number, title, clients(name)), positions:agency_positions(title)`)
                     .eq('employee_id', currentUserData.id)
-                    .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString()) // Last 30 days
-                    .order('date', { ascending: false })
+                    .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString())
+                    .order('date', { ascending: false }),
+                supabase.from('agency_settings').select('*').eq('organization_id', orgId).single()
             ]);
 
             if (clientsData) setClients(clientsData);
@@ -132,10 +107,10 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             if (departmentsData) setDepartments(departmentsData);
             if (allocationsData) setAllocations(allocationsData);
             if (membersData) setMembers(membersData);
-            if (timeEntriesData) setTimeEntries(timeEntriesData as any); // Type assertion until robust
+            if (timeEntriesData) setTimeEntries(timeEntriesData as any);
+            if (agencySettingsData) setAgencySettings(agencySettingsData);
 
             if (projectsData) {
-                // Process stats / computed fields
                 const projectsWithStats = projectsData.map(proj => {
                     const totalTodos = proj.todos ? proj.todos.length : 0;
                     const doneTodos = proj.todos ? proj.todos.filter((t: Todo) => t.is_done).length : 0;
@@ -151,6 +126,37 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         }
     };
 
+    useEffect(() => {
+        if (!session) return;
+        fetchData();
+
+        // Broad Realtime subscription for the public schema
+        const channel = supabase
+            .channel('schema-db-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public' },
+                () => {
+                    fetchData();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [session]);
+
+    // GATEKEEPER: Check if user is approved
+    useEffect(() => {
+        if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password') {
+            const isApproved = employees.some(e => e.email === session.user.email);
+            if (!isApproved && employees.length > 0) {
+                router.replace('/onboarding');
+            }
+        }
+    }, [loadingSession, session, loading, pathname, router, employees]);
+
     const handleLogout = async () => {
         await supabase.auth.signOut();
         setSession(null);
@@ -160,10 +166,9 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     const isResetPassword = pathname === '/reset-password';
 
-    if (loadingSession) return <div className="flex h-screen items-center justify-center text-gray-400 font-medium">Lade App...</div>;
+    if (loadingSession) return <div className="flex h-screen items-center justify-center text-gray-400 font-medium text-sm">Lade App Session...</div>;
     if (!session && !isResetPassword) return <LoginScreen />;
 
-    // Helper to map pathname to legacy 'ViewState' for the Sidebar
     const getSidebarView = () => {
         if (!pathname) return 'dashboard';
         if (pathname.startsWith('/uebersicht')) return 'projects_overview';
@@ -174,7 +179,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         return 'dashboard';
     };
 
-    // Derived Current User
     const currentUser = employees.find(e => e.email === session?.user?.email);
 
     return (
@@ -187,6 +191,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             departments,
             allocations,
             members,
+            agencySettings,
             loading,
             setProjects,
             setClients,
@@ -197,7 +202,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             setTimeEntries
         }}>
             <div className={`flex h-screen w-screen overflow-hidden ${appleBg} antialiased selection:bg-blue-500/30 scroll-smooth`}>
-                {/* SIDEBAR */}
                 {!['/login', '/onboarding', '/reset-password'].includes(pathname || '') && (
                     <MainSidebar
                         currentView={getSidebarView()}
@@ -215,7 +219,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     />
                 )}
 
-                {/* MAIN CONTENT AREA */}
                 <main className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative ${isResetPassword || pathname === '/onboarding' ? '' : 'ml-20'}`}>
                     {children}
                 </main>
