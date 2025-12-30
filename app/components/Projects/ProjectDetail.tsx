@@ -150,7 +150,29 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
     };
 
     const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null) => {
-        const { data } = await supabase.from('todos').insert([{ project_id: project.id, title, assigned_to: assigneeId || null, deadline: deadline || null }]).select(`*, employees(id, initials, name)`);
+        const payload = {
+            project_id: project.id,
+            title,
+            assigned_to: assigneeId || null,
+            deadline: deadline || null,
+            is_done: false
+        } as any;
+
+        // Only add organization_id if it exists on the project
+        if (project.organization_id) {
+            payload.organization_id = project.organization_id;
+        }
+
+        const { data, error } = await supabase.from('todos')
+            .insert([payload])
+            .select(`*, employees(id, initials, name)`);
+
+        if (error) {
+            console.error("Error adding todo:", error);
+            alert("Fehler beim Erstellen der Aufgabe: " + error.message);
+            return;
+        }
+
         if (data) setTodos([...todos, data[0] as any]);
     };
     const handleToggleTodo = async (id: string, currentStatus: boolean) => {
@@ -168,8 +190,28 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
     };
 
     const handleAddLog = async (title: string, content: string, date: string, image: string | null, isPublic: boolean) => {
-        const p = { project_id: project.id, title, content, image_url: image, entry_date: date, employee_id: currentEmployee?.id || null, is_public: isPublic };
-        await supabase.from('project_logs').insert([p]);
+        const p = {
+            project_id: project.id,
+            title,
+            content,
+            image_url: image,
+            entry_date: date,
+            employee_id: currentEmployee?.id || null,
+            is_public: isPublic
+        } as any;
+
+        if (project.organization_id) {
+            p.organization_id = project.organization_id;
+        }
+
+        const { error } = await supabase.from('project_logs').insert([p]);
+
+        if (error) {
+            console.error("Error adding log:", error);
+            alert("Fehler beim Erstellen des Logbucheintrags: " + error.message);
+            return;
+        }
+
         fetchDetails();
     };
     const handleUpdateLog = async (id: string, title: string, content: string, date: string, image: string | null, isPublic: boolean) => {

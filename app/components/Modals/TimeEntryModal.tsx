@@ -116,7 +116,12 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
             date: date,
             hours: Number(hours),
             description: description
-        };
+        } as any;
+
+        const project = projects.find(p => p.id === projectId);
+        if (project?.organization_id) {
+            payload.organization_id = project.organization_id;
+        }
 
         let result;
         if (entryToEdit) {

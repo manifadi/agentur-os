@@ -57,6 +57,7 @@ export interface Department {
 export interface Todo {
     id: string;
     project_id: string;
+    organization_id: string;
     title: string;
     is_done: boolean;
     assigned_to?: string | null;
@@ -72,6 +73,7 @@ export interface Todo {
 export interface ProjectLog {
     id: string;
     project_id: string;
+    organization_id: string;
     title: string;
     content: string;
     image_url?: string | null;
