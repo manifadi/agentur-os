@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Building2 } from 'lucide-react';
+import { supabase } from '../../supabaseClient';
 import { Client } from '../../types';
 
 interface ClientModalProps {
@@ -18,6 +19,9 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [website, setWebsite] = useState('');
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (client) {
@@ -28,6 +32,7 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
             setEmail(client.general_email || '');
             setPhone(client.general_phone || '');
             setWebsite(client.website || '');
+            setLogoUrl(client.logo_url || null);
         } else {
             setName('');
             setFullName('');
@@ -36,6 +41,7 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
             setEmail('');
             setPhone('');
             setWebsite('');
+            setLogoUrl(null);
         }
     }, [client, isOpen]);
 
@@ -52,13 +58,55 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
                 uid_number: uid,
                 general_email: email,
                 general_phone: phone,
-                website
+                website,
+                logo_url: logoUrl
             });
             onClose();
         } catch (e: any) {
             alert('Fehler: ' + e.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Bitte lade nur Bildformate hoch.');
+            return;
+        }
+
+        setIsUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = fileName;
+
+        try {
+            console.log('Attempting upload to bucket: client-logos, path:', filePath);
+            const { error: uploadError } = await supabase.storage
+                .from('client-logos')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            if (uploadError) {
+                console.error('Supabase Upload Error:', uploadError);
+                throw uploadError;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('client-logos')
+                .getPublicUrl(filePath);
+
+            setLogoUrl(publicUrl);
+        } catch (error: any) {
+            console.error('Full catch error:', error);
+            alert(`Fehler beim Upload: ${error.message || 'Unbekannter Fehler'}. Siehe Konsole für Details.`);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -71,9 +119,36 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kurzname (Anzeige)*</label>
-                        <input required className="w-full p-2 border rounded-lg" value={name} onChange={e => setName(e.target.value)} placeholder="z.B. ACME" />
+                    <div className="flex items-center gap-4 mb-4">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                        />
+                        <div
+                            className="w-16 h-16 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-gray-400 transition relative overflow-hidden group"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {logoUrl ? (
+                                <img src={logoUrl} className="w-full h-full object-contain" />
+                            ) : (
+                                <Building2 size={24} className="text-gray-300" />
+                            )}
+
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                {isUploading ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <span className="text-[8px] text-white font-bold uppercase">Upload</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kurzname (Anzeige)*</label>
+                            <input required className="w-full p-2 border rounded-lg" value={name} onChange={e => setName(e.target.value)} placeholder="z.B. ACME" />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Vollständiger Name (Vertrag)</label>

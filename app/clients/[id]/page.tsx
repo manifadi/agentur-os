@@ -35,6 +35,8 @@ export default function ClientDetailPage() {
     const [isPostingLog, setIsPostingLog] = useState(false);
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
     const [editLogData, setEditLogData] = useState({ title: '', content: '' });
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Confirmation Modal
     const [confirmModal, setConfirmModal] = useState<{
@@ -107,12 +109,7 @@ export default function ClientDetailPage() {
                 general_email: editForm.general_email,
                 general_phone: editForm.general_phone,
                 website: editForm.website,
-                // notes are handled in logbook now or kept legacy? User said "Interne Notizen sollte ... Logbucheinträge sein".
-                // I will keep description in client, but "notes" field might be obsolete or used for strict internal high-level summary.
-                // Assuming legacy "notes" field is replaced by Logbook UI, or kept as separate "Summary". 
-                // User requirement: "Die Internen Notizen sollte ähnlich wie Logbucheinträge sein."
-                // I will NOT update the legacy 'notes' field here anymore if we move to logs, OR I keep it as 'General Notes'.
-                // Let's keep general update for description/contact info.
+                logo_url: editForm.logo_url,
             })
             .eq('id', client.id);
 
@@ -179,7 +176,7 @@ export default function ClientDetailPage() {
     const handleDeleteLog = async (logId: string) => {
         if (!confirm("Eintrag löschen?")) return;
         await supabase.from('client_logs').delete().eq('id', logId);
-        setLogs(logs.filter(l => l.id !== logId));
+        setLogs(logs.filter((l: ClientLog) => l.id !== logId));
     };
 
     const handleUpdateLog = async () => {
@@ -190,7 +187,7 @@ export default function ClientDetailPage() {
             content: editLogData.content
         }).eq('id', editingLogId);
 
-        setLogs(logs.map(l => l.id === editingLogId ? { ...l, title: editLogData.title, content: editLogData.content } : l));
+        setLogs(logs.map((l: ClientLog) => l.id === editingLogId ? { ...l, title: editLogData.title, content: editLogData.content } : l));
         setEditingLogId(null);
     };
 
@@ -227,7 +224,90 @@ export default function ClientDetailPage() {
     const handleDeleteContact = async (id: string) => {
         if (!confirm('Kontakt löschen?')) return;
         await supabase.from('client_contacts').delete().eq('id', id);
-        setContacts(contacts.filter(c => c.id !== id));
+        setContacts(contacts.filter((c: ClientContact) => c.id !== id));
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !client) return;
+
+        // Validierung
+        if (!file.type.startsWith('image/')) {
+            alert('Bitte lade nur Bildformate hoch (PNG, JPG, etc.).');
+            return;
+        }
+
+        setIsUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${client.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = fileName;
+
+        try {
+            console.log('Attempting upload to bucket: client-logos, path:', filePath);
+            // 1. Upload to Storage
+            const { error: uploadError } = await supabase.storage
+                .from('client-logos')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            if (uploadError) {
+                console.error('Supabase Upload Error:', uploadError);
+                throw uploadError;
+            }
+
+            // 2. Get Public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('client-logos')
+                .getPublicUrl(filePath);
+
+            // 3. Update Database (This step is no longer strictly necessary if upsert: true handles overwriting,
+            // but we need to update the client record with the new URL if it's a new upload or changed)
+            const { error: updateError } = await supabase
+                .from('clients')
+                .update({ logo_url: publicUrl })
+                .eq('id', client.id);
+
+            if (updateError) {
+                console.error('Supabase Database Update Error:', updateError);
+                throw updateError;
+            }
+
+            // 4. Update State
+            setClient({ ...client, logo_url: publicUrl });
+            setEditForm({ ...editForm, logo_url: publicUrl });
+
+        } catch (error: any) {
+            console.error('Full catch error:', error);
+            alert(`Fehler beim Upload: ${error.message || 'Unbekannter Fehler'}. Siehe Konsole für Details.`);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleRemoveImage = async () => {
+        if (!client || !client.logo_url) return;
+        if (!confirm('Logo wirklich entfernen?')) return;
+
+        setIsUploading(true);
+        try {
+            // Extract path from URL if possible, or just nullify in DB
+            // Assuming we just want to clear it from the client record
+            const { error } = await supabase
+                .from('clients')
+                .update({ logo_url: null })
+                .eq('id', client.id);
+
+            if (error) throw error;
+
+            setClient({ ...client, logo_url: null });
+            setEditForm({ ...editForm, logo_url: null });
+        } catch (error: any) {
+            alert('Fehler beim Entfernen des Logos');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
 
@@ -278,12 +358,49 @@ export default function ClientDetailPage() {
                         <div className="relative z-10">
                             {/* LOGO & TITLE ROW */}
                             <div className="flex items-start gap-6 mb-8">
-                                {/* Always Visible Logo */}
-                                <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center p-2 shadow-lg shrink-0">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                />
+                                {/* Logo with Upload Overlay */}
+                                <div
+                                    className={`relative w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center p-2 shadow-lg shrink-0 group/logo overflow-hidden ${isAdmin ? 'cursor-pointer' : ''}`}
+                                    onClick={() => isAdmin && fileInputRef.current?.click()}
+                                >
                                     {client.logo_url ? (
                                         <img src={client.logo_url} className="w-full h-full object-contain" alt="Logo" />
                                     ) : (
                                         <span className="text-2xl font-bold text-gray-300">{client.name.substring(0, 2).toUpperCase()}</span>
+                                    )}
+
+                                    {/* Upload Overlay */}
+                                    {isAdmin && (
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                                            {isUploading ? (
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            ) : (
+                                                <>
+                                                    <div
+                                                        className="flex flex-col items-center justify-center gap-1 hover:scale-110 transition-transform"
+                                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                                                    >
+                                                        <Edit2 size={16} className="text-white" />
+                                                        <span className="text-[10px] text-white font-bold uppercase tracking-tight">Ändern</span>
+                                                    </div>
+                                                    {client.logo_url && (
+                                                        <div
+                                                            className="mt-2 text-[8px] text-red-300 hover:text-red-100 font-bold uppercase tracking-tighter"
+                                                            onClick={(e) => { e.stopPropagation(); handleRemoveImage(); }}
+                                                        >
+                                                            Entfernen
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
