@@ -150,8 +150,8 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     // GATEKEEPER: Check if user is approved
     useEffect(() => {
         if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password') {
-            const isApproved = employees.some(e => e.email === session.user.email);
-            if (!isApproved && employees.length > 0) {
+            const currentUser = employees.find(e => e.email === session.user.email);
+            if (!currentUser) {
                 router.replace('/onboarding');
             }
         }

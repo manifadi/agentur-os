@@ -32,7 +32,7 @@ export default function LoginScreen() {
             if (error) setMsg(error.message);
             else {
                 setMsgType('success');
-                setMsg('Account erstellt! Du bist eingeloggt.');
+                setMsg('Account erstellt! Bitte bestätige deine E-Mail und richte dein Profil ein.');
             }
         } else {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
