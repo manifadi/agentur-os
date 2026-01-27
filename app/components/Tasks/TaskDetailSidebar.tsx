@@ -141,7 +141,9 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
         }]).select(`*, employees(id, initials, name)`);
 
         if (data) {
-            setSubtasks([...subtasks, data[0] as any]);
+            const newSubtask = data[0] as any;
+            setSubtasks([...subtasks, newSubtask]);
+            setEditingSubtaskId(newSubtask.id);
         }
     };
 
@@ -284,6 +286,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                             onFocus={(e) => {
                                 e.target.style.height = 'auto';
                                 e.target.style.height = e.target.scrollHeight + 'px';
+                                e.target.select();
                             }}
                             ref={(el) => {
                                 if (el) {
@@ -425,6 +428,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                                     newSub[idx].title = e.target.value;
                                                     setSubtasks(newSub);
                                                 }}
+                                                onFocus={(e) => e.target.select()}
                                                 onBlur={async () => {
                                                     await supabase.from('todos').update({ title: subtask.title }).eq('id', subtask.id);
                                                     setEditingSubtaskId(null);
