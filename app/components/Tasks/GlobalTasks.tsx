@@ -29,22 +29,23 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
     }, [pendingCompletions]);
 
     const getTasksByProject = useMemo(() => {
-        const list: { project: Project, visibleTodos: Todo[] }[] = [];
+        const list: { project: Project, visibleTodos: Todo[], allProjectTodos: Todo[] }[] = [];
         projects.forEach(proj => {
-            // Filter: (Not done OR pending) AND assigned to me
+            // Filter: (Not done OR pending) AND assigned to me AND top-level
             const openTodos = proj.todos ? proj.todos.filter(t =>
+                !t.parent_id &&
                 (!t.is_done || pendingCompletions[t.id]) &&
                 (currentUser ? t.assigned_to === currentUser.id : true)
             ) : [];
             if (openTodos.length > 0) {
-                list.push({ project: proj, visibleTodos: openTodos });
+                list.push({ project: proj, visibleTodos: openTodos, allProjectTodos: proj.todos || [] });
             }
         });
         return list;
     }, [projects, currentUser, pendingCompletions]);
 
     const sortedPersonalTodos = useMemo(() => {
-        let list = personalTodos.filter(t => !t.is_done || pendingCompletions[t.id]);
+        let list = personalTodos.filter(t => !t.parent_id && (!t.is_done || pendingCompletions[t.id]));
         if (personalSort === 'deadline') {
             list.sort((a, b) => {
                 if (!a.deadline) return 1;
@@ -52,11 +53,10 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                 return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
             });
         } else {
-            // Default: created_at (assumed)
-            list.sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime()); // Temporary fallback if no created_at
+            list.sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
         }
         return list;
-    }, [personalTodos, personalSort]);
+    }, [personalTodos, personalSort, pendingCompletions]);
 
     // ... handlers ...
     const handleGlobalToggle = async (todoId: string, currentIsDone: boolean) => {
@@ -184,9 +184,16 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                         </button>
 
                                                         <div className="flex flex-col flex-1">
-                                                            <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingCompletions[todo.id]) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
-                                                                {todo.title}
-                                                            </p>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingCompletions[todo.id]) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                                    {todo.title}
+                                                                </p>
+                                                                {item.allProjectTodos.some(t => t.parent_id === todo.id) && (
+                                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-400 min-w-[18px] text-center">
+                                                                        {item.allProjectTodos.filter(t => t.parent_id === todo.id).length}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             {todo.deadline && (
                                                                 <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-gray-400'}`}>
                                                                     Fällig: {new Date(todo.deadline).toLocaleDateString()}
@@ -282,9 +289,16 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                             </button>
 
                                             <div className="flex flex-col flex-1">
-                                                <p className={`text-sm font-medium leading-relaxed ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
-                                                    {todo.title}
-                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className={`text-sm font-medium leading-relaxed ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                        {todo.title}
+                                                    </p>
+                                                    {personalTodos.some(t => t.parent_id === todo.id) && (
+                                                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-400 min-w-[18px] text-center">
+                                                            {personalTodos.filter(t => t.parent_id === todo.id).length}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {todo.deadline && (
                                                     <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-gray-400'}`}>
                                                         Fällig: {new Date(todo.deadline).toLocaleDateString()}
@@ -348,8 +362,8 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
             {showHistory && (
                 <TaskHistoryModal
@@ -362,7 +376,8 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                         onTaskClick?.(t);
                     }}
                 />
-            )}
+            )
+            }
         </>
     );
 }
