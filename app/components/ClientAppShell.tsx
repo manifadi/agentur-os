@@ -101,7 +101,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     .eq('employee_id', currentUserData.id)
                     .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString())
                     .order('date', { ascending: false }),
-                supabase.from('todos').select(`*, employees(id, name, initials)`).is('project_id', null).eq('assigned_to', currentUserData.id).order('created_at', { ascending: false }),
+                supabase.from('todos').select(`*, employees(id, name, initials)`).is('project_id', null).eq('organization_id', orgId).order('created_at', { ascending: false }),
                 supabase.from('agency_settings').select('*').eq('organization_id', orgId).single()
             ]);
 

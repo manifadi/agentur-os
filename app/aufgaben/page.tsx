@@ -56,6 +56,7 @@ export default function AufgabenPage() {
                     onDelete={async (id) => {
                         setTaskToDelete(id);
                     }}
+                    onRefresh={fetchData}
                 />
             )}
 

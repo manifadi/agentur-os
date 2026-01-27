@@ -545,6 +545,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             confirmText: 'Löschen'
                         });
                     }}
+                    onRefresh={fetchDetails}
                 />
             )}
 

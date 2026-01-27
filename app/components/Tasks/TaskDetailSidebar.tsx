@@ -13,9 +13,10 @@ interface TaskDetailSidebarProps {
     onUpdate: (id: string, updates: Partial<Todo>) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
     onTaskClick?: (task: Todo) => void;
+    onRefresh?: () => void;
 }
 
-export default function TaskDetailSidebar({ task, employees, projects, onClose, onUpdate, onDelete, onTaskClick }: TaskDetailSidebarProps) {
+export default function TaskDetailSidebar({ task, employees, projects, onClose, onUpdate, onDelete, onTaskClick, onRefresh }: TaskDetailSidebarProps) {
     const [title, setTitle] = useState(task.title);
     const [description, setDescription] = useState(task.description || '');
     const [deadline, setDeadline] = useState(task.deadline || '');
@@ -144,6 +145,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
             const newSubtask = data[0] as any;
             setSubtasks([...subtasks, newSubtask]);
             setEditingSubtaskId(newSubtask.id);
+            onRefresh?.();
         }
     };
 
@@ -157,6 +159,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
         await supabase.from('todos').delete().eq('id', subtaskToDelete);
         setSubtasks(prev => prev.filter(t => t.id !== subtaskToDelete));
         setSubtaskToDelete(null);
+        onRefresh?.();
     };
 
     const handleToggleSubtaskWithDelay = async (id: string, currentStatus: boolean, e: React.MouseEvent) => {

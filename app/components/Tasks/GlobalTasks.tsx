@@ -314,70 +314,23 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                 )}
                             </div>
 
-                            {/* Add Personal Task Bottom */}
-                            <div className="p-4 border-t border-gray-50">
-                                {isAddingPersonal ? (
-                                    <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-xl animate-in fade-in slide-in-from-bottom-1">
-                                        <input
-                                            autoFocus
-                                            className="flex-1 bg-transparent border-none text-sm focus:ring-0 p-1"
-                                            placeholder="Aufgabe..."
-                                            value={newPersonalTitle}
-                                            onChange={(e) => setNewPersonalTitle(e.target.value)}
-                                            onKeyDown={async (e) => {
-                                                if (e.key === 'Enter' && newPersonalTitle.trim()) {
-                                                    await onAddPersonal?.(newPersonalTitle.trim());
-                                                    setNewPersonalTitle('');
-                                                    setIsAddingPersonal(false);
-                                                }
-                                                if (e.key === 'Escape') setIsAddingPersonal(false);
-                                            }}
-                                        />
-                                        <div className="flex gap-1">
-                                            <button
-                                                onClick={async () => {
-                                                    if (newPersonalTitle.trim()) {
-                                                        await onAddPersonal?.(newPersonalTitle.trim());
-                                                        setNewPersonalTitle('');
-                                                        setIsAddingPersonal(false);
-                                                    }
-                                                }}
-                                                className="text-gray-600 hover:bg-gray-200 p-1 rounded-xl"
-                                            >
-                                                <Plus size={16} />
-                                            </button>
-                                            <button onClick={() => setIsAddingPersonal(false)} className="text-gray-400 hover:bg-gray-200 p-1 rounded-xl">
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setIsAddingPersonal(true)}
-                                        className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 pl-1 transition"
-                                    >
-                                        <Plus size={14} /> Neue Aufgabe
-                                    </button>
-                                )}
-                            </div>
                         </div>
                     </div>
-                </div >
-            </div >
+                </div>
 
-            {showHistory && (
-                <TaskHistoryModal
-                    projects={projects}
-                    personalTodos={personalTodos}
-                    onClose={() => setShowHistory(false)}
-                    onToggle={handleGlobalToggle}
-                    onTaskClick={(t) => {
-                        setShowHistory(false);
-                        onTaskClick?.(t);
-                    }}
-                />
-            )
-            }
+                {showHistory && (
+                    <TaskHistoryModal
+                        projects={projects}
+                        personalTodos={personalTodos}
+                        onClose={() => setShowHistory(false)}
+                        onToggle={handleGlobalToggle}
+                        onTaskClick={(t) => {
+                            setShowHistory(false);
+                            onTaskClick?.(t);
+                        }}
+                    />
+                )}
+            </div>
         </>
     );
 }
