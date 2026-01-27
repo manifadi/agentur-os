@@ -12,6 +12,8 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import ContractPDF from '../Contracts/ContractPDF';
 import ProjectContractTab from './ProjectContractTab';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 interface ProjectDetailProps {
     project: Project;
@@ -23,12 +25,13 @@ interface ProjectDetailProps {
 }
 
 export default function ProjectDetail({ project, employees, onClose, onUpdateProject, onDeleteProject, currentEmployee }: ProjectDetailProps) {
-    const { clients } = useApp();
+    const { clients, projects } = useApp();
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
 
     const [todos, setTodos] = useState<Todo[]>([]);
+    const [selectedTask, setSelectedTask] = useState<Todo | null>(null);
     const [logs, setLogs] = useState<ProjectLog[]>([]);
     const [timeEntries, setTimeEntries] = useState<any[]>([]);
     const [sections, setSections] = useState<any[]>([]);
@@ -58,6 +61,21 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const [contractOutro, setContractOutro] = useState('');
     const [showPDFPreview, setShowPDFPreview] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        type: 'danger' | 'info' | 'warning' | 'success';
+        confirmText?: string;
+        showCancel?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        type: 'danger'
+    });
     const statusDropdownRef = useRef<HTMLDivElement>(null);
 
     // Sync Tab with URL
@@ -115,8 +133,27 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             contract_outro: contractOutro
         }).eq('id', project.id);
 
-        if (error) alert('Fehler beim Speichern: ' + error.message);
-        else alert('Vertragsdaten gespeichert.');
+        if (error) {
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler beim Speichern',
+                message: 'Es gab ein Problem beim Speichern der Vertragsdaten: ' + error.message,
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'Verstanden',
+                showCancel: false
+            });
+        } else {
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Gespeichert',
+                message: 'Die Vertragsdaten wurden erfolgreich aktualisiert.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'success',
+                confirmText: 'Super',
+                showCancel: false
+            });
+        }
     };
 
     const applyTemplate = (type: 'intro' | 'outro', content: string) => {
@@ -168,7 +205,12 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         const { data: t } = await supabase.from('todos').select(`*, employees(id, initials, name, email, phone)`).eq('project_id', project.id).order('created_at', { ascending: true });
         if (t) setTodos(t as any);
 
-        const { data: l } = await supabase.from('project_logs').select('*').eq('project_id', project.id).order('entry_date', { ascending: false });
+        const { data: l } = await supabase
+            .from('project_logs')
+            .select('*')
+            .eq('project_id', project.id)
+            .or(`is_public.eq.true${currentEmployee?.id ? `,employee_id.eq.${currentEmployee.id}` : ''}`)
+            .order('entry_date', { ascending: false });
         if (l) setLogs(l as any);
 
         const { data: s } = await supabase.from('project_sections').select(`*, positions: project_positions(*)`).eq('project_id', project.id).order('order_index');
@@ -195,7 +237,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
         if (error) {
             console.error('Error adding todo:', error);
-            alert('Fehler beim Hinzufügen der Aufgabe: ' + error.message);
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler',
+                message: 'Fehler beim Hinzufügen der Aufgabe: ' + error.message,
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'Verstanden',
+                showCancel: false
+            });
             return;
         }
 
@@ -212,9 +262,18 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         if (data) setTodos(prev => prev.map(t => t.id === id ? data[0] as any : t));
     };
     const handleDeleteTodo = async (id: string) => {
-        if (!confirm("Aufgabe löschen?")) return;
-        await supabase.from('todos').delete().eq('id', id);
-        setTodos(prev => prev.filter(t => t.id !== id));
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Aufgabe löschen?',
+            message: 'Möchtest du diese Aufgabe wirklich löschen?',
+            onConfirm: async () => {
+                await supabase.from('todos').delete().eq('id', id);
+                setTodos(prev => prev.filter(t => t.id !== id));
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            type: 'danger',
+            confirmText: 'Löschen'
+        });
     };
 
     const handleAddLog = async (title: string, content: string, date: string, images: string[], isPublic: boolean) => {
@@ -237,7 +296,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
         if (error) {
             console.error("Error adding log:", error);
-            alert("Fehler beim Erstellen des Logbucheintrags: " + error.message);
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler',
+                message: "Fehler beim Erstellen des Logbucheintrags: " + error.message,
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'OK',
+                showCancel: false
+            });
             return;
         }
 
@@ -255,9 +322,18 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         fetchDetails();
     };
     const handleDeleteLog = async (id: string) => {
-        if (!confirm("Logbuch-Eintrag löschen?")) return;
-        await supabase.from('project_logs').delete().eq('id', id);
-        fetchDetails();
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Eintrag löschen?',
+            message: 'Möchtest du diesen Logbuch-Eintrag wirklich löschen?',
+            onConfirm: async () => {
+                await supabase.from('project_logs').delete().eq('id', id);
+                fetchDetails();
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            type: 'danger',
+            confirmText: 'Löschen'
+        });
     };
 
     const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -393,6 +469,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             onToggle={handleToggleTodo}
                             onUpdate={handleUpdateTodo}
                             onDelete={handleDeleteTodo}
+                            onTaskClick={(t) => setSelectedTask(t)}
                         />
                     </div>
                 </div>
@@ -410,7 +487,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             )}
 
             {isEditing && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">Einstellungen</h2><button onClick={() => setIsEditing(false)}><ArrowLeft size={20} className="text-gray-400 rotate-180" /></button></div>
                         <div className="space-y-4">
@@ -438,6 +515,49 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     }}
                 />
             )}
+
+            {selectedTask && (
+                <TaskDetailSidebar
+                    task={selectedTask}
+                    employees={employees}
+                    projects={projects}
+                    onClose={() => setSelectedTask(null)}
+                    onTaskClick={(t) => setSelectedTask(t)}
+                    onUpdate={async (id, updates) => {
+                        const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name)`);
+                        if (data) {
+                            setTodos(prev => prev.map(t => t.id === id ? { ...t, ...data[0] } : t));
+                            setSelectedTask(data[0] as any);
+                        }
+                    }}
+                    onDelete={async (id) => {
+                        setConfirmConfig({
+                            isOpen: true,
+                            title: 'Aufgabe löschen?',
+                            message: 'Möchtest du diese Aufgabe wirklich löschen?',
+                            onConfirm: async () => {
+                                await supabase.from('todos').delete().eq('id', id);
+                                setTodos(prev => prev.filter(t => t.id !== id));
+                                setSelectedTask(null);
+                                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                            },
+                            type: 'danger',
+                            confirmText: 'Löschen'
+                        });
+                    }}
+                />
+            )}
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                type={confirmConfig.type}
+                confirmText={confirmConfig.confirmText}
+                showCancel={confirmConfig.showCancel}
+            />
         </>
     );
 }

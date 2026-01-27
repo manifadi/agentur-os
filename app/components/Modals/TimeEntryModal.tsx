@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Calendar, Search, Check, AlertCircle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { Project, Employee, TimeEntry } from '../../types';
+import ConfirmModal from './ConfirmModal';
 
 interface TimeEntryModalProps {
     isOpen: boolean;
@@ -22,6 +23,18 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
     const [hours, setHours] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: 'danger' | 'info' | 'warning' | 'success';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'danger'
+    });
 
     // Search State
     const [searchTerm, setSearchTerm] = useState('');
@@ -135,7 +148,12 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
             onClose();
         } else {
             console.error('[TimeEntryModal] Error saving time entry:', result.error);
-            alert('Fehler beim Speichern: ' + (result.error.message || 'Unbekannter Fehler'));
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler beim Speichern',
+                message: result.error.message || 'Ein unbekannter Fehler ist aufgetreten.',
+                type: 'danger'
+            });
         }
         setIsSubmitting(false);
     };
@@ -148,7 +166,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                 {/* Header */}
                 <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <h3 className="font-bold text-xl text-gray-900">{entryToEdit ? 'Eintrag bearbeiten' : 'Stunden erfassen'}</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition text-gray-400 hover:text-gray-900">
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition text-gray-400 hover:text-gray-900">
                         <X size={20} />
                     </button>
                 </div>
@@ -274,6 +292,17 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                     </button>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                showCancel={false}
+                type={confirmConfig.type}
+                confirmText="OK"
+            />
         </div>
     );
 }

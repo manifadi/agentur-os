@@ -56,11 +56,14 @@ export interface Department {
 
 export interface Todo {
     id: string;
-    project_id: string;
+    project_id?: string | null;
     organization_id: string;
     title: string;
     is_done: boolean;
     assigned_to?: string | null;
+    description?: string | null;
+    image_urls?: string[];
+    parent_id?: string | null;
     employees?: Employee;
     // For global view flattening
     project_title?: string;

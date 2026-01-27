@@ -40,7 +40,7 @@ export default function ContextSidebar({
                 {/* Clients Section */}
                 <div className="flex justify-between items-center mb-3">
                     <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">Kunden</h2>
-                    <button onClick={() => openClientModal(null)} className="text-gray-400 hover:text-gray-900 transition bg-white border border-gray-200 rounded p-1 hover:bg-gray-50"><Plus size={12} /></button>
+                    <button onClick={() => openClientModal(null)} className="text-gray-400 hover:text-gray-900 transition bg-white border border-gray-200 rounded-xl p-1 hover:bg-gray-50"><Plus size={12} /></button>
                 </div>
 
                 {/* Search */}
@@ -50,7 +50,7 @@ export default function ContextSidebar({
                         placeholder="Kunden suchen..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-lg text-xs py-2 pl-8 pr-6 focus:ring-1 focus:ring-gray-300 outline-none transition"
+                        className="w-full bg-white border border-gray-200 rounded-xl text-xs py-2 pl-8 pr-6 focus:ring-1 focus:ring-gray-300 outline-none transition"
                     />
                     <Search size={12} className="absolute left-2.5 top-2.5 text-gray-400" />
                     {searchTerm && (
@@ -81,7 +81,7 @@ export default function ContextSidebar({
                 {/* Team Section */}
                 <div className="flex justify-between items-center mb-3 mt-4 pt-4 border-t border-gray-200">
                     <h2 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">Team</h2>
-                    <button onClick={() => openEmployeeModal(null)} className="text-gray-400 hover:text-gray-900 transition bg-white border border-gray-200 rounded p-1 hover:bg-gray-50"><Plus size={12} /></button>
+                    <button onClick={() => openEmployeeModal(null)} className="text-gray-400 hover:text-gray-900 transition bg-white border border-gray-200 rounded-xl p-1 hover:bg-gray-50"><Plus size={12} /></button>
                 </div>
                 <div className="space-y-1">
                     {employees.map(emp => (

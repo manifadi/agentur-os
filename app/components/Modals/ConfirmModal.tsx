@@ -10,7 +10,8 @@ interface ConfirmModalProps {
     isLoading?: boolean;
     confirmText?: string;
     cancelText?: string;
-    type?: 'danger' | 'info';
+    showCancel?: boolean;
+    type?: 'danger' | 'info' | 'warning' | 'success';
 }
 
 export default function ConfirmModal({
@@ -22,15 +23,20 @@ export default function ConfirmModal({
     isLoading = false,
     confirmText = 'Bestätigen',
     cancelText = 'Abbrechen',
+    showCancel = true,
     type = 'danger'
 }: ConfirmModalProps) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
                 <div className="flex items-start gap-4 mb-4">
-                    <div className={`p-3 rounded-full shrink-0 ${type === 'danger' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                    <div className={`p-3 rounded-full shrink-0 ${type === 'danger' ? 'bg-red-50 text-red-600' :
+                        type === 'info' ? 'bg-blue-50 text-blue-600' :
+                            type === 'warning' ? 'bg-amber-50 text-amber-600' :
+                                'bg-green-50 text-green-600'
+                        }`}>
                         <AlertTriangle size={24} />
                     </div>
                     <div>
@@ -42,19 +48,22 @@ export default function ConfirmModal({
                 </div>
 
                 <div className="flex gap-2 justify-end mt-6">
-                    <button
-                        onClick={onCancel}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition"
-                        disabled={isLoading}
-                    >
-                        {cancelText}
-                    </button>
+                    {showCancel && (
+                        <button
+                            onClick={onCancel}
+                            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition"
+                            disabled={isLoading}
+                        >
+                            {cancelText}
+                        </button>
+                    )}
                     <button
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition shadow-sm flex items-center gap-2 ${type === 'danger'
-                            ? 'bg-red-600 hover:bg-red-700'
-                            : 'bg-blue-600 hover:bg-blue-700'
+                        className={`px-4 py-2 text-sm font-bold text-white rounded-xl transition shadow-sm flex items-center gap-2 ${type === 'danger' ? 'bg-red-600 hover:bg-red-700' :
+                            type === 'info' ? 'bg-blue-600 hover:bg-blue-700' :
+                                type === 'warning' ? 'bg-amber-600 hover:bg-amber-700' :
+                                    'bg-green-600 hover:bg-green-700'
                             } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
                     >
                         {isLoading && (

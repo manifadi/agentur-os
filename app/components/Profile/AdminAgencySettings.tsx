@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { AgencySettings, OrganizationTemplate } from '../../types';
 import { Building2, FileText, Plus, Trash2, Save, File, Upload } from 'lucide-react';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 export default function AdminAgencySettings() {
     const [settings, setSettings] = useState<AgencySettings | null>(null);
@@ -14,6 +15,22 @@ export default function AdminAgencySettings() {
 
     // Template Form State
     const [newTemplate, setNewTemplate] = useState<{ name: string, content: string, type: 'intro' | 'outro' }>({ name: '', content: '', type: 'intro' });
+
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        type: 'danger' | 'info' | 'warning' | 'success';
+        confirmText?: string;
+        showCancel?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        type: 'info'
+    });
 
     useEffect(() => {
         fetchSettings();
@@ -121,16 +138,43 @@ export default function AdminAgencySettings() {
         }, { onConflict: 'organization_id' });
 
         if (error) {
-            alert('Fehler: ' + error.message);
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler',
+                message: error.message,
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'OK',
+                showCancel: false
+            });
         } else {
-            alert('Einstellungen gespeichert.');
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Gespeichert',
+                message: 'Die Einstellungen wurden erfolgreich aktualisiert.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'success',
+                confirmText: 'Super',
+                showCancel: false
+            });
             fetchSettings();
         }
         setLoading(false);
     };
 
     const handleAddTemplate = async () => {
-        if (!newTemplate.name || !newTemplate.content) return alert('Bitte Name und Inhalt angeben.');
+        if (!newTemplate.name || !newTemplate.content) {
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Hinweis',
+                message: 'Bitte Name und Inhalt für die Vorlage angeben.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'warning',
+                confirmText: 'OK',
+                showCancel: false
+            });
+            return;
+        }
         if (!settings?.organization_id) return;
 
         setTLoading(true);
@@ -141,7 +185,17 @@ export default function AdminAgencySettings() {
             type: newTemplate.type
         }]);
 
-        if (error) alert(error.message);
+        if (error) {
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler',
+                message: error.message,
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'OK',
+                showCancel: false
+            });
+        }
         else {
             setNewTemplate({ name: '', content: '', type: 'intro' });
             fetchTemplates(settings.organization_id);
@@ -150,9 +204,18 @@ export default function AdminAgencySettings() {
     };
 
     const handleDeleteTemplate = async (id: string) => {
-        if (!confirm('Vorlage löschen?')) return;
-        await supabase.from('organization_templates').delete().eq('id', id);
-        if (settings?.organization_id) fetchTemplates(settings.organization_id);
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Vorlage löschen?',
+            message: 'Möchtest du diese Vorlage wirklich löschen?',
+            onConfirm: async () => {
+                await supabase.from('organization_templates').delete().eq('id', id);
+                if (settings?.organization_id) fetchTemplates(settings.organization_id);
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            type: 'danger',
+            confirmText: 'Löschen'
+        });
     };
 
     const safeUpdate = (field: keyof AgencySettings, value: string) => {
@@ -182,19 +245,19 @@ export default function AdminAgencySettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="company_name">Firmenname</label>
-                        <input id="company_name" name="company_name" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.company_name || ''} onChange={e => safeUpdate('company_name', e.target.value)} placeholder="z.B. Muster Agentur GmbH" />
+                        <input id="company_name" name="company_name" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.company_name || ''} onChange={e => safeUpdate('company_name', e.target.value)} placeholder="z.B. Muster Agentur GmbH" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="address">Adresse (Straße, PLZ, Ort)</label>
-                        <textarea id="address" name="address" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white h-[42px] resize-none" value={settings?.address || ''} onChange={e => safeUpdate('address', e.target.value)} placeholder="Musterstraße 1, 1010 Wien" />
+                        <textarea id="address" name="address" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white h-[42px] resize-none" value={settings?.address || ''} onChange={e => safeUpdate('address', e.target.value)} placeholder="Musterstraße 1, 1010 Wien" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="tax_id">UID-Nummer / Steuernummer</label>
-                        <input id="tax_id" name="tax_id" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.tax_id || ''} onChange={e => safeUpdate('tax_id', e.target.value)} placeholder="ATU12345678" />
+                        <input id="tax_id" name="tax_id" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.tax_id || ''} onChange={e => safeUpdate('tax_id', e.target.value)} placeholder="ATU12345678" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="commercial_register">Firmenbuchnummer</label>
-                        <input id="commercial_register" name="commercial_register" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.commercial_register || ''} onChange={e => safeUpdate('commercial_register', e.target.value)} placeholder="FN 123456 x" />
+                        <input id="commercial_register" name="commercial_register" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.commercial_register || ''} onChange={e => safeUpdate('commercial_register', e.target.value)} placeholder="FN 123456 x" />
                     </div>
                 </div>
 
@@ -203,15 +266,15 @@ export default function AdminAgencySettings() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="general_email">Email (Allgemein)</label>
-                            <input id="general_email" name="general_email" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.general_email || ''} onChange={e => safeUpdate('general_email', e.target.value)} placeholder="office@agentur.com" />
+                            <input id="general_email" name="general_email" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.general_email || ''} onChange={e => safeUpdate('general_email', e.target.value)} placeholder="office@agentur.com" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="general_phone">Telefon (Allgemein)</label>
-                            <input id="general_phone" name="general_phone" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.general_phone || ''} onChange={e => safeUpdate('general_phone', e.target.value)} placeholder="+43 1 234 56 78" />
+                            <input id="general_phone" name="general_phone" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.general_phone || ''} onChange={e => safeUpdate('general_phone', e.target.value)} placeholder="+43 1 234 56 78" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="website">Webseite</label>
-                            <input id="website" name="website" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.website || ''} onChange={e => safeUpdate('website', e.target.value)} placeholder="www.agentur.com" />
+                            <input id="website" name="website" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.website || ''} onChange={e => safeUpdate('website', e.target.value)} placeholder="www.agentur.com" />
                         </div>
                     </div>
                 </div>
@@ -221,26 +284,26 @@ export default function AdminAgencySettings() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="bank_name">Bank Name</label>
-                            <input id="bank_name" name="bank_name" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.bank_name || ''} onChange={e => safeUpdate('bank_name', e.target.value)} />
+                            <input id="bank_name" name="bank_name" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.bank_name || ''} onChange={e => safeUpdate('bank_name', e.target.value)} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="iban">IBAN</label>
-                            <input id="iban" name="iban" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.iban || ''} onChange={e => safeUpdate('iban', e.target.value)} />
+                            <input id="iban" name="iban" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.iban || ''} onChange={e => safeUpdate('iban', e.target.value)} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="bic">BIC</label>
-                            <input id="bic" name="bic" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white" value={settings?.bic || ''} onChange={e => safeUpdate('bic', e.target.value)} />
+                            <input id="bic" name="bic" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.bic || ''} onChange={e => safeUpdate('bic', e.target.value)} />
                         </div>
                     </div>
                 </div>
 
                 <div className="mt-6 border-t border-gray-100 pt-4">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="footer_text">Footer Text (für alle Dokumente)</label>
-                    <textarea id="footer_text" name="footer_text" className="w-full p-2 border rounded-lg bg-gray-50 focus:bg-white h-20" value={settings?.footer_text || ''} onChange={e => safeUpdate('footer_text', e.target.value)} placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
+                    <textarea id="footer_text" name="footer_text" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white h-20" value={settings?.footer_text || ''} onChange={e => safeUpdate('footer_text', e.target.value)} placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
+                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
                         <Save size={16} /> Speichern
                     </button>
                 </div>
@@ -290,7 +353,7 @@ export default function AdminAgencySettings() {
                 )}
 
                 <div className="mt-6 flex justify-end">
-                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
+                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
                         <Save size={16} /> Speichern
                     </button>
                 </div>
@@ -345,7 +408,7 @@ export default function AdminAgencySettings() {
                                         setLoading(false);
                                     }}
                                 />
-                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition">
+                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
                                     <Upload size={16} /> Logo hochladen
                                 </button>
                             </div>
@@ -356,7 +419,7 @@ export default function AdminAgencySettings() {
 
                     {/* 2. DOCUMENT BANNER */}
                     <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 items-start">
-                        <div className="w-full md:w-[400px] h-[60px] bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center overflow-hidden relative col-span-2 md:col-span-1 md:col-start-2">
+                        <div className="w-full md:w-[400px] h-[60px] bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative col-span-2 md:col-span-1 md:col-start-2">
                             {/* Preview box mostly for verifying presence, actual preview might need to be wider */}
                             {settings?.document_header_url ? (
                                 <img src={settings.document_header_url} className="w-full h-full object-cover" alt="Banner" />
@@ -400,7 +463,7 @@ export default function AdminAgencySettings() {
                                         setLoading(false);
                                     }}
                                 />
-                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition">
+                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
                                     <Upload size={16} /> Banner hochladen
                                 </button>
                             </div>
@@ -417,7 +480,7 @@ export default function AdminAgencySettings() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* List */}
                     <div className="space-y-3">
-                        {templates.length === 0 && <div className="text-center text-gray-400 py-4 border border-dashed rounded-lg">Keine Vorlagen.</div>}
+                        {templates.length === 0 && <div className="text-center text-gray-400 py-4 border border-dashed rounded-xl">Keine Vorlagen.</div>}
                         {templates.map(t => (
                             <div key={t.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 flex justify-between items-start group hover:bg-white hover:shadow-sm transition">
                                 <div>
@@ -439,23 +502,33 @@ export default function AdminAgencySettings() {
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase">Typ</label>
                                 <div className="flex gap-2 mt-1">
-                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'intro' })} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${newTemplate.type === 'intro' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>Einleitung</button>
-                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'outro' })} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${newTemplate.type === 'outro' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>Schluss / AGB</button>
+                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'intro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'intro' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>Einleitung</button>
+                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'outro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'outro' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>Schluss / AGB</button>
                                 </div>
                             </div>
                             <div>
-                                <input className="w-full p-2 border rounded-lg text-sm" placeholder="Bezeichnung (z.B. Standard Einleitung)" value={newTemplate.name} onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })} />
+                                <input className="w-full p-2 border rounded-xl text-sm" placeholder="Bezeichnung (z.B. Standard Einleitung)" value={newTemplate.name} onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })} />
                             </div>
                             <div>
-                                <textarea className="w-full p-2 border rounded-lg text-sm h-32 resize-none" placeholder="Textinhalt..." value={newTemplate.content} onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })} />
+                                <textarea className="w-full p-2 border rounded-xl text-sm h-32 resize-none" placeholder="Textinhalt..." value={newTemplate.content} onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })} />
                             </div>
-                            <button onClick={handleAddTemplate} disabled={tLoading} className="w-full py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition flex justify-center items-center gap-2">
+                            <button onClick={handleAddTemplate} disabled={tLoading} className="w-full py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-black transition flex justify-center items-center gap-2">
                                 <Plus size={16} /> Hinzufügen
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                type={confirmConfig.type}
+                confirmText={confirmConfig.confirmText}
+                showCancel={confirmConfig.showCancel}
+            />
         </div>
     );
 }

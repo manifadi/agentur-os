@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { Project, Client, Employee, Department, TimeEntry } from '../types';
+import { Project, Client, Employee, Department, TimeEntry, Todo, AgencySettings } from '../types';
 
 interface AppContextType {
     session: any;
@@ -11,6 +11,8 @@ interface AppContextType {
     members: any[]; // Project Members
     timeEntries: TimeEntry[]; // [NEW]
     currentUser?: Employee;
+    personalTodos: Todo[];
+    setPersonalTodos: (todos: Todo[]) => void;
     agencySettings: AgencySettings | null;
     loading: boolean;
 
@@ -34,12 +36,14 @@ export const AppContext = createContext<AppContextType>({
     allocations: [],
     members: [],
     timeEntries: [],
+    personalTodos: [],
     agencySettings: null,
     loading: true,
     setProjects: () => { },
     setClients: () => { },
     setEmployees: () => { },
     setTimeEntries: () => { },
+    setPersonalTodos: () => { },
     fetchData: async () => { },
     handleLogout: async () => { },
 });

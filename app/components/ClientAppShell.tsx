@@ -29,6 +29,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [allocations, setAllocations] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
     const [timeEntries, setTimeEntries] = useState<any[]>([]); // [NEW]
+    const [personalTodos, setPersonalTodos] = useState<Todo[]>([]);
     const [agencySettings, setAgencySettings] = useState<any>(null);
 
     // State mapping for Sidebar highlighting
@@ -78,6 +79,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 { data: membersData },
                 { data: projectsData },
                 { data: timeEntriesData },
+                { data: personalTodosData },
                 { data: agencySettingsData }
             ] = await Promise.all([
                 supabase.from('clients').select('*').eq('organization_id', orgId).order('name'),
@@ -99,6 +101,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     .eq('employee_id', currentUserData.id)
                     .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString())
                     .order('date', { ascending: false }),
+                supabase.from('todos').select(`*, employees(id, name, initials)`).is('project_id', null).eq('assigned_to', currentUserData.id).order('created_at', { ascending: false }),
                 supabase.from('agency_settings').select('*').eq('organization_id', orgId).single()
             ]);
 
@@ -108,6 +111,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             if (allocationsData) setAllocations(allocationsData);
             if (membersData) setMembers(membersData);
             if (timeEntriesData) setTimeEntries(timeEntriesData as any);
+            if (personalTodosData) setPersonalTodos(personalTodosData as any);
             if (agencySettingsData) setAgencySettings(agencySettingsData);
 
             if (projectsData) {
@@ -199,7 +203,9 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             fetchData,
             handleLogout,
             timeEntries,
-            setTimeEntries
+            setTimeEntries,
+            personalTodos,
+            setPersonalTodos
         }}>
             <div className={`flex h-screen w-screen overflow-hidden ${appleBg} antialiased selection:bg-blue-500/30 scroll-smooth`}>
                 {!['/login', '/onboarding', '/reset-password'].includes(pathname || '') && (

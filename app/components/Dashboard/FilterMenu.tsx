@@ -51,9 +51,9 @@ export default function FilterMenu({
         <div className="relative" ref={menuRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${isOpen || activeCount > 0 ? 'border-gray-900 bg-gray-50 text-gray-900' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all shadow-sm hover:shadow-md ${isOpen || activeCount > 0 ? 'border-gray-900 bg-gray-50 text-gray-900' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
             >
-                <Filter size={16} />
+                <Filter size={18} strokeWidth={2.5} />
                 <span>Filter</span>
                 {activeCount > 0 && (
                     <span className="bg-gray-900 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full ml-1">{activeCount}</span>

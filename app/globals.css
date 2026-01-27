@@ -21,7 +21,7 @@
   input,
   select,
   textarea {
-    @apply appearance-none rounded-none outline-none bg-transparent;
+    @apply appearance-none rounded-xl outline-none bg-transparent;
   }
 
   /* Safari-specific fix for search inputs to remove cancel button if needed, 

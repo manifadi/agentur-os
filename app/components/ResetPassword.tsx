@@ -57,7 +57,7 @@ export default function ResetPassword() {
                                 type="password"
                                 required
                                 minLength={6}
-                                className="w-full rounded-lg border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
+                                className="w-full rounded-xl border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -69,14 +69,14 @@ export default function ResetPassword() {
                                 type="password"
                                 required
                                 minLength={6}
-                                className="w-full rounded-lg border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
+                                className="w-full rounded-xl border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                             />
                         </div>
 
                         {msg && (
-                            <div className={`text-xs text-center px-2 py-1.5 rounded ${msgType === 'success' ? 'bg-green-50 text-green-600' : 'text-red-500'}`}>
+                            <div className={`text-xs text-center px-2 py-1.5 rounded-xl ${msgType === 'success' ? 'bg-green-50 text-green-600' : 'text-red-500'}`}>
                                 {msg}
                             </div>
                         )}
@@ -84,7 +84,7 @@ export default function ResetPassword() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-black shadow-lg disabled:opacity-50 transition"
+                            className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-black shadow-lg disabled:opacity-50 transition"
                         >
                             {loading ? 'Speichere...' : 'Passwort speichern'}
                         </button>

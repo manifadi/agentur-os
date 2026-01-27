@@ -97,11 +97,11 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
                             <tr key={client.id} className="hover:bg-gray-50/50 transition">
                                 <td className="p-4 w-16">
                                     {client.logo_url ? (
-                                        <div className="w-8 h-8 rounded bg-white border border-gray-100 flex items-center justify-center p-0.5">
+                                        <div className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center p-0.5">
                                             <img src={client.logo_url} className="w-full h-full object-contain" />
                                         </div>
                                     ) : (
-                                        <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">
                                             {client.name.substring(0, 2).toUpperCase()}
                                         </div>
                                     )}
@@ -110,21 +110,21 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
                                 <td className="p-4 text-right flex justify-end gap-2">
                                     <button
                                         onClick={() => window.location.href = `/clients/${client.id}`}
-                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition"
                                         title="Details öffnen"
                                     >
                                         <ArrowRight size={16} />
                                     </button>
                                     <button
                                         onClick={() => openEdit(client)}
-                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition"
+                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition"
                                         title="Kunde bearbeiten"
                                     >
                                         <Building2 size={16} />
                                     </button>
                                     <button
                                         onClick={() => initiateDelete(client.id)}
-                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
                                         title="Kunde löschen"
                                     >
                                         <Trash2 size={16} />

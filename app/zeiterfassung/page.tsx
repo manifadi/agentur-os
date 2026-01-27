@@ -7,6 +7,7 @@ import DaySwitcher from '../components/TimeTracking/DaySwitcher';
 import TimeStats from '../components/TimeTracking/TimeStats';
 import TimeStream from '../components/TimeTracking/TimeStream';
 import TimeEntryModal from '../components/Modals/TimeEntryModal';
+import ConfirmModal from '../components/Modals/ConfirmModal';
 import { Plus } from 'lucide-react';
 import { TimeEntry } from '../types';
 
@@ -21,6 +22,7 @@ export default function ZeiterfassungPage() {
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+    const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         if (currentUser) {
@@ -69,9 +71,15 @@ export default function ZeiterfassungPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Eintrag wirklich löschen?')) return;
-        await supabase.from('time_entries').delete().eq('id', id);
-        fetchEntries();
+        setEntryToDelete(id);
+    };
+
+    const confirmDelete = async () => {
+        if (entryToDelete) {
+            await supabase.from('time_entries').delete().eq('id', entryToDelete);
+            fetchEntries();
+            setEntryToDelete(null);
+        }
     };
 
     const handleEdit = (entry: TimeEntry) => {
@@ -126,12 +134,20 @@ export default function ZeiterfassungPage() {
                             fetchEntries();
                             setIsModalOpen(false);
                         }}
-                        // We pass current date to modal if new entry? 
-                        // Modal defaults to today. DaySwitcher might be on another day.
-                        // Ideally modal should take `defaultDate` prop.
                         defaultDate={currentDate}
                     />
                 )}
+
+                <ConfirmModal
+                    isOpen={!!entryToDelete}
+                    title="Eintrag löschen?"
+                    message="Möchtest du diesen Zeit-Eintrag wirklich löschen?"
+                    onConfirm={confirmDelete}
+                    onCancel={() => setEntryToDelete(null)}
+                    type="danger"
+                    confirmText="Löschen"
+                    cancelText="Abbrechen"
+                />
             </main>
         </div>
     );

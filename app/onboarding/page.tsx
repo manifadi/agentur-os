@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { useApp } from '../context/AppContext';
+import ConfirmModal from '../components/Modals/ConfirmModal';
 
 export default function OnboardingPage() {
     const router = useRouter();
@@ -19,6 +20,18 @@ export default function OnboardingPage() {
 
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<'idle' | 'submitted' | 'checking' | 'rejected'>('checking');
+
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: 'danger' | 'info' | 'warning' | 'success';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'danger'
+    });
 
     // Fetch Orgs
     useEffect(() => {
@@ -83,8 +96,12 @@ export default function OnboardingPage() {
         const { data: existingUser } = await supabase.from('employees').select('id, organization_id').eq('email', session.user.email).maybeSingle();
 
         if (existingUser) {
-            alert('Du bist bereits Teil einer Organisation! Bitte melde dich an.');
-            // Optionally redirect or force logout?
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Konto bereits vorhanden',
+                message: 'Du bist bereits Teil einer Organisation! Bitte melde dich direkt mit deinen Zugangsdaten an.',
+                type: 'info'
+            });
             setLoading(false);
             return;
         }
@@ -105,7 +122,12 @@ export default function OnboardingPage() {
 
             if (error) {
                 console.error(error);
-                alert(`Fehler beim Aktualisieren der Anfrage: ${error.message}`);
+                setConfirmConfig({
+                    isOpen: true,
+                    title: 'Fehler',
+                    message: `Die Anfrage konnte nicht aktualisiert werden: ${error.message}`,
+                    type: 'danger'
+                });
             } else {
                 setStatus('submitted');
             }
@@ -120,7 +142,12 @@ export default function OnboardingPage() {
 
             if (error) {
                 console.error(error);
-                alert(`Fehler beim Senden der Anfrage: ${error.message}`);
+                setConfirmConfig({
+                    isOpen: true,
+                    title: 'Fehler',
+                    message: `Die Anfrage konnte nicht gesendet werden: ${error.message}`,
+                    type: 'danger'
+                });
             } else {
                 setStatus('submitted');
             }
@@ -254,6 +281,17 @@ export default function OnboardingPage() {
                     </button>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                showCancel={false}
+                type={confirmConfig.type}
+                confirmText="OK"
+            />
         </div>
     );
 }

@@ -136,7 +136,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                 <div className="mb-6 bg-gray-50 p-4 rounded-xl">
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Wer bist du?</label>
                                     <select
-                                        className="w-full p-2 border border-gray-200 rounded-lg bg-white"
+                                        className="w-full p-2 border border-gray-200 rounded-xl bg-white"
                                         onChange={(e) => {
                                             const emp = employees.find(ep => ep.id === e.target.value);
                                             if (emp) {
@@ -165,23 +165,23 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Anzeigename</label>
-                                                <input type="text" className="w-full p-2 border border-gray-200 rounded-lg font-medium" value={name} onChange={(e) => setName(e.target.value)} />
+                                                <input type="text" className="w-full p-2 border border-gray-200 rounded-xl font-medium" value={name} onChange={(e) => setName(e.target.value)} />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kürzel (2 Zeichen)</label>
-                                                <input type="text" maxLength={2} className="w-full p-2 border border-gray-200 rounded-lg font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
+                                                <input type="text" maxLength={2} className="w-full p-2 border border-gray-200 rounded-xl font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Telefon (für Verträge)</label>
-                                            <input type="text" className="w-full p-2 border border-gray-200 rounded-lg font-medium" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+43 660 ..." />
+                                            <input type="text" className="w-full p-2 border border-gray-200 rounded-xl font-medium" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+43 660 ..." />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel (Position)</label>
                                             <div className="relative">
                                                 <input
                                                     type="text"
-                                                    className="w-full p-2 border border-blue-100 bg-blue-50/50 text-gray-700 rounded-lg font-medium cursor-not-allowed"
+                                                    className="w-full p-2 border border-blue-100 bg-blue-50/50 text-gray-700 rounded-xl font-medium cursor-not-allowed"
                                                     value={jobTitle || 'Keine Position zugewiesen'}
                                                     disabled
                                                 />
@@ -194,13 +194,13 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Abteilung / Rolle</label>
-                                            <select className="w-full p-2 border border-gray-200 rounded-lg" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
+                                            <select className="w-full p-2 border border-gray-200 rounded-xl" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
                                                 <option value="">Keine Abteilung</option>
                                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                             </select>
                                         </div>
                                         <div className="pt-4 flex justify-end">
-                                            <button onClick={handleSave} disabled={loading} className="bg-gray-900 text-white px-6 py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 transition">Speichern</button>
+                                            <button onClick={handleSave} disabled={loading} className="bg-gray-900 text-white px-6 py-2 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 transition">Speichern</button>
                                         </div>
                                     </div>
                                 )}
@@ -223,7 +223,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                             )}
                                         </div>
                                         {currentUser.email !== session?.user?.email && (
-                                            <button onClick={handleLinkAccount} className="text-xs bg-white border border-gray-300 px-3 py-2 rounded-lg shadow-sm hover:bg-gray-50 font-bold">
+                                            <button onClick={handleLinkAccount} className="text-xs bg-white border border-gray-300 px-3 py-2 rounded-xl shadow-sm hover:bg-gray-50 font-bold">
                                                 Jetzt verknüpfen
                                             </button>
                                         )}

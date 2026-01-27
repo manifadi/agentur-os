@@ -4,6 +4,11 @@ import { Project, Client, Employee } from '../../types';
 import ProjectList from '../Projects/ProjectList';
 import GlobalSearch from '../GlobalSearch';
 import FilterMenu from './FilterMenu';
+import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
+import { supabase } from '../../supabaseClient';
+import { Todo } from '../../types';
+import { useApp } from '../../context/AppContext';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 interface DashboardViewProps {
     projects: Project[];
@@ -30,10 +35,13 @@ export default function DashboardView({
     todaysHours,
     onAddTime
 }: DashboardViewProps) {
+    const { fetchData } = useApp();
     // New Filter States
     const [activeStatus, setActiveStatus] = useState<string[]>([]);
     const [activePmId, setActivePmId] = useState<string | null>(null);
     const [sortOrder, setSortOrder] = useState<'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc'>('created_desc');
+    const [selectedTask, setSelectedTask] = useState<Todo | null>(null);
+    const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
     // --- FILTER LOGIC ---
     const filteredProjects = useMemo(() => {
@@ -82,14 +90,17 @@ export default function DashboardView({
         <>
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div><h1 className="text-2xl font-bold tracking-tight mb-1">{selectedClient ? selectedClient.name : 'Alle Projekte'}</h1><p className="text-gray-500 text-sm">Übersicht aller laufenden Jobs</p></div>
-                <div className="flex items-center gap-3 w-full md:w-auto relative z-20">
-                    <GlobalSearch
-                        projects={projects}
-                        clients={clients}
-                        onSelectProject={onSelectProject}
-                        onSelectClient={onSelectClient}
-                    />
-                    <button onClick={onOpenCreateModal} style={{ minWidth: 'fit-content' }} className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition"><FilePlus size={16} /> Projekt hinzufügen</button>
+                <div className="flex items-center gap-3 w-full md:w-auto relative z-20 flex-1">
+                    <div className="flex-1 max-w-2xl">
+                        <GlobalSearch />
+                    </div>
+                    <button
+                        onClick={onOpenCreateModal}
+                        style={{ minWidth: 'fit-content' }}
+                        className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform whitespace-nowrap"
+                    >
+                        <FilePlus size={18} /> Projekt hinzufügen
+                    </button>
 
                     {/* FILTER MENU */}
                     <div className="ml-2">
@@ -161,6 +172,45 @@ export default function DashboardView({
                 selectedClient={selectedClient}
                 onSelectProject={onSelectProject}
                 showOpenTodos={false} // Removed legacy prop requirement or handled inside? The prop was showOpenTodos={advancedFilters.showOpenTodos}. We removed that filter from menu for now as current user didn't request it explicitly in new prompt, but could re-add if needed.
+                onTaskClick={(t) => setSelectedTask(t)}
+            />
+
+            {selectedTask && (
+                <TaskDetailSidebar
+                    task={selectedTask}
+                    employees={employees}
+                    projects={projects}
+                    onClose={() => setSelectedTask(null)}
+                    onTaskClick={(t) => setSelectedTask(t)}
+                    onUpdate={async (id, updates) => {
+                        const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name)`);
+                        if (data) {
+                            setSelectedTask(data[0] as any);
+                            fetchData();
+                        }
+                    }}
+                    onDelete={async (id) => {
+                        setTaskToDelete(id);
+                    }}
+                />
+            )}
+
+            <ConfirmModal
+                isOpen={!!taskToDelete}
+                title="Aufgabe löschen?"
+                message="Möchtest du diese Aufgabe wirklich löschen?"
+                onConfirm={async () => {
+                    if (taskToDelete) {
+                        await supabase.from('todos').delete().eq('id', taskToDelete);
+                        fetchData();
+                        setSelectedTask(null);
+                        setTaskToDelete(null);
+                    }
+                }}
+                onCancel={() => setTaskToDelete(null)}
+                type="danger"
+                confirmText="Löschen"
+                cancelText="Abbrechen"
             />
         </>
     );

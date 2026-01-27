@@ -43,15 +43,18 @@ export default function ClientDetailPage() {
         isOpen: boolean;
         title: string;
         message: string;
-        action: () => Promise<void>;
-        type: 'danger' | 'info';
+        action: () => void | Promise<void>;
+        type: 'danger' | 'info' | 'warning' | 'success';
         confirmText?: string;
+        cancelText?: string;
+        showCancel?: boolean;
     }>({
         isOpen: false,
         title: '',
         message: '',
         action: async () => { },
-        type: 'danger'
+        type: 'danger',
+        showCancel: true
     });
 
     useEffect(() => {
@@ -114,7 +117,15 @@ export default function ClientDetailPage() {
             .eq('id', client.id);
 
         if (error) {
-            alert('Fehler beim Speichern');
+            setConfirmModal({
+                isOpen: true,
+                title: 'Speichervorgang fehlgeschlagen',
+                message: 'Die Änderungen am Kunden konnten nicht gespeichert werden: ' + error.message,
+                type: 'danger',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
         } else {
             setClient({ ...client, ...editForm } as Client);
             setIsEditing(false);
@@ -149,7 +160,15 @@ export default function ClientDetailPage() {
     // --- LOGBOOK HANDLERS ---
     const handlePostLog = async () => {
         if (!client || !currentUser) {
-            alert("Sitzung ungültig. Bitte neu laden.");
+            setConfirmModal({
+                isOpen: true,
+                title: 'Sitzung abgelaufen',
+                message: 'Deine Sitzung ist ungültig. Bitte lade die Seite neu.',
+                type: 'warning',
+                action: async () => window.location.reload(),
+                confirmText: 'Neu laden',
+                showCancel: false
+            });
             return;
         }
         if (!newLog.title || !newLog.content) return;
@@ -165,7 +184,15 @@ export default function ClientDetailPage() {
 
         if (error) {
             console.error(error);
-            alert(`Fehler: ${error.message || 'Konnte Eintrag nicht speichern'}`);
+            setConfirmModal({
+                isOpen: true,
+                title: 'Übertragungsfehler',
+                message: `Der Logbuch-Eintrag konnte nicht gespeichert werden: ${error.message}`,
+                type: 'danger',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
         } else if (data) {
             setLogs([data as any, ...logs]);
             setNewLog({ title: '', content: '' });
@@ -174,9 +201,19 @@ export default function ClientDetailPage() {
     };
 
     const handleDeleteLog = async (logId: string) => {
-        if (!confirm("Eintrag löschen?")) return;
-        await supabase.from('client_logs').delete().eq('id', logId);
-        setLogs(logs.filter((l: ClientLog) => l.id !== logId));
+        setConfirmModal({
+            isOpen: true,
+            title: 'Eintrag löschen?',
+            message: 'Möchtest du diesen Logbuch-Eintrag wirklich löschen?',
+            type: 'danger',
+            confirmText: 'Löschen',
+            showCancel: true,
+            action: async () => {
+                await supabase.from('client_logs').delete().eq('id', logId);
+                setLogs(logs.filter((l: ClientLog) => l.id !== logId));
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            }
+        });
     };
 
     const handleUpdateLog = async () => {
@@ -202,7 +239,15 @@ export default function ClientDetailPage() {
         const orgId = currentUser?.organization_id || client.organization_id;
 
         if (!orgId) {
-            alert("Fehler: Keine Organisations-ID gefunden. Bitte ausloggen und neu einloggen.");
+            setConfirmModal({
+                isOpen: true,
+                title: 'Konfigurationsfehler',
+                message: 'Keine Organisations-ID gefunden. Bitte melde dich ab und erneut an.',
+                type: 'danger',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
             return;
         }
 
@@ -214,7 +259,15 @@ export default function ClientDetailPage() {
 
         if (error) {
             console.error("Add Contact Error:", error);
-            alert(`Fehler beim Speichern des Kontakts: ${error.message}`);
+            setConfirmModal({
+                isOpen: true,
+                title: 'Fehler beim Kontakt',
+                message: `Der Kontakt konnte nicht gespeichert werden: ${error.message}`,
+                type: 'danger',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
         } else if (data) {
             setContacts([...contacts, data]);
             setIsAddingContact(false); // Close modal
@@ -222,9 +275,19 @@ export default function ClientDetailPage() {
     };
 
     const handleDeleteContact = async (id: string) => {
-        if (!confirm('Kontakt löschen?')) return;
-        await supabase.from('client_contacts').delete().eq('id', id);
-        setContacts(contacts.filter((c: ClientContact) => c.id !== id));
+        setConfirmModal({
+            isOpen: true,
+            title: 'Kontakt löschen?',
+            message: 'Möchtest du diesen Ansprechpartner wirklich entfernen?',
+            type: 'danger',
+            confirmText: 'Löschen',
+            showCancel: true,
+            action: async () => {
+                await supabase.from('client_contacts').delete().eq('id', id);
+                setContacts(contacts.filter((c: ClientContact) => c.id !== id));
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            }
+        });
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,7 +296,15 @@ export default function ClientDetailPage() {
 
         // Validierung
         if (!file.type.startsWith('image/')) {
-            alert('Bitte lade nur Bildformate hoch (PNG, JPG, etc.).');
+            setConfirmModal({
+                isOpen: true,
+                title: 'Falsches Format',
+                message: 'Bitte lade nur Bildformate hoch (PNG, JPG, WebP).',
+                type: 'warning',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
             return;
         }
 
@@ -275,12 +346,22 @@ export default function ClientDetailPage() {
             }
 
             // 4. Update State
-            setClient({ ...client, logo_url: publicUrl });
-            setEditForm({ ...editForm, logo_url: publicUrl });
+            if (client) {
+                setClient({ ...client, logo_url: publicUrl });
+                setEditForm({ ...editForm, logo_url: publicUrl });
+            }
 
         } catch (error: any) {
             console.error('Full catch error:', error);
-            alert(`Fehler beim Upload: ${error.message || 'Unbekannter Fehler'}. Siehe Konsole für Details.`);
+            setConfirmModal({
+                isOpen: true,
+                title: 'Upload fehlgeschlagen',
+                message: `Fehler beim Upload: ${error.message || 'Unbekannter Fehler'}.`,
+                type: 'danger',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
         } finally {
             setIsUploading(false);
         }
@@ -288,9 +369,21 @@ export default function ClientDetailPage() {
 
     const handleRemoveImage = async () => {
         if (!client || !client.logo_url) return;
-        if (!confirm('Logo wirklich entfernen?')) return;
+        setConfirmModal({
+            isOpen: true,
+            title: 'Logo entfernen?',
+            message: 'Möchtest du das aktuelle Firmenlogo wirklich entfernen?',
+            type: 'warning',
+            confirmText: 'Entfernen',
+            showCancel: true,
+            action: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                await executeRemoveImage();
+            }
+        });
+    };
 
-        setIsUploading(true);
+    const executeRemoveImage = async () => {
         try {
             // Extract path from URL if possible, or just nullify in DB
             // Assuming we just want to clear it from the client record
@@ -301,10 +394,20 @@ export default function ClientDetailPage() {
 
             if (error) throw error;
 
-            setClient({ ...client, logo_url: null });
-            setEditForm({ ...editForm, logo_url: null });
+            if (client) {
+                setClient({ ...client, logo_url: null });
+                setEditForm({ ...editForm, logo_url: null });
+            }
         } catch (error: any) {
-            alert('Fehler beim Entfernen des Logos');
+            setConfirmModal({
+                isOpen: true,
+                title: 'Fehler',
+                message: 'Das Logo konnte nicht entfernt werden.',
+                type: 'danger',
+                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
+                confirmText: 'OK',
+                showCancel: false
+            });
         } finally {
             setIsUploading(false);
         }
@@ -370,10 +473,10 @@ export default function ClientDetailPage() {
                                     className={`relative w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center p-2 shadow-lg shrink-0 group/logo overflow-hidden ${isAdmin ? 'cursor-pointer' : ''}`}
                                     onClick={() => isAdmin && fileInputRef.current?.click()}
                                 >
-                                    {client.logo_url ? (
+                                    {client?.logo_url ? (
                                         <img src={client.logo_url} className="w-full h-full object-contain" alt="Logo" />
                                     ) : (
-                                        <span className="text-2xl font-bold text-gray-300">{client.name.substring(0, 2).toUpperCase()}</span>
+                                        <span className="text-2xl font-bold text-gray-300">{client?.name.substring(0, 2).toUpperCase()}</span>
                                     )}
 
                                     {/* Upload Overlay */}
@@ -684,6 +787,8 @@ export default function ClientDetailPage() {
                     message={confirmModal.message}
                     type={confirmModal.type}
                     confirmText={confirmModal.confirmText}
+                    cancelText={confirmModal.cancelText}
+                    showCancel={confirmModal.showCancel}
                 />
 
                 <ContactModal

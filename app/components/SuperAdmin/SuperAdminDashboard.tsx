@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Organization, RegistrationRequest, Employee } from '../../types';
 import { Trash, Check, X, Building, UserPlus, Shield } from 'lucide-react';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 export default function SuperAdminDashboard() {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -103,6 +104,22 @@ function RequestItem({ request, organizations, onUpdate }: { request: Registrati
     const [selectedOrgId, setSelectedOrgId] = useState(request.organization_id || '');
     const [loading, setLoading] = useState(false);
 
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        type: 'danger' | 'info' | 'warning' | 'success';
+        confirmText?: string;
+        showCancel?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        type: 'info'
+    });
+
     const handleOrgChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newId = e.target.value;
         setSelectedOrgId(newId);
@@ -113,7 +130,15 @@ function RequestItem({ request, organizations, onUpdate }: { request: Registrati
 
     const handleApprove = async () => {
         if (!selectedOrgId) {
-            alert("Bitte zuerst eine Organisation zuweisen.");
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Organisation fehlt',
+                message: 'Bitte weise dem Benutzer zuerst eine Organisation zu, bevor du ihn bestätigst.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'warning',
+                confirmText: 'Verstanden',
+                showCancel: false
+            });
             return;
         }
         setLoading(true);
@@ -130,7 +155,15 @@ function RequestItem({ request, organizations, onUpdate }: { request: Registrati
 
         if (empError) {
             console.error(empError);
-            alert("Fehler beim Erstellen des Mitarbeiters.");
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Systemfehler',
+                message: 'Mitarbeiter konnte nicht angelegt werden. Bitte prüfe die Konsole für Details.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'OK',
+                showCancel: false
+            });
             setLoading(false);
             return;
         }
@@ -140,10 +173,19 @@ function RequestItem({ request, organizations, onUpdate }: { request: Registrati
     };
 
     const handleReject = async () => {
-        if (!confirm('Anfrage wirklich ablehnen?')) return;
-        setLoading(true);
-        await supabase.from('registration_requests').update({ status: 'rejected' }).eq('id', request.id);
-        onUpdate();
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Anfrage ablehnen?',
+            message: `Möchtest du die Anfrage von ${request.name} wirklich ablehnen?`,
+            onConfirm: async () => {
+                setLoading(true);
+                await supabase.from('registration_requests').update({ status: 'rejected' }).eq('id', request.id);
+                onUpdate();
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            type: 'danger',
+            confirmText: 'Ablehnen'
+        });
     };
 
     return (
@@ -185,6 +227,17 @@ function RequestItem({ request, organizations, onUpdate }: { request: Registrati
                     <X size={16} /> Ablehnen
                 </button>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                type={confirmConfig.type}
+                confirmText={confirmConfig.confirmText}
+                showCancel={confirmConfig.showCancel}
+            />
         </div>
     );
 }

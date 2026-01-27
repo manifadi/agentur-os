@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Clock, Plus, ImageIcon, X, Pencil, Trash2, Lock, Globe } from 'lucide-react';
 import { ProjectLog } from '../../types';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 interface LogbookProps {
     logs: ProjectLog[];
@@ -29,6 +30,17 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
     const [editIsPublic, setEditIsPublic] = useState(false);
 
     const [uploading, setUploading] = useState(false);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: 'danger' | 'info' | 'warning' | 'success';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'danger'
+    });
 
     // Refs
     const logImageRef = useRef<HTMLInputElement>(null);
@@ -44,7 +56,12 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
             else setNewImages(prev => [...prev, ...urls]);
         } catch (e) {
             console.error(e);
-            alert('Fehler beim Hochladen der Bilder');
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Upload Fehler',
+                message: 'Es gab ein Problem beim Hochladen der Bilder. Bitte versuche es erneut.',
+                type: 'danger'
+            });
         }
         setUploading(false);
     };
@@ -113,7 +130,7 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                     <div className="flex items-center gap-2 mb-2">
                         <button
                             onClick={() => setNewIsPublic(!newIsPublic)}
-                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-full border transition ${newIsPublic ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
+                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-xl border transition ${newIsPublic ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
                         >
                             {newIsPublic ? <Globe size={10} /> : <Lock size={10} />}
                             {newIsPublic ? 'Für alle sichtbar' : 'Nur für mich'}
@@ -125,8 +142,8 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                         <div className="flex flex-wrap gap-2 mb-2">
                             {newImages.map((url, i) => (
                                 <div key={i} className="relative w-16 h-16 group">
-                                    <img src={url} className="w-full h-full object-cover rounded-lg border border-gray-200" />
-                                    <button onClick={() => setNewImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 transition">
+                                    <img src={url} className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                                    <button onClick={() => setNewImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-xl p-0.5 shadow-sm hover:bg-red-600 transition">
                                         <X size={10} />
                                     </button>
                                 </div>
@@ -137,8 +154,8 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                         <button onClick={() => logImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
                         <input type="file" accept="image/*" multiple ref={logImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, false)} />
                         <div className="flex gap-2">
-                            <button onClick={() => setIsAdding(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-200 rounded-md">Abbrechen</button>
-                            <button onClick={handleSaveNew} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-md shadow-sm disabled:opacity-50">Speichern</button>
+                            <button onClick={() => setIsAdding(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-200 rounded-xl">Abbrechen</button>
+                            <button onClick={handleSaveNew} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-xl shadow-sm disabled:opacity-50">Speichern</button>
                         </div>
                     </div>
                 </div>
@@ -148,76 +165,91 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                 <div className="absolute left-[7px] top-2 bottom-0 w-[1px] bg-gray-100"></div>
                 {!isAdding && <button onClick={() => { setIsAdding(true); setNewDate(new Date().toISOString().split('T')[0]); }} className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition"><Plus size={14} /> Eintrag hinzufügen</button>}
 
-                {logs.map((log) => (
-                    <div key={log.id} className="relative pl-6 pb-2 group">
-                        <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white ${log.is_public ? 'bg-green-100' : 'bg-gray-200'}`}>
-                            {log.is_public && <div className="absolute inset-0 flex items-center justify-center"><Globe size={7} className="text-green-600" /></div>}
+                {logs.map((log) => {
+                    const isOwner = log.employee_id === currentEmployeeId || (!log.employee_id && currentEmployeeId);
+                    return (
+                        <div key={log.id} className="relative pl-6 pb-2 group">
+                            <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white ${log.is_public ? 'bg-green-100' : 'bg-gray-200'}`}>
+                                {log.is_public && <div className="absolute inset-0 flex items-center justify-center"><Globe size={7} className="text-green-600" /></div>}
+                            </div>
+                            {editingId === log.id ? (
+                                <div className="bg-gray-50 p-3 rounded-xl border border-blue-200 -ml-2">
+                                    <input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                                    <input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                                    <textarea className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-16" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <button
+                                            onClick={() => setEditIsPublic(!editIsPublic)}
+                                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-xl border transition ${editIsPublic ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
+                                        >
+                                            {editIsPublic ? <Globe size={10} /> : <Lock size={10} />}
+                                            {editIsPublic ? 'Für alle sichtbar' : 'Nur für mich'}
+                                        </button>
+                                    </div>
+
+                                    {editImages.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                            {editImages.map((url, i) => (
+                                                <div key={i} className="relative w-16 h-16 group">
+                                                    <img src={url} className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                                                    <button onClick={() => setEditImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-xl p-0.5 shadow-sm hover:bg-red-600 transition">
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
+                                        <button onClick={() => editImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
+                                        <input type="file" accept="image/*" multiple ref={editImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, editingId !== null)} />
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button>
+                                            <button onClick={() => handleSaveEdit(log.id)} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-xl shadow-sm disabled:opacity-50">Update</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="pr-4 relative">
+                                    <div className="flex justify-between items-start">
+                                        <div className="text-xs font-bold text-gray-500 mb-0.5">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
+                                        {!log.is_public && <Lock size={12} className="text-gray-300" />}
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900">{log.title}</div>
+                                    <div className="text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
+
+                                    {((log.image_urls && log.image_urls.length > 0) || log.image_url) && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {(log.image_urls && log.image_urls.length > 0 ? log.image_urls : [log.image_url!]).map((url, i) => (
+                                                <a key={i} href={url} target="_blank" rel="noreferrer">
+                                                    <img src={url} className="w-20 h-20 object-cover rounded-xl border border-gray-200 hover:opacity-80 transition cursor-zoom-in" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {isOwner && (
+                                        <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white pl-2">
+                                            <button onClick={() => startEditing(log)} className="text-gray-400 hover:text-blue-600 focus:outline-none"><Pencil size={12} /></button>
+                                            <button onClick={() => onDelete(log.id)} className="text-gray-400 hover:text-red-500 focus:outline-none"><Trash2 size={12} /></button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        {editingId === log.id ? (
-                            <div className="bg-gray-50 p-3 rounded-xl border border-blue-200 -ml-2">
-                                <input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-                                <input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-                                <textarea className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-16" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
-
-                                <div className="flex items-center gap-2 mb-2">
-                                    <button
-                                        onClick={() => setEditIsPublic(!editIsPublic)}
-                                        className={`text-xs flex items-center gap-1 px-2 py-1 rounded-full border transition ${editIsPublic ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
-                                    >
-                                        {editIsPublic ? <Globe size={10} /> : <Lock size={10} />}
-                                        {editIsPublic ? 'Für alle sichtbar' : 'Nur für mich'}
-                                    </button>
-                                </div>
-
-                                {editImages.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                        {editImages.map((url, i) => (
-                                            <div key={i} className="relative w-16 h-16 group">
-                                                <img src={url} className="w-full h-full object-cover rounded-lg border border-gray-200" />
-                                                <button onClick={() => setEditImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 transition">
-                                                    <X size={10} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
-                                    <button onClick={() => editImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
-                                    <input type="file" accept="image/*" multiple ref={editImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, editingId !== null)} />
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button>
-                                        <button onClick={() => handleSaveEdit(log.id)} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded shadow-sm disabled:opacity-50">Update</button>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="pr-4 relative">
-                                <div className="flex justify-between items-start">
-                                    <div className="text-xs font-bold text-gray-500 mb-0.5">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
-                                    {!log.is_public && <Lock size={12} className="text-gray-300" />}
-                                </div>
-                                <div className="text-sm font-medium text-gray-900">{log.title}</div>
-                                <div className="text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
-
-                                {((log.image_urls && log.image_urls.length > 0) || log.image_url) && (
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {(log.image_urls && log.image_urls.length > 0 ? log.image_urls : [log.image_url!]).map((url, i) => (
-                                            <a key={i} href={url} target="_blank" rel="noreferrer">
-                                                <img src={url} className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in" />
-                                            </a>
-                                        ))}
-                                    </div>
-                                )}
-                                <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white pl-2">
-                                    {/* Only allow edit/delete if it's my log (or if we want to be strict, but for now UI check is fine) */}
-                                    <button onClick={() => startEditing(log)} className="text-gray-400 hover:text-blue-600"><Pencil size={12} /></button>
-                                    <button onClick={() => onDelete(log.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                    );
+                })}
             </div>
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                showCancel={false}
+                type={confirmConfig.type}
+                confirmText="OK"
+            />
         </div>
     );
 }

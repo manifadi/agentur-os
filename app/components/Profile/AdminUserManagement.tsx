@@ -32,7 +32,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200">
                 {/* ... header ... */}
                 <div className="flex justify-between items-center mb-6">
@@ -46,7 +46,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Name</label>
                             <input
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                                 value={formData.name || ''}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="Max Mustermann"
@@ -55,7 +55,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kürzel</label>
                             <input
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition uppercase"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition uppercase"
                                 value={formData.initials || ''}
                                 onChange={e => setFormData({ ...formData, initials: e.target.value })}
                                 placeholder="MM"
@@ -69,7 +69,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Email (Login)</label>
                             <div className="relative">
                                 <input
-                                    className="w-full pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                    className="w-full pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                                     value={formData.email || ''}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="name@agentur.com"
@@ -81,7 +81,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Telefon</label>
                             <input
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                                 value={formData.phone || ''}
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 placeholder="+43 123 45678"
@@ -93,7 +93,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Rolle</label>
                             <select
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                                 value={formData.role || 'user'}
                                 onChange={e => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
                             >
@@ -104,7 +104,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Abteilung</label>
                             <select
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                                 value={formData.department_id || ''}
                                 onChange={e => setFormData({ ...formData, department_id: e.target.value })}
                             >
@@ -117,7 +117,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Job Titel (Position)</label>
                         <select
-                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                             value={formData.job_title || ''}
                             onChange={e => setFormData({ ...formData, job_title: e.target.value })}
                         >
@@ -133,11 +133,11 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                 </div>
 
                 <div className="flex gap-3 justify-end mt-8">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition">Abbrechen</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition">Abbrechen</button>
                     <button
                         onClick={() => onSave(formData)}
                         disabled={isLoading}
-                        className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm flex items-center gap-2"
+                        className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm flex items-center gap-2"
                     >
                         {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                         {mode === 'create' ? 'Anlegen' : 'Speichern'}
@@ -178,8 +178,9 @@ export default function AdminUserManagement({ employees, departments, currentEmp
         message: string;
         confirmText?: string;
         cancelText?: string;
-        action: () => Promise<void>;
-        type: 'danger' | 'info';
+        action: () => void | Promise<void>;
+        type: 'danger' | 'info' | 'warning' | 'success';
+        showCancel?: boolean;
     }>({
         isOpen: false,
         title: '',
@@ -187,7 +188,8 @@ export default function AdminUserManagement({ employees, departments, currentEmp
         confirmText: 'Bestätigen',
         cancelText: 'Abbrechen',
         action: async () => { },
-        type: 'danger'
+        type: 'danger',
+        showCancel: true
     });
 
     useEffect(() => {
@@ -219,11 +221,31 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 ...userData,
                 organization_id: currentEmployee.organization_id
             }]);
-            if (error) alert('Fehler: ' + error.message);
+            if (error) {
+                setConfirmModal({
+                    isOpen: true,
+                    title: 'Fehler',
+                    message: 'Mitarbeiter konnte nicht angelegt werden: ' + error.message,
+                    action: async () => { setConfirmModal(prev => ({ ...prev, isOpen: false })); },
+                    type: 'danger',
+                    showCancel: false,
+                    confirmText: 'OK'
+                });
+            }
         } else {
             // Edit
             const { error } = await supabase.from('employees').update(userData).eq('id', userData.id);
-            if (error) alert('Fehler: ' + error.message);
+            if (error) {
+                setConfirmModal({
+                    isOpen: true,
+                    title: 'Fehler',
+                    message: 'Mitarbeiter konnte nicht aktualisiert werden: ' + error.message,
+                    action: async () => { setConfirmModal(prev => ({ ...prev, isOpen: false })); },
+                    type: 'danger',
+                    showCancel: false,
+                    confirmText: 'OK'
+                });
+            }
         }
 
         if (!loading) {
@@ -243,7 +265,15 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 setLoading(true);
                 const { error } = await supabase.from('employees').delete().eq('id', id);
                 if (error) {
-                    alert('Fehler beim Löschen: ' + error.message);
+                    setConfirmModal({
+                        isOpen: true,
+                        title: 'Fehler beim Löschen',
+                        message: error.message,
+                        action: async () => { setConfirmModal(prev => ({ ...prev, isOpen: false })); },
+                        type: 'danger',
+                        showCancel: false,
+                        confirmText: 'OK'
+                    });
                 } else {
                     onUpdate();
                 }
@@ -267,7 +297,15 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                     .eq('id', req.id);
 
                 if (error) {
-                    alert('Fehler: ' + error.message); // Keep basic alert for error handling for now
+                    setConfirmModal({
+                        isOpen: true,
+                        title: 'Fehler',
+                        message: error.message,
+                        action: async () => { setConfirmModal(prev => ({ ...prev, isOpen: false })); },
+                        type: 'danger',
+                        showCancel: false,
+                        confirmText: 'OK'
+                    });
                 } else {
                     setRequests(prev => prev.filter(r => r.id !== req.id));
                 }
@@ -315,8 +353,8 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                                     <div className="text-sm text-gray-500">{req.email}</div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleRejectRequest(req)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">Ablehnen</button>
-                                    <button onClick={() => handleApproveRequest(req)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition">Bestätigen</button>
+                                    <button onClick={() => handleRejectRequest(req)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">Ablehnen</button>
+                                    <button onClick={() => handleApproveRequest(req)} className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition">Bestätigen</button>
                                 </div>
                             </div>
                         ))}
@@ -328,7 +366,7 @@ export default function AdminUserManagement({ employees, departments, currentEmp
             <div>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-gray-900">Mitarbeiter & Rollen</h2>
-                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-sm">
+                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition shadow-sm">
                         <UserPlus size={16} /> Mitarbeiter anlegen
                     </button>
                 </div>
@@ -398,6 +436,7 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 type={confirmModal.type}
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText}
+                showCancel={confirmModal.showCancel}
             />
         </div>
     );

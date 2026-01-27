@@ -17,6 +17,13 @@ interface UserDashboardProps {
 export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
     const { currentUser, projects, allocations, members, timeEntries, fetchData } = useApp();
     const [showAddTimeModal, setShowAddTimeModal] = useState(false);
+    const [pendingCompletions, setPendingCompletions] = useState<Record<string, NodeJS.Timeout>>({});
+
+    React.useEffect(() => {
+        return () => {
+            Object.values(pendingCompletions).forEach(clearTimeout);
+        };
+    }, [pendingCompletions]);
 
     // Add Time State - Removed as now handled by Modal
     // const [newTime, setNewTime] = useState({ projectId: '', positionId: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
@@ -27,7 +34,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     // 1. My Open Tasks (Assigned & !Done)
     const myTasks = currentUser ? projects.flatMap(p =>
         (p.todos || [])
-            .filter(t => t.assigned_to === currentUser.id && !t.is_done)
+            .filter(t => t.assigned_to === currentUser.id && (!t.is_done || pendingCompletions[t.id]))
             .map(t => ({ ...t, project: p }))
     ) : [];
 
@@ -125,16 +132,70 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
         </div>
     );
 
-    const ListItem = ({ title, subtitle, icon, action, onClick }: any) => (
-        <div onClick={onClick} className={`group flex items-center gap-4 p-4 mx-2 rounded-2xl hover:bg-white/80 hover:shadow-sm transition-all cursor-pointer border border-transparent hover:border-black/5`}>
-            {icon && <div className="shrink-0 text-gray-400 group-hover:text-blue-600 transition-colors">{icon}</div>}
-            <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 truncate leading-snug">{title}</div>
-                {subtitle && <div className="text-sm text-gray-500 truncate leading-snug">{subtitle}</div>}
+    const ListItem = ({ title, subtitle, icon, action, onClick, showTooltip }: any) => (
+        <div className="group/item relative flex items-center mx-2 rounded-2xl transition-all duration-300">
+            {/* Checkbox Area */}
+            {icon && (
+                <div className="relative z-20 p-4 pr-1 shrink-0">
+                    {icon}
+                </div>
+            )}
+
+            {/* Content Area */}
+            <div
+                onClick={onClick}
+                className="flex-1 flex items-center justify-between gap-4 p-4 pl-2 rounded-2xl hover:bg-gray-50/80 transition-all cursor-pointer group/content overflow-hidden min-h-[72px]"
+            >
+                <div className="flex-1 min-w-0 max-w-[260px]">
+                    <div className="font-semibold text-gray-900 line-clamp-2 tracking-tight leading-tight">{title}</div>
+                    {subtitle && <div className="text-[11px] text-gray-500 truncate mt-1 font-medium">{subtitle}</div>}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                    {action && <div className="text-gray-400 group-hover/content:text-gray-600 transition-colors">{action}</div>}
+                    <ArrowRight size={14} className="text-gray-300 opacity-0 group-hover/content:opacity-100 -translate-x-2 group-hover/content:translate-x-0 transition-all duration-300" />
+                </div>
+
+                {/* Tooltip */}
+                {showTooltip && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover/content:opacity-100 transition-all duration-200 pointer-events-none z-30 translate-x-2 group-hover/content:translate-x-0">
+                        <div className="bg-gray-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl whitespace-nowrap shadow-2xl flex items-center gap-1.5 border border-white/10">
+                            Zum Projekt
+                            <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+                        </div>
+                    </div>
+                )}
             </div>
-            {action && <div className="shrink-0">{action}</div>}
         </div>
     );
+
+    const handleToggleTodoWithDelay = async (todoId: string, currentIsDone: boolean) => {
+        if (!currentIsDone) {
+            if (pendingCompletions[todoId]) return;
+
+            const timeout = setTimeout(async () => {
+                await onToggleTodo(todoId, true); // Mark as done
+                setPendingCompletions(prev => {
+                    const next = { ...prev };
+                    delete next[todoId];
+                    return next;
+                });
+            }, 3000);
+
+            setPendingCompletions(prev => ({ ...prev, [todoId]: timeout }));
+        } else {
+            if (pendingCompletions[todoId]) {
+                clearTimeout(pendingCompletions[todoId]);
+                setPendingCompletions(prev => {
+                    const next = { ...prev };
+                    delete next[todoId];
+                    return next;
+                });
+            } else {
+                await onToggleTodo(todoId, false); // Mark as active
+            }
+        }
+    };
 
     if (!currentUser) return null;
 
@@ -153,8 +214,8 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 </div>
 
                 <div className="flex gap-3 shrink-0">
-                    <button onClick={() => onQuickAction('create_project')} style={{ minWidth: 'fit-content' }} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform whitespace-nowrap"><Plus size={18} /> Projekt hinzufügen</button>
-                    <button onClick={() => onQuickAction('create_client')} className="flex items-center gap-2 bg-white/80 backdrop-blur border border-white/60 text-gray-900 px-5 py-2.5 rounded-full text-sm font-bold hover:bg-white transition shadow-sm hover:shadow-md"><UserPlus size={18} /> Kunde</button>
+                    <button onClick={() => onQuickAction('create_project')} style={{ minWidth: 'fit-content' }} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform whitespace-nowrap"><Plus size={18} /> Projekt hinzufügen</button>
+                    <button onClick={() => onQuickAction('create_client')} className="flex items-center gap-2 bg-white/80 backdrop-blur border border-white/60 text-gray-900 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-white transition shadow-sm hover:shadow-md"><UserPlus size={18} /> Kunde</button>
                 </div>
             </header>
 
@@ -174,16 +235,24 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                             {myTasks.map(t => (
                                 <ListItem
                                     key={t.id}
-                                    icon={<div onClick={(e) => { e.stopPropagation(); onToggleTodo(t.id, true) }} className="w-6 h-6 rounded-full border-2 border-gray-300 group-hover:border-blue-500 group-hover:bg-blue-500/10 cursor-pointer transition flex items-center justify-center"><Check size={14} className="opacity-0 group-hover:opacity-100 text-blue-600" /></div>}
-                                    title={t.title}
+                                    icon={
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, t.is_done || !!pendingCompletions[t.id]) }}
+                                            className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${t.is_done || pendingCompletions[t.id] ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'}`}
+                                        >
+                                            <Check size={12} className={`text-white transition-opacity ${t.is_done || pendingCompletions[t.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                                        </button>
+                                    }
+                                    title={<span className={t.is_done || pendingCompletions[t.id] ? 'text-gray-400 line-through' : ''}>{t.title}</span>}
                                     subtitle={`${t.project.job_number} • ${t.project.clients?.name}`}
                                     onClick={() => onSelectProject(t.project)}
+                                    showTooltip={true}
                                     action={
-                                        t.deadline ? (
-                                            <span className={`text-[10px] font-medium mr-2 ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-400'}`}>
+                                        t.deadline && (
+                                            <span className={`text-[10px] font-bold tracking-tight ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-400'}`}>
                                                 {new Date(t.deadline).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
                                             </span>
-                                        ) : <ArrowRight size={16} className="text-gray-300" />
+                                        )
                                     }
                                 />
                             ))}
@@ -217,7 +286,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 ))}
                             </div>
                         )}
-                        <button onClick={() => setShowAddTimeModal(true)} className="mt-4 w-[90%] mx-auto py-2.5 bg-gray-900 hover:bg-black text-white rounded-full text-sm font-bold flex items-center justify-center gap-2 transition shadow-sm hover:shadow-md">
+                        <button onClick={() => setShowAddTimeModal(true)} className="mt-4 w-[90%] mx-auto py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition shadow-sm hover:shadow-md">
                             <Plus size={16} /> Stunden hinzufügen
                         </button>
                     </div>

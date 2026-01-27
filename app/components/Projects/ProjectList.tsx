@@ -8,9 +8,10 @@ interface ProjectListProps {
     selectedClient: Client | null;
     onSelectProject: (project: Project) => void;
     showOpenTodos: boolean;
+    onTaskClick?: (task: Todo) => void;
 }
 
-export default function ProjectList({ projects, selectedClient, onSelectProject, showOpenTodos }: ProjectListProps) {
+export default function ProjectList({ projects, selectedClient, onSelectProject, showOpenTodos, onTaskClick }: ProjectListProps) {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
@@ -38,7 +39,11 @@ export default function ProjectList({ projects, selectedClient, onSelectProject,
                                     {showOpenTodos && project.openTodosPreview && project.openTodosPreview.length > 0 && (
                                         <div className="mt-3 ml-11 space-y-1">
                                             {project.openTodosPreview.map(t => (
-                                                <div key={t.id} className="flex items-center gap-2 text-xs text-gray-500">
+                                                <div
+                                                    key={t.id}
+                                                    className="flex items-center gap-2 text-xs text-gray-500 hover:text-blue-600 transition"
+                                                    onClick={(e) => { e.stopPropagation(); onTaskClick?.(t); }}
+                                                >
                                                     <div className="w-1.5 h-1.5 rounded-full bg-orange-400"></div>
                                                     {t.title} <span className="text-gray-300">({t.employees?.initials || 'Unassigned'})</span>
                                                 </div>

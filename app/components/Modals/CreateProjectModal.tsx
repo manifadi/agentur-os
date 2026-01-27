@@ -58,7 +58,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div className="flex gap-4">
@@ -87,7 +87,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                     <input
                                         type="text"
                                         placeholder="Suchen nach Titel oder Job Nr..."
-                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-lg text-sm transition"
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-xl text-sm transition"
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         autoFocus
@@ -95,7 +95,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                 </div>
                                 <div className="w-48">
                                     <select
-                                        className="w-full px-3 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-lg text-sm transition"
+                                        className="w-full px-3 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-xl text-sm transition"
                                         value={clientFilter}
                                         onChange={e => setClientFilter(e.target.value)}
                                     >
@@ -131,7 +131,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                                             onClick={() => !joined && onJoin(p.id)}
                                                             disabled={joined}
                                                             title={joined ? "Bereits hinzugefügt" : "Hinzufügen"}
-                                                            className={`p-1.5 rounded-lg transition inline-flex items-center justify-center ${joined
+                                                            className={`p-1.5 rounded-xl transition inline-flex items-center justify-center ${joined
                                                                 ? 'bg-green-100 text-green-700 cursor-default'
                                                                 : 'bg-gray-900 text-white hover:bg-gray-800'
                                                                 }`}
@@ -161,7 +161,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                 </div>
                                 <button
                                     onClick={() => window.location.href = '/projekte/erstellen'}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition shadow-sm"
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition shadow-sm"
                                 >
                                     Zum Wizard
                                 </button>

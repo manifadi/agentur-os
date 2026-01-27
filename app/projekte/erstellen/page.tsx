@@ -23,6 +23,22 @@ export default function CreateProjectWizard() {
     const [initialBasicInfo, setInitialBasicInfo] = useState<any>(null);
     const [initialSections, setInitialSections] = useState<any[]>([]);
 
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        type: 'danger' | 'info' | 'warning' | 'success';
+        confirmText?: string;
+        showCancel?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        type: 'info'
+    });
+
     // Form State
     const [basicInfo, setBasicInfo] = useState({
         title: '',
@@ -293,12 +309,28 @@ export default function CreateProjectWizard() {
 
     const handleSave = async () => {
         if (!basicInfo.title || !basicInfo.clientId) {
-            alert('Bitte mindestens Titel und Kunde angeben.');
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Pflichtfelder fehlen',
+                message: 'Bitte gib mindestens einen Titel und einen Kunden für das Projekt an.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'warning',
+                confirmText: 'Verstanden',
+                showCancel: false
+            });
             return;
         }
 
         if (!basicInfo.jobNr) {
-            alert('Bitte eine Job Nummer angeben.');
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Job Nummer fehlt',
+                message: 'Bitte gib eine Job Nummer an. Diese wird normalerweise automatisch generiert.',
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'warning',
+                confirmText: 'OK',
+                showCancel: false
+            });
             return;
         }
 
@@ -306,12 +338,26 @@ export default function CreateProjectWizard() {
 
         const isUnique = await checkJobNumberUnique(basicInfo.jobNr);
         if (!isUnique) {
-            const confirm = window.confirm(`Die Job Nummer "${basicInfo.jobNr}" existiert bereits. Trotzdem speichern?`);
-            if (!confirm) {
-                setLoading(false);
-                return;
-            }
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Job Nummer existiert bereits',
+                message: `Die Job Nummer "${basicInfo.jobNr}" wird bereits verwendet. Möchtest du das Projekt trotzdem mit dieser Nummer speichern?`,
+                onConfirm: () => {
+                    setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                    executeSave();
+                },
+                type: 'warning',
+                confirmText: 'Trotzdem speichern',
+                showCancel: true
+            });
+            return;
         }
+
+        await executeSave();
+    };
+
+    const executeSave = async () => {
+        setLoading(true);
 
         try {
             let projectId = editId;
@@ -429,7 +475,15 @@ export default function CreateProjectWizard() {
 
         } catch (e: any) {
             console.error('FULL ERROR:', e);
-            alert('Fehler beim Speichern (Details in Konsole): ' + (e.message || JSON.stringify(e)));
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Fehler beim Speichern',
+                message: `Das Projekt konnte nicht gespeichert werden: ${e.message || 'Unbekannter Fehler'}.`,
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                type: 'danger',
+                confirmText: 'OK',
+                showCancel: false
+            });
         } finally {
             setLoading(false);
         }
@@ -892,6 +946,16 @@ export default function CreateProjectWizard() {
                 confirmText="Verwerfen"
                 cancelText="Weiter bearbeiten"
                 type="danger"
+            />
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                type={confirmConfig.type}
+                confirmText={confirmConfig.confirmText}
+                showCancel={confirmConfig.showCancel}
             />
         </div>
     );

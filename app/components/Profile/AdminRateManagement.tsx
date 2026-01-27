@@ -2,11 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { AgencyPosition } from '../../types';
 import { Plus, Trash2, Save, X, Edit2 } from 'lucide-react';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 export default function AdminRateManagement() {
     const [positions, setPositions] = useState<AgencyPosition[]>([]);
     const [loading, setLoading] = useState(true);
     const [editId, setEditId] = useState<string | null>(null);
+
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        type: 'danger' | 'info' | 'warning' | 'success';
+        confirmText?: string;
+        showCancel?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        type: 'info'
+    });
 
     // Filter/Sort State
     const [categoryFilter, setCategoryFilter] = useState<string>('All');
@@ -51,7 +68,15 @@ export default function AdminRateManagement() {
                 setNewPos({ title: '', hourly_rate: 0, category: 'Allgemein' });
                 fetchPositions();
             } else {
-                alert('Fehler: ' + error.message);
+                setConfirmConfig({
+                    isOpen: true,
+                    title: 'Fehler',
+                    message: error.message,
+                    onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                    type: 'danger',
+                    confirmText: 'OK',
+                    showCancel: false
+                });
             }
         }
     };
@@ -65,10 +90,18 @@ export default function AdminRateManagement() {
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm('Position wirklich löschen?')) {
-            await supabase.from('agency_positions').delete().eq('id', id);
-            fetchPositions();
-        }
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Position löschen?',
+            message: 'Möchtest du diese Position wirklich löschen?',
+            onConfirm: async () => {
+                await supabase.from('agency_positions').delete().eq('id', id);
+                fetchPositions();
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+            },
+            type: 'danger',
+            confirmText: 'Löschen'
+        });
     };
 
     const categories = Array.from(new Set(positions.map(p => p.category || 'Unkategorisiert')));
@@ -133,7 +166,7 @@ export default function AdminRateManagement() {
                     <button
                         onClick={handleSaveNew}
                         disabled={!newPos.title || !newPos.hourly_rate}
-                        className="bg-gray-900 text-white p-2 rounded-lg hover:bg-black transition disabled:opacity-50"
+                        className="bg-gray-900 text-white p-2 rounded-xl hover:bg-black transition disabled:opacity-50"
                     >
                         <Plus size={20} />
                     </button>
@@ -154,12 +187,12 @@ export default function AdminRateManagement() {
                                     {editId === pos.id ? (
                                         <div className="flex gap-2 w-full items-center">
                                             <input
-                                                className="flex-1 p-1 border rounded text-sm font-bold"
+                                                className="flex-1 p-1 border rounded-xl text-sm font-bold"
                                                 defaultValue={pos.title}
                                                 id={`edit-title-${pos.id}`}
                                             />
                                             <input
-                                                className="w-24 p-1 border rounded text-sm text-right"
+                                                className="w-24 p-1 border rounded-xl text-sm text-right"
                                                 defaultValue={pos.hourly_rate}
                                                 type="number"
                                                 id={`edit-rate-${pos.id}`}
@@ -170,7 +203,7 @@ export default function AdminRateManagement() {
                                                     const r = (document.getElementById(`edit-rate-${pos.id}`) as HTMLInputElement).value;
                                                     handleUpdate(pos.id, { title: t, hourly_rate: parseFloat(r) });
                                                 }}
-                                                className="text-green-600 hover:bg-green-50 p-1 rounded"
+                                                className="text-green-600 hover:bg-green-50 p-1 rounded-xl"
                                             >
                                                 <Save size={16} />
                                             </button>
@@ -181,8 +214,8 @@ export default function AdminRateManagement() {
                                             <div className="font-medium text-gray-900 text-sm flex-1">{pos.title}</div>
                                             <div className="font-mono text-gray-600 w-24 text-right">{pos.hourly_rate.toFixed(2)} €</div>
                                             <div className="flex gap-1 ml-4 opacity-0 group-hover:opacity-100 transition">
-                                                <button onClick={() => setEditId(pos.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded"><Edit2 size={14} /></button>
-                                                <button onClick={() => handleDelete(pos.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 size={14} /></button>
+                                                <button onClick={() => setEditId(pos.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded-xl"><Edit2 size={14} /></button>
+                                                <button onClick={() => handleDelete(pos.id)} className="p-1 text-gray-400 hover:text-red-500 rounded-xl"><Trash2 size={14} /></button>
                                             </div>
                                         </>
                                     )}
@@ -196,6 +229,16 @@ export default function AdminRateManagement() {
                     <div className="text-center py-10 text-gray-400">Keine Positionen gefunden.</div>
                 )}
             </div>
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                type={confirmConfig.type}
+                confirmText={confirmConfig.confirmText}
+                showCancel={confirmConfig.showCancel}
+            />
         </div>
     );
 }

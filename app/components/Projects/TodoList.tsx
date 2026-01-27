@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Pencil, Trash2, X, Plus, Calendar } from 'lucide-react';
+import { CheckCircle2, Pencil, Trash2, X, Plus, Calendar, Check } from 'lucide-react';
 import { Todo, Employee } from '../../types';
 
 interface TodoListProps {
@@ -9,9 +9,10 @@ interface TodoListProps {
     onToggle: (id: string, currentStatus: boolean) => Promise<void>;
     onUpdate: (id: string, title: string, assigneeId: string | null, deadline: string | null) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    onTaskClick?: (task: Todo) => void;
 }
 
-export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, onDelete }: TodoListProps) {
+export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, onDelete, onTaskClick }: TodoListProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newAssignee, setNewAssignee] = useState('');
@@ -21,6 +22,13 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
     const [editTitle, setEditTitle] = useState('');
     const [editAssignee, setEditAssignee] = useState('');
     const [editDeadline, setEditDeadline] = useState('');
+    const [pendingCompletions, setPendingCompletions] = useState<Record<string, NodeJS.Timeout>>({});
+
+    React.useEffect(() => {
+        return () => {
+            Object.values(pendingCompletions).forEach(clearTimeout);
+        };
+    }, [pendingCompletions]);
 
     const handleCreate = async () => {
         if (!newTitle.trim()) return;
@@ -43,54 +51,102 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
         setEditingId(null);
     };
 
+    const handleToggleWithDelay = async (todoId: string, currentIsDone: boolean) => {
+        if (!currentIsDone) {
+            if (pendingCompletions[todoId]) return;
+
+            const timeout = setTimeout(async () => {
+                await onToggle(todoId, false); // Toggle to done
+                setPendingCompletions(prev => {
+                    const next = { ...prev };
+                    delete next[todoId];
+                    return next;
+                });
+            }, 3000);
+
+            setPendingCompletions(prev => ({ ...prev, [todoId]: timeout }));
+        } else {
+            if (pendingCompletions[todoId]) {
+                clearTimeout(pendingCompletions[todoId]);
+                setPendingCompletions(prev => {
+                    const next = { ...prev };
+                    delete next[todoId];
+                    return next;
+                });
+            } else {
+                await onToggle(todoId, true); // Toggle back to active
+            }
+        }
+    };
+
     return (
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[300px]">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-gray-400" /> Aufgaben</h2>
             <div className="overflow-y-auto pr-2 space-y-3 flex-1">
-                {todos.map((todo) => (
-                    <div key={todo.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 group transition">
-                        {editingId === todo.id ? (
-                            <div className="flex flex-1 items-center gap-2 flex-wrap">
-                                <input autoFocus type="text" className="flex-1 min-w-[120px] bg-gray-50 rounded border-none text-sm px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-                                <input type="date" className="bg-gray-50 rounded border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500 w-auto" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} />
-                                <select className="w-24 bg-gray-50 rounded border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)}>
-                                    <option value="">Niemand</option>
-                                    {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                                </select>
-                                <div className="flex gap-1">
-                                    <button onClick={() => handleSaveEdit(todo.id)} className="p-1 text-green-600 hover:bg-green-50 rounded"><CheckCircle2 size={16} /></button>
-                                    <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded"><X size={16} /></button>
+                {todos.filter(t => !t.parent_id || pendingCompletions[t.id]).map((todo) => {
+                    const isPending = !!pendingCompletions[todo.id];
+                    const isDoneEffective = todo.is_done || isPending;
+                    const subtaskCount = todos.filter(t => t.parent_id === todo.id).length;
+
+                    return (
+                        <div key={todo.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 group transition">
+                            {editingId === todo.id ? (
+                                <div className="flex flex-1 items-center gap-2 flex-wrap">
+                                    <input autoFocus type="text" className="flex-1 min-w-[120px] bg-gray-50 rounded-xl border-none text-sm px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                                    <input type="date" className="bg-gray-50 rounded-xl border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500 w-auto" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} />
+                                    <select className="w-24 bg-gray-50 rounded-xl border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)}>
+                                        <option value="">Niemand</option>
+                                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                    </select>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => handleSaveEdit(todo.id)} className="p-1 text-green-600 hover:bg-green-50 rounded-xl"><CheckCircle2 size={16} /></button>
+                                        <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-xl"><X size={16} /></button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex items-center gap-3 overflow-hidden flex-1 mr-2">
-                                    <button onClick={() => onToggle(todo.id, todo.is_done)} className={`w-5 h-5 rounded border flex items-center justify-center transition-all flex-shrink-0 ${todo.is_done ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'}`}>
-                                        {todo.is_done && <CheckCircle2 size={12} className="text-white" />}
-                                    </button>
-                                    <div className="flex flex-col truncate">
-                                        <span className={`text-sm transition-all truncate ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{todo.title}</span>
-                                        {todo.deadline && (
-                                            <div className={`flex items-center gap-1 text-[10px] ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                                                <Calendar size={10} />
-                                                <span>{new Date(todo.deadline).toLocaleDateString('de-DE')}</span>
+                            ) : (
+                                <>
+                                    <div
+                                        className="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer group/item"
+                                        onClick={() => onTaskClick?.(todo)}
+                                    >
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleToggleWithDelay(todo.id, todo.is_done || !!pendingCompletions[todo.id]); }}
+                                            className={`w-6 h-6 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check ${isDoneEffective ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'}`}
+                                        >
+                                            <Check size={12} className={`text-white transition-opacity ${isDoneEffective ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                                        </button>
+                                        <div className="flex flex-col truncate">
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <span className={`text-sm transition-all truncate ${isDoneEffective ? 'text-gray-400 line-through' : 'text-gray-700 group-hover/item:text-blue-600'}`}>
+                                                    {todo.title}
+                                                </span>
+                                                {subtaskCount > 0 && (
+                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-500 min-w-[18px] text-center">
+                                                        {subtaskCount}
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
+                                            {todo.deadline && (
+                                                <div className={`flex items-center gap-1 text-[10px] ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                                                    <Calendar size={10} />
+                                                    <span>{new Date(todo.deadline).toLocaleDateString('de-DE')}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    {todo.employees && <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold shrink-0" title={todo.employees.name}>{todo.employees.initials}</div>}
-                                    <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
-                                        <button onClick={() => startEditing(todo)} className="p-1 text-gray-300 hover:text-blue-500"><Pencil size={12} /></button>
-                                        <button onClick={() => onDelete(todo.id)} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={12} /></button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {todo.employees && <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold shrink-0" title={todo.employees.name}>{todo.employees.initials}</div>}
+                                        <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                                            <button onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={12} /></button>
+                                        </div>
                                     </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                ))}
+                                </>
+                            )}
+                        </div>
+                    );
+                })}
                 {isAdding ? (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg animate-in fade-in slide-in-from-top-1 flex-wrap">
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl animate-in fade-in slide-in-from-top-1 flex-wrap">
                         <input autoFocus type="text" placeholder="Aufgabe..." className="flex-1 min-w-[120px] bg-transparent border-none text-sm focus:ring-0 p-1" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreate()} />
                         <input type="date" className="bg-transparent border-none text-xs text-gray-500 focus:ring-0 p-1 w-auto" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} />
                         <select className="w-24 bg-transparent border-none text-xs text-gray-500 focus:ring-0 cursor-pointer" value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)}>
@@ -98,8 +154,8 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
                             {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                         <div className="flex gap-1">
-                            <button onClick={handleCreate} className="text-blue-600 hover:bg-blue-100 p-1 rounded"><Plus size={16} /></button>
-                            <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:bg-gray-200 p-1 rounded"><X size={16} /></button>
+                            <button onClick={handleCreate} className="text-blue-600 hover:bg-blue-100 p-1 rounded-xl"><Plus size={16} /></button>
+                            <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:bg-gray-200 p-1 rounded-xl"><X size={16} /></button>
                         </div>
                     </div>
                 ) : (
