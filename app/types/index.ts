@@ -77,6 +77,7 @@ export interface ProjectLog {
     title: string;
     content: string;
     image_url?: string | null;
+    image_urls?: string[];
     entry_date: string;
     employee_id?: string | null;
     is_public?: boolean;

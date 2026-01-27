@@ -4,8 +4,8 @@ import { ProjectLog } from '../../types';
 
 interface LogbookProps {
     logs: ProjectLog[];
-    onAdd: (title: string, content: string, date: string, image: string | null, isPublic: boolean) => Promise<void>;
-    onUpdate: (id: string, title: string, content: string, date: string, image: string | null, isPublic: boolean) => Promise<void>;
+    onAdd: (title: string, content: string, date: string, images: string[], isPublic: boolean) => Promise<void>;
+    onUpdate: (id: string, title: string, content: string, date: string, images: string[], isPublic: boolean) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
     onUploadImage: (file: File) => Promise<string>;
     currentEmployeeId?: string;
@@ -17,7 +17,7 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
     const [newTitle, setNewTitle] = useState('');
     const [newContent, setNewContent] = useState('');
     const [newDate, setNewDate] = useState('');
-    const [newImage, setNewImage] = useState<string | null>(null);
+    const [newImages, setNewImages] = useState<string[]>([]);
     const [newIsPublic, setNewIsPublic] = useState(false);
 
     // Edit State
@@ -25,7 +25,7 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
     const [editTitle, setEditTitle] = useState('');
     const [editContent, setEditContent] = useState('');
     const [editDate, setEditDate] = useState('');
-    const [editImage, setEditImage] = useState<string | null>(null);
+    const [editImages, setEditImages] = useState<string[]>([]);
     const [editIsPublic, setEditIsPublic] = useState(false);
 
     const [uploading, setUploading] = useState(false);
@@ -35,32 +35,36 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
     const editImageRef = useRef<HTMLInputElement>(null);
 
     // Helper
-    const handleUpload = async (file: File, isEdit: boolean) => {
+    const handleUpload = async (files: FileList | File[], isEdit: boolean) => {
         setUploading(true);
         try {
-            const url = await onUploadImage(file);
-            if (isEdit) setEditImage(url);
-            else setNewImage(url);
-        } catch (e) { console.error(e); }
+            const uploadPromises = Array.from(files).map(file => onUploadImage(file));
+            const urls = await Promise.all(uploadPromises);
+            if (isEdit) setEditImages(prev => [...prev, ...urls]);
+            else setNewImages(prev => [...prev, ...urls]);
+        } catch (e) {
+            console.error(e);
+            alert('Fehler beim Hochladen der Bilder');
+        }
         setUploading(false);
     };
 
     const handlePaste = (e: React.ClipboardEvent) => {
         if (e.clipboardData.files.length > 0) {
             e.preventDefault();
-            handleUpload(e.clipboardData.files[0], false);
+            handleUpload(e.clipboardData.files, editingId !== null);
         }
     };
 
     const handleSaveNew = async () => {
         if (!newTitle.trim()) return;
-        await onAdd(newTitle, newContent, newDate || new Date().toISOString(), newImage, newIsPublic);
-        setNewTitle(''); setNewContent(''); setNewImage(null); setIsAdding(false); setNewIsPublic(false);
+        await onAdd(newTitle, newContent, newDate || new Date().toISOString(), newImages, newIsPublic);
+        setNewTitle(''); setNewContent(''); setNewImages([]); setIsAdding(false); setNewIsPublic(false);
     };
 
     const handleSaveEdit = async (id: string) => {
         if (!editTitle.trim()) return;
-        await onUpdate(id, editTitle, editContent, editDate, editImage, editIsPublic);
+        await onUpdate(id, editTitle, editContent, editDate, editImages, editIsPublic);
         setEditingId(null);
     };
 
@@ -68,7 +72,7 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
         setEditingId(log.id);
         setEditTitle(log.title);
         setEditContent(log.content);
-        setEditImage(log.image_url || null);
+        setEditImages(log.image_urls || (log.image_url ? [log.image_url] : []));
         setEditDate(new Date(log.entry_date).toISOString().split('T')[0]);
         setEditIsPublic(log.is_public || false);
     };
@@ -116,11 +120,22 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                         </button>
                     </div>
 
-                    {uploading && <div className="text-xs text-blue-500 mb-2">Lade Bild hoch...</div>}
-                    {newImage && <div className="relative w-16 h-16 mb-2 group"><img src={newImage} className="w-full h-full object-cover rounded-lg border border-gray-200" /><button onClick={() => setNewImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10} /></button></div>}
+                    {uploading && <div className="text-xs text-blue-500 mb-2">Lade Bilder hoch...</div>}
+                    {newImages.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                            {newImages.map((url, i) => (
+                                <div key={i} className="relative w-16 h-16 group">
+                                    <img src={url} className="w-full h-full object-cover rounded-lg border border-gray-200" />
+                                    <button onClick={() => setNewImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 transition">
+                                        <X size={10} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex justify-between items-center mt-2 border-t border-gray-200 pt-2">
                         <button onClick={() => logImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
-                        <input type="file" accept="image/*" ref={logImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files[0], false)} />
+                        <input type="file" accept="image/*" multiple ref={logImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, false)} />
                         <div className="flex gap-2">
                             <button onClick={() => setIsAdding(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-200 rounded-md">Abbrechen</button>
                             <button onClick={handleSaveNew} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-md shadow-sm disabled:opacity-50">Speichern</button>
@@ -154,10 +169,21 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                                     </button>
                                 </div>
 
-                                {editImage && <div className="relative w-16 h-16 mb-2 group"><img src={editImage} className="w-full h-full object-cover rounded-lg border border-gray-200" /><button onClick={() => setEditImage(null)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={10} /></button></div>}
+                                {editImages.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {editImages.map((url, i) => (
+                                            <div key={i} className="relative w-16 h-16 group">
+                                                <img src={url} className="w-full h-full object-cover rounded-lg border border-gray-200" />
+                                                <button onClick={() => setEditImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 transition">
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
                                     <button onClick={() => editImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
-                                    <input type="file" accept="image/*" ref={editImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files[0], true)} />
+                                    <input type="file" accept="image/*" multiple ref={editImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, editingId !== null)} />
                                     <div className="flex gap-2">
                                         <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button>
                                         <button onClick={() => handleSaveEdit(log.id)} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded shadow-sm disabled:opacity-50">Update</button>
@@ -172,7 +198,16 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                                 </div>
                                 <div className="text-sm font-medium text-gray-900">{log.title}</div>
                                 <div className="text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
-                                {log.image_url && <div className="mt-3"><a href={log.image_url} target="_blank" rel="noreferrer"><img src={log.image_url} className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in" /></a></div>}
+
+                                {((log.image_urls && log.image_urls.length > 0) || log.image_url) && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {(log.image_urls && log.image_urls.length > 0 ? log.image_urls : [log.image_url!]).map((url, i) => (
+                                            <a key={i} href={url} target="_blank" rel="noreferrer">
+                                                <img src={url} className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition cursor-zoom-in" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
                                 <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white pl-2">
                                     {/* Only allow edit/delete if it's my log (or if we want to be strict, but for now UI check is fine) */}
                                     <button onClick={() => startEditing(log)} className="text-gray-400 hover:text-blue-600"><Pencil size={12} /></button>

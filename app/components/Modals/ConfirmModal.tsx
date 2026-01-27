@@ -53,8 +53,8 @@ export default function ConfirmModal({
                         onClick={onConfirm}
                         disabled={isLoading}
                         className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition shadow-sm flex items-center gap-2 ${type === 'danger'
-                                ? 'bg-red-600 hover:bg-red-700'
-                                : 'bg-blue-600 hover:bg-blue-700'
+                            ? 'bg-red-600 hover:bg-red-700'
+                            : 'bg-blue-600 hover:bg-blue-700'
                             } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
                     >
                         {isLoading && (

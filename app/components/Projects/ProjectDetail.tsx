@@ -217,12 +217,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         setTodos(prev => prev.filter(t => t.id !== id));
     };
 
-    const handleAddLog = async (title: string, content: string, date: string, image: string | null, isPublic: boolean) => {
+    const handleAddLog = async (title: string, content: string, date: string, images: string[], isPublic: boolean) => {
         const p = {
             project_id: project.id,
             title,
             content,
-            image_url: image,
+            image_url: images.length > 0 ? images[0] : null,
+            image_urls: images,
             entry_date: date,
             employee_id: currentEmployee?.id || null,
             is_public: isPublic
@@ -242,8 +243,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
         fetchDetails();
     };
-    const handleUpdateLog = async (id: string, title: string, content: string, date: string, image: string | null, isPublic: boolean) => {
-        await supabase.from('project_logs').update({ title, content, entry_date: date, image_url: image, is_public: isPublic }).eq('id', id);
+    const handleUpdateLog = async (id: string, title: string, content: string, date: string, images: string[], isPublic: boolean) => {
+        await supabase.from('project_logs').update({
+            title,
+            content,
+            entry_date: date,
+            image_url: images.length > 0 ? images[0] : null,
+            image_urls: images,
+            is_public: isPublic
+        }).eq('id', id);
         fetchDetails();
     };
     const handleDeleteLog = async (id: string) => {
