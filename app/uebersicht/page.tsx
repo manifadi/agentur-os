@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '../context/AppContext';
 import DashboardView from '../components/Dashboard/DashboardView';
@@ -52,20 +52,46 @@ export default function UebersichtPage() {
     const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: () => { } });
     const [todaysHours, setTodaysHours] = useState(0); // NEW
     const [timeModalOpen, setTimeModalOpen] = useState(false); // NEW
+    const [pendingProject, setPendingProject] = useState<Project | null>(null); // Project awaiting membership confirmation
+    const [joinConfirmOpen, setJoinConfirmOpen] = useState(false); // Join confirmation modal
+    const isInternalNavigationRef = useRef(false); // Track if navigation is from within the app (not URL change)
+    const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the scrollable container
 
-    // URL Param Sync & State Management
+    // Helper to check if user is member of a project
+    const isUserMemberOfProject = (projectId: string) => {
+        if (!activeUser) return false;
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return false;
+        const isPM = project.project_manager_id === activeUser.id;
+        const isMember = members?.some((m: any) => m.project_id === projectId && m.employee_id === activeUser.id);
+        return isPM || isMember;
+    };
+
+    // URL Param Sync & State Management (only for external navigation/deep links)
     useEffect(() => {
+        // Skip if this was an internal navigation (we already handled it)
+        if (isInternalNavigationRef.current) {
+            isInternalNavigationRef.current = false;
+            return;
+        }
+
         const pId = searchParams.get('project_id') || searchParams.get('projectId');
         if (pId && projects.length > 0) {
             const found = projects.find(p => p.id === pId);
             if (found && found.id !== selectedProject?.id) {
-                setSelectedProject(found);
+                // Check if user is member
+                if (isUserMemberOfProject(pId)) {
+                    setSelectedProject(found);
+                } else {
+                    // Show join confirmation
+                    setPendingProject(found);
+                    setJoinConfirmOpen(true);
+                }
             }
         } else if (!pId && selectedProject) {
-            // Check if we should close (e.g. back button pressed)
             setSelectedProject(null);
         }
-    }, [searchParams, projects, selectedProject]);
+    }, [searchParams, projects, activeUser, members]);
 
     // NEW: Fetch Today's Hours
     useEffect(() => {
@@ -150,9 +176,15 @@ export default function UebersichtPage() {
     };
 
     const handleSelectProject = (project: Project) => {
+        // Check if user is member
+        if (!isUserMemberOfProject(project.id)) {
+            setPendingProject(project);
+            setJoinConfirmOpen(true);
+            return;
+        }
         setSelectedProject(project);
-        // Use shallow: true doesn't seem to work with built-in router for params sometimes in Next 13 app dir, 
-        // but push works. We want to be able to share the URL.
+        isInternalNavigationRef.current = true; // Prevent useEffect from re-checking
+        scrollContainerRef.current?.scrollTo(0, 0); // Scroll container to top
         const params = new URLSearchParams(searchParams.toString());
         params.set('project_id', project.id);
         router.push(`/uebersicht?${params.toString()}`);
@@ -160,6 +192,27 @@ export default function UebersichtPage() {
 
     const handleCloseProject = () => {
         setSelectedProject(null);
+        scrollContainerRef.current?.scrollTo(0, 0); // Scroll container to top
+        router.push('/uebersicht');
+    };
+
+    const handleConfirmJoin = async () => {
+        if (!pendingProject || !activeUser) return;
+        await handleJoinProject(pendingProject.id);
+        setJoinConfirmOpen(false);
+        setSelectedProject(pendingProject);
+        isInternalNavigationRef.current = true; // Prevent useEffect from re-checking
+        scrollContainerRef.current?.scrollTo(0, 0); // Scroll container to top
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('project_id', pendingProject.id);
+        router.push(`/uebersicht?${params.toString()}`);
+        setPendingProject(null);
+    };
+
+    const handleCancelJoin = () => {
+        setJoinConfirmOpen(false);
+        setPendingProject(null);
+        // Remove project_id from URL if it was set
         router.push('/uebersicht');
     };
 
@@ -216,7 +269,7 @@ export default function UebersichtPage() {
                 </div>
             )}
 
-            <div className="flex-1 h-full overflow-y-auto p-4 md:p-8">
+            <div ref={scrollContainerRef} className="flex-1 h-full overflow-y-auto p-4 md:p-8">
                 {selectedProject ? (
                     <ProjectDetail
                         project={selectedProject}
@@ -270,6 +323,18 @@ export default function UebersichtPage() {
                 />
             )}
             <ConfirmModal isOpen={confirmOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={() => { confirmConfig.action(); setConfirmOpen(false); }} onCancel={() => setConfirmOpen(false)} />
+
+            {/* Join Project Confirmation Modal */}
+            <ConfirmModal
+                isOpen={joinConfirmOpen}
+                title="Projekt beitreten?"
+                message={`Du bist dem Projekt "${pendingProject?.title}" noch nicht zugewiesen. Möchtest du dich jetzt zuweisen?`}
+                onConfirm={handleConfirmJoin}
+                onCancel={handleCancelJoin}
+                confirmText="Zuweisen"
+                cancelText="Abbrechen"
+                type="info"
+            />
         </div>
     );
 }

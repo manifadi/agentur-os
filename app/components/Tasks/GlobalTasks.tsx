@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, Todo, Employee } from '../../types';
-import { ChevronRight, CheckCircle2, User, Plus, X, History, Check } from 'lucide-react';
+import { ChevronRight, CheckCircle2, User, Plus, X, History, Check, Filter } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import TaskHistoryModal from './TaskHistoryModal';
 
@@ -16,11 +16,11 @@ interface GlobalTasksProps {
 }
 
 export default function GlobalTasks({ projects, personalTodos, employees, onSelectProject, onUpdate, onAddPersonal, currentUser, onTaskClick }: GlobalTasksProps) {
-    const [newPersonalTitle, setNewPersonalTitle] = React.useState('');
-    const [isAddingPersonal, setIsAddingPersonal] = React.useState(false);
     const [personalSort, setPersonalSort] = React.useState<'created' | 'deadline'>('created');
     const [showHistory, setShowHistory] = React.useState(false);
     const [pendingCompletions, setPendingCompletions] = React.useState<Record<string, NodeJS.Timeout>>({});
+    const [editingPersonalId, setEditingPersonalId] = React.useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = React.useState('');
 
     React.useEffect(() => {
         return () => {
@@ -228,39 +228,19 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                     {/* RIGHT COLUMN: Personal To-Dos */}
                     <div className="space-y-8">
                         <div className="flex justify-between items-center px-1">
-                            <div className="flex items-center gap-4">
-                                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Persönliche To-Do's</h2>
-                                <select
-                                    className="text-[10px] bg-transparent border-none font-bold text-gray-400 cursor-pointer focus:ring-0 p-0"
-                                    value={personalSort}
-                                    onChange={(e) => setPersonalSort(e.target.value as any)}
+                            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Persönliche To-Do's</h2>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setPersonalSort(personalSort === 'created' ? 'deadline' : 'created')}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs font-medium text-gray-600 hover:border-gray-300 shadow-sm transition"
                                 >
-                                    <option value="created">Nach Datum</option>
-                                    <option value="deadline">Nach Fälligkeit</option>
-                                </select>
+                                    <Filter size={14} className="text-gray-400" />
+                                    {personalSort === 'created' ? 'Nach Datum' : 'Nach Fälligkeit'}
+                                </button>
                             </div>
                         </div>
 
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col min-h-[400px]">
-                            {isAddingPersonal && (
-                                <div className="p-4 bg-blue-50/50 border-b border-blue-100 animate-in slide-in-from-top-2 duration-300">
-                                    <input
-                                        autoFocus
-                                        className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="Was steht an? (Enter zum Speichern)"
-                                        value={newPersonalTitle}
-                                        onChange={(e) => setNewPersonalTitle(e.target.value)}
-                                        onKeyDown={async (e) => {
-                                            if (e.key === 'Enter' && newPersonalTitle.trim()) {
-                                                await onAddPersonal?.(newPersonalTitle.trim());
-                                                setNewPersonalTitle('');
-                                                setIsAddingPersonal(false);
-                                            }
-                                            if (e.key === 'Escape') setIsAddingPersonal(false);
-                                        }}
-                                    />
-                                </div>
-                            )}
 
                             <div className="divide-y divide-gray-100 flex-1">
                                 {sortedPersonalTodos.length === 0 ? (
@@ -290,9 +270,36 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
 
                                             <div className="flex flex-col flex-1">
                                                 <div className="flex items-center gap-2">
-                                                    <p className={`text-sm font-medium leading-relaxed ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
-                                                        {todo.title}
-                                                    </p>
+                                                    {editingPersonalId === todo.id ? (
+                                                        <input
+                                                            type="text"
+                                                            className="flex-1 text-sm font-medium bg-white border border-blue-200 rounded px-2 py-0.5 focus:ring-1 focus:ring-blue-500"
+                                                            value={editingTitle}
+                                                            autoFocus
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onChange={(e) => setEditingTitle(e.target.value)}
+                                                            onFocus={(e) => e.target.select()}
+                                                            onBlur={async () => {
+                                                                if (editingTitle.trim()) {
+                                                                    await supabase.from('todos').update({ title: editingTitle.trim() }).eq('id', todo.id);
+                                                                    onUpdate();
+                                                                }
+                                                                setEditingPersonalId(null);
+                                                            }}
+                                                            onKeyDown={async (e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.currentTarget.blur();
+                                                                }
+                                                                if (e.key === 'Escape') {
+                                                                    setEditingPersonalId(null);
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <p className={`text-sm font-medium leading-relaxed ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                            {todo.title}
+                                                        </p>
+                                                    )}
                                                     {personalTodos.some(t => t.parent_id === todo.id) && (
                                                         <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-400 min-w-[18px] text-center">
                                                             {personalTodos.filter(t => t.parent_id === todo.id).length}
@@ -314,6 +321,27 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                 )}
                             </div>
 
+                            {/* Add Button at bottom */}
+                            <button
+                                onClick={async () => {
+                                    if (!currentUser) return;
+                                    const { data } = await supabase.from('todos').insert({
+                                        title: 'Neue Aufgabe',
+                                        assigned_to: currentUser.id,
+                                        organization_id: currentUser.organization_id,
+                                        is_done: false
+                                    }).select();
+                                    if (data && data[0]) {
+                                        onUpdate();
+                                        setEditingPersonalId(data[0].id);
+                                        setEditingTitle('Neue Aufgabe');
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-4 py-3 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition border-t border-gray-100"
+                            >
+                                <Plus size={16} />
+                                Neue Aufgabe
+                            </button>
                         </div>
                     </div>
                 </div>

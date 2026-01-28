@@ -373,7 +373,23 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
             <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
                 <div>
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{project.job_number}</div>
+                    <div className="flex items-center gap-2 mb-2">
+                        {/* Client Logo or Initials */}
+                        {project.clients?.logo_url ? (
+                            <img
+                                src={project.clients.logo_url}
+                                alt={project.clients.name}
+                                className="h-7 w-auto max-w-[120px] object-contain"
+                            />
+                        ) : (
+                            <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 border border-gray-200">
+                                {project.clients?.name?.substring(0, 2).toUpperCase() || '??'}
+                            </div>
+                        )}
+                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {project.clients?.name || 'Kein Kunde'} <span className="text-gray-300 mx-1">|</span> {project.job_number}
+                        </div>
+                    </div>
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2 break-words">{project.title}</h1>
                     <div className="relative" ref={statusDropdownRef}>
                         <button
