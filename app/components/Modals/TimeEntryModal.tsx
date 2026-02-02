@@ -113,7 +113,11 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
         if (!searchTerm) return projects.slice(0, 10);
         const lower = searchTerm.toLowerCase();
         return projects
-            .filter(p => p.title.toLowerCase().includes(lower) || p.job_number.toLowerCase().includes(lower))
+            .filter(p =>
+                p.title.toLowerCase().includes(lower) ||
+                p.job_number.toLowerCase().includes(lower) ||
+                p.clients?.name?.toLowerCase().includes(lower) // Added Client Search
+            )
             .slice(0, 10);
     }, [projects, searchTerm]);
 

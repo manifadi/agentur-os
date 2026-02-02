@@ -31,6 +31,9 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
 
 
+    // [NEW] Edit Entry State
+    const [entryToEdit, setEntryToEdit] = useState<TimeEntry | undefined>(undefined);
+
     // 1. My Open Tasks (Assigned & !Done)
     const myTasks = currentUser ? projects.flatMap(p =>
         (p.todos || [])
@@ -261,32 +264,72 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 </BentoBox>
 
                 {/* 2. TIME TRACKING (Replaces Active Projects) */}
-                <BentoBox title="Stundenerfassung" icon={Clock} count={todayTotal > 0 ? `${todayTotal.toFixed(1)} h` : undefined} color="orange">
+                <BentoBox title="Stundenerfassung" icon={Clock} count={todayTotal > 0 ? `${todayTotal.toFixed(1)} h` : undefined} color="blue">
                     <div className="flex flex-col h-full">
                         {todayEntries.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                                 <p className="text-sm">Noch keine Stunden heute.</p>
                             </div>
                         ) : (
-                            <div className="flex-1 space-y-1 overflow-y-auto min-h-0">
+                            <div className="flex-1 space-y-2 overflow-y-auto min-h-0 px-1">
                                 {todayEntries.map((t: any) => (
-                                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-orange-50/50 border border-orange-100/50 hover:bg-orange-50 transition">
+                                    <div
+                                        key={t.id}
+                                        onClick={() => {
+                                            setEntryToEdit(t);
+                                            setShowAddTimeModal(true);
+                                        }}
+                                        className="relative flex items-start justify-between p-3 rounded-xl bg-blue-50/30 border border-blue-100/50 hover:bg-blue-50 transition group cursor-pointer"
+                                    >
                                         <div className="min-w-0 flex-1 mr-4">
-                                            <div className="font-bold text-gray-900 truncate text-sm">
-                                                {t.positions?.title || t.projects?.title || 'Unbekannt'}
+                                            {/* Top: Client Info */}
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                {t.projects?.clients?.logo_url && (
+                                                    <img
+                                                        src={t.projects.clients.logo_url}
+                                                        alt={t.projects.clients.name}
+                                                        className="h-3 w-auto max-w-[20px] object-contain opacity-70 grayscale group-hover:grayscale-0 transition-all"
+                                                    />
+                                                )}
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-gray-500 transition-colors">
+                                                    {t.projects?.clients?.name} <span className="text-gray-300">|</span> {t.projects?.job_number}
+                                                </span>
                                             </div>
-                                            <div className="text-xs text-gray-500 truncate">
-                                                {t.projects?.clients?.name} • {t.description || '-'}
+
+                                            {/* Main: Title & Desc */}
+                                            <div className="font-bold text-gray-900 truncate text-sm leading-tight group-hover:text-blue-700 transition-colors">
+                                                {t.projects?.title || 'Unbekanntes Projekt'}
                                             </div>
+                                            {t.description && (
+                                                <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                    {t.description}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="font-mono font-bold text-orange-600 text-sm whitespace-nowrap">
+
+                                        {/* Right: Hours (Hidden on Hover) */}
+                                        <div className="font-mono font-bold text-blue-600 text-sm whitespace-nowrap bg-blue-100/50 px-2 py-1 rounded-lg group-hover:opacity-0 transition-opacity duration-200">
                                             {Number(t.hours).toFixed(2)} h
+                                        </div>
+
+                                        {/* Hover Action: Edit Button */}
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
+                                            <span className="bg-gray-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-md flex items-center gap-1.5">
+                                                Bearbeiten
+                                            </span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                        <button onClick={() => setShowAddTimeModal(true)} className="mt-4 w-[90%] mx-auto py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition shadow-sm hover:shadow-md">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setEntryToEdit(undefined);
+                                setShowAddTimeModal(true);
+                            }}
+                            className="mt-4 w-[90%] mx-auto py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition shadow-sm hover:shadow-md"
+                        >
                             <Plus size={16} /> Stunden hinzufügen
                         </button>
                     </div>
@@ -363,6 +406,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 onClose={() => setShowAddTimeModal(false)}
                 currentUser={currentUser}
                 projects={projects}
+                entryToEdit={entryToEdit} // Pass the entry to edit
                 onEntryCreated={() => {
                     fetchData(); // Refresh data
                     setShowAddTimeModal(false);
