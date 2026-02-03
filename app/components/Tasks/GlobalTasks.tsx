@@ -18,15 +18,28 @@ interface GlobalTasksProps {
 export default function GlobalTasks({ projects, personalTodos, employees, onSelectProject, onUpdate, onAddPersonal, currentUser, onTaskClick }: GlobalTasksProps) {
     const [personalSort, setPersonalSort] = React.useState<'created' | 'deadline'>('created');
     const [showHistory, setShowHistory] = React.useState(false);
-    const [pendingCompletions, setPendingCompletions] = React.useState<Record<string, NodeJS.Timeout>>({});
+
+    // [FIX] Use Ref for timeouts to prevent cancellation on re-renders
+    const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
+    const [pendingIds, setPendingIds] = React.useState<Set<string>>(new Set());
+
     const [editingPersonalId, setEditingPersonalId] = React.useState<string | null>(null);
     const [editingTitle, setEditingTitle] = React.useState('');
 
+    // [FIX] Cleanup: Execute pending on unmount
     React.useEffect(() => {
         return () => {
-            Object.values(pendingCompletions).forEach(clearTimeout);
+            Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
+                clearTimeout(timeout);
+                // Force completion for tasks that were pending done
+                // We assume if it's in pendingTimeouts, it was being "toggled to done" (delayed completion)
+                supabase.from('todos').update({ is_done: true }).eq('id', id).then(() => {
+                    // No need to call onUpdate here as we are unmounting
+                });
+            });
+            pendingTimeouts.current = {};
         };
-    }, [pendingCompletions]);
+    }, []);
 
     const getTasksByProject = useMemo(() => {
         const list: { project: Project, visibleTodos: Todo[], allProjectTodos: Todo[] }[] = [];
@@ -34,7 +47,7 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
             // Filter: (Not done OR pending) AND assigned to me AND top-level
             const openTodos = proj.todos ? proj.todos.filter(t =>
                 !t.parent_id &&
-                (!t.is_done || pendingCompletions[t.id]) &&
+                (!t.is_done || pendingIds.has(t.id)) &&
                 (currentUser ? t.assigned_to === currentUser.id : true)
             ) : [];
             if (openTodos.length > 0) {
@@ -42,10 +55,10 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
             }
         });
         return list;
-    }, [projects, currentUser, pendingCompletions]);
+    }, [projects, currentUser, pendingIds]);
 
     const sortedPersonalTodos = useMemo(() => {
-        let list = personalTodos.filter(t => !t.parent_id && (!t.is_done || pendingCompletions[t.id]));
+        let list = personalTodos.filter(t => !t.parent_id && (!t.is_done || pendingIds.has(t.id)));
         if (personalSort === 'deadline') {
             list.sort((a, b) => {
                 if (!a.deadline) return 1;
@@ -56,33 +69,44 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
             list.sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
         }
         return list;
-    }, [personalTodos, personalSort, pendingCompletions]);
+    }, [personalTodos, personalSort, pendingIds]);
 
     // ... handlers ...
     const handleGlobalToggle = async (todoId: string, currentIsDone: boolean) => {
         // If we are marking as DONE, add delay
         if (!currentIsDone) {
-            // Check if already pending (shouldn't happen with UI, but for safety)
-            if (pendingCompletions[todoId]) return;
+            // Check if already pending
+            if (pendingTimeouts.current[todoId]) return;
+
+            // Optimistic UI
+            setPendingIds(prev => {
+                const next = new Set(prev);
+                next.add(todoId);
+                return next;
+            });
 
             const timeout = setTimeout(async () => {
                 await supabase.from('todos').update({ is_done: true }).eq('id', todoId);
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[todoId];
+
+                delete pendingTimeouts.current[todoId];
+                setPendingIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(todoId);
                     return next;
                 });
                 onUpdate();
             }, 3000);
 
-            setPendingCompletions(prev => ({ ...prev, [todoId]: timeout }));
+            pendingTimeouts.current[todoId] = timeout;
         } else {
             // If we are unmarking a PENDING task
-            if (pendingCompletions[todoId]) {
-                clearTimeout(pendingCompletions[todoId]);
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[todoId];
+            if (pendingTimeouts.current[todoId]) {
+                clearTimeout(pendingTimeouts.current[todoId]);
+                delete pendingTimeouts.current[todoId];
+
+                setPendingIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(todoId);
                     return next;
                 });
             } else {
@@ -174,18 +198,18 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                         onClick={() => onTaskClick?.(todo)}
                                                     >
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || !!pendingCompletions[todo.id]); }}
-                                                            className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingCompletions[todo.id]
+                                                            onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
+                                                            className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingIds.has(todo.id)
                                                                 ? 'bg-blue-500 border-blue-500'
                                                                 : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'
                                                                 }`}
                                                         >
-                                                            <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingCompletions[todo.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                                                            <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingIds.has(todo.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
                                                         </button>
 
                                                         <div className="flex flex-col flex-1">
                                                             <div className="flex items-center gap-2">
-                                                                <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingCompletions[todo.id]) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                                <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingIds.has(todo.id)) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
                                                                     {todo.title}
                                                                 </p>
                                                                 {item.allProjectTodos.some(t => t.parent_id === todo.id) && (
@@ -259,13 +283,13 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                             onClick={() => onTaskClick?.(todo)}
                                         >
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || !!pendingCompletions[todo.id]); }}
-                                                className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingCompletions[todo.id]
+                                                onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
+                                                className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingIds.has(todo.id)
                                                     ? 'bg-blue-500 border-blue-500'
                                                     : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'
                                                     }`}
                                             >
-                                                <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingCompletions[todo.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                                                <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingIds.has(todo.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
                                             </button>
 
                                             <div className="flex flex-col flex-1">
@@ -296,7 +320,7 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                             }}
                                                         />
                                                     ) : (
-                                                        <p className={`text-sm font-medium leading-relaxed ${todo.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                        <p className={`text-sm font-medium leading-relaxed ${todo.is_done || pendingIds.has(todo.id) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
                                                             {todo.title}
                                                         </p>
                                                     )}

@@ -22,13 +22,7 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
     const [editTitle, setEditTitle] = useState('');
     const [editAssignee, setEditAssignee] = useState('');
     const [editDeadline, setEditDeadline] = useState('');
-    const [pendingCompletions, setPendingCompletions] = useState<Record<string, NodeJS.Timeout>>({});
 
-    React.useEffect(() => {
-        return () => {
-            Object.values(pendingCompletions).forEach(clearTimeout);
-        };
-    }, [pendingCompletions]);
 
     const handleCreate = async () => {
         if (!newTitle.trim()) return;
@@ -51,27 +45,53 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
         setEditingId(null);
     };
 
+    // [FIX] Use Ref for timeouts
+    const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+    // [FIX] Cleanup: Execute pending on unmount
+    React.useEffect(() => {
+        return () => {
+            Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
+                clearTimeout(timeout);
+                onToggle(id, false); // Force complete (assuming false = currently not done)
+            });
+            pendingTimeouts.current = {};
+        };
+    }, []);
+
     const handleToggleWithDelay = async (todoId: string, currentIsDone: boolean) => {
         if (!currentIsDone) {
-            if (pendingCompletions[todoId]) return;
+            if (pendingTimeouts.current[todoId]) return;
+
+            // Optimistic UI
+            setPendingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(todoId);
+                return newSet;
+            });
 
             const timeout = setTimeout(async () => {
                 await onToggle(todoId, false); // Toggle to done
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[todoId];
-                    return next;
+
+                delete pendingTimeouts.current[todoId];
+                setPendingIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(todoId);
+                    return newSet;
                 });
             }, 3000);
 
-            setPendingCompletions(prev => ({ ...prev, [todoId]: timeout }));
+            pendingTimeouts.current[todoId] = timeout;
         } else {
-            if (pendingCompletions[todoId]) {
-                clearTimeout(pendingCompletions[todoId]);
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[todoId];
-                    return next;
+            if (pendingTimeouts.current[todoId]) {
+                clearTimeout(pendingTimeouts.current[todoId]);
+                delete pendingTimeouts.current[todoId];
+
+                setPendingIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(todoId);
+                    return newSet;
                 });
             } else {
                 await onToggle(todoId, true); // Toggle back to active
@@ -83,8 +103,8 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[300px]">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-gray-400" /> Aufgaben</h2>
             <div className="overflow-y-auto pr-2 space-y-3 flex-1">
-                {todos.filter(t => !t.parent_id || pendingCompletions[t.id]).map((todo) => {
-                    const isPending = !!pendingCompletions[todo.id];
+                {todos.filter(t => !t.parent_id || pendingIds.has(t.id)).map((todo) => {
+                    const isPending = pendingIds.has(todo.id);
                     const isDoneEffective = todo.is_done || isPending;
                     const subtaskCount = todos.filter(t => t.parent_id === todo.id).length;
 
@@ -110,7 +130,7 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
                                         onClick={() => onTaskClick?.(todo)}
                                     >
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleToggleWithDelay(todo.id, todo.is_done || !!pendingCompletions[todo.id]); }}
+                                            onClick={(e) => { e.stopPropagation(); handleToggleWithDelay(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
                                             className={`w-6 h-6 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check ${isDoneEffective ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'}`}
                                         >
                                             <Check size={12} className={`text-white transition-opacity ${isDoneEffective ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />

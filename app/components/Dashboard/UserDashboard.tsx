@@ -17,13 +17,22 @@ interface UserDashboardProps {
 export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
     const { currentUser, projects, allocations, members, timeEntries, fetchData } = useApp();
     const [showAddTimeModal, setShowAddTimeModal] = useState(false);
-    const [pendingCompletions, setPendingCompletions] = useState<Record<string, NodeJS.Timeout>>({});
 
+    // [FIX] Use Ref to store timeouts so they persist across renders/state updates
+    const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+    // [FIX] Cleanup: On unmount, execute ALL pending completions immediately
     React.useEffect(() => {
         return () => {
-            Object.values(pendingCompletions).forEach(clearTimeout);
+            Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
+                clearTimeout(timeout);
+                onToggleTodo(id, true); // Force complete
+            });
+            pendingTimeouts.current = {};
         };
-    }, [pendingCompletions]);
+    }, []);
+
 
     // Add Time State - Removed as now handled by Modal
     // const [newTime, setNewTime] = useState({ projectId: '', positionId: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
@@ -37,7 +46,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     // 1. My Open Tasks (Assigned & !Done)
     const myTasks = currentUser ? projects.flatMap(p =>
         (p.todos || [])
-            .filter(t => t.assigned_to === currentUser.id && (!t.is_done || pendingCompletions[t.id]))
+            .filter(t => t.assigned_to === currentUser.id && (!t.is_done || pendingIds.has(t.id)))
             .map(t => ({ ...t, project: p }))
     ) : [];
 
@@ -172,30 +181,51 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
         </div>
     );
 
+
+
     const handleToggleTodoWithDelay = async (todoId: string, currentIsDone: boolean) => {
         if (!currentIsDone) {
-            if (pendingCompletions[todoId]) return;
+            // Check if already pending (using Ref is reliable)
+            if (pendingTimeouts.current[todoId]) return;
+
+            // Optimistic UI update
+            setPendingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(todoId);
+                return newSet;
+            });
 
             const timeout = setTimeout(async () => {
-                await onToggleTodo(todoId, true); // Mark as done
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[todoId];
-                    return next;
+                await onToggleTodo(todoId, true); // Mark as done in DB
+
+                // Cleanup Ref
+                delete pendingTimeouts.current[todoId];
+
+                // Cleanup UI State
+                setPendingIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(todoId);
+                    return newSet;
                 });
             }, 3000);
 
-            setPendingCompletions(prev => ({ ...prev, [todoId]: timeout }));
+            // Store in Ref
+            pendingTimeouts.current[todoId] = timeout;
         } else {
-            if (pendingCompletions[todoId]) {
-                clearTimeout(pendingCompletions[todoId]);
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[todoId];
-                    return next;
+            // If it's pending completion (Undo)
+            if (pendingTimeouts.current[todoId]) {
+                clearTimeout(pendingTimeouts.current[todoId]);
+                delete pendingTimeouts.current[todoId];
+
+                // Revert UI
+                setPendingIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(todoId);
+                    return newSet;
                 });
             } else {
-                await onToggleTodo(todoId, false); // Mark as active
+                // Normal uncheck (if it was already done in DB)
+                await onToggleTodo(todoId, false);
             }
         }
     };
@@ -240,13 +270,13 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                     key={t.id}
                                     icon={
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, t.is_done || !!pendingCompletions[t.id]) }}
-                                            className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${t.is_done || pendingCompletions[t.id] ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'}`}
+                                            onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, t.is_done || pendingIds.has(t.id)) }}
+                                            className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${t.is_done || pendingIds.has(t.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'}`}
                                         >
-                                            <Check size={12} className={`text-white transition-opacity ${t.is_done || pendingCompletions[t.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                                            <Check size={12} className={`text-white transition-opacity ${t.is_done || pendingIds.has(t.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
                                         </button>
                                     }
-                                    title={<span className={t.is_done || pendingCompletions[t.id] ? 'text-gray-400 line-through' : ''}>{t.title}</span>}
+                                    title={<span className={t.is_done || pendingIds.has(t.id) ? 'text-gray-400 line-through' : ''}>{t.title}</span>}
                                     subtitle={`${t.project.job_number} • ${t.project.clients?.name}`}
                                     onClick={() => onSelectProject(t.project)}
                                     showTooltip={true}
@@ -264,7 +294,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 </BentoBox>
 
                 {/* 2. TIME TRACKING (Replaces Active Projects) */}
-                <BentoBox title="Stundenerfassung" icon={Clock} count={todayTotal > 0 ? `${todayTotal.toFixed(1)} h` : undefined} color="blue">
+                <BentoBox title="Stundenerfassung" icon={Clock} count={todayTotal > 0 ? `${todayTotal.toFixed(2)} h` : undefined} color="blue">
                     <div className="flex flex-col h-full">
                         {todayEntries.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
@@ -362,7 +392,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <Clock size={20} className="text-gray-400" />
                         Wochenplan {new Date().getFullYear()} / {weeklyData.rows?.[0] ? 'KW Current' : 'Aktuell'}
-                        <span className="text-gray-400 font-medium text-lg ml-2">({weeklyData.total.toFixed(1)} h)</span>
+                        <span className="text-gray-400 font-medium text-lg ml-2">({weeklyData.total.toFixed(2)} h)</span>
                     </h2>
                 </div>
                 <div className="flex-1 overflow-auto p-0">
@@ -392,7 +422,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                             ) : <span className="text-gray-300">-</span>}
                                         </td>
                                     ))}
-                                    <td className="px-6 py-3 text-center font-bold text-gray-900">{row.total.toFixed(1)}</td>
+                                    <td className="px-6 py-3 text-center font-bold text-gray-900">{row.total.toFixed(2)}</td>
                                 </tr>
                             ))}
                         </tbody>
