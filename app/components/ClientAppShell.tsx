@@ -113,7 +113,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 supabase.from('project_members').select('*'),
                 supabase.from('projects').select(`
                         *, 
-                        employees ( id, name, initials, email, phone ), 
+                        employees ( id, name, initials, email, phone, avatar_url ), 
                         clients ( * ), 
                         todos ( * ),
                         positions:project_positions ( * )
@@ -122,7 +122,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     .eq('employee_id', currentUserData.id)
                     .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString())
                     .order('date', { ascending: false }),
-                supabase.from('todos').select(`*, employees(id, name, initials)`).is('project_id', null).eq('organization_id', orgId).order('created_at', { ascending: false }),
+                supabase.from('todos').select(`*, employees(id, name, initials, avatar_url)`).is('project_id', null).eq('organization_id', orgId).order('created_at', { ascending: false }),
                 supabase.from('agency_settings').select('*').eq('organization_id', orgId).single()
             ]);
 

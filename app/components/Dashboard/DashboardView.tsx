@@ -235,7 +235,7 @@ export default function DashboardView({
                     onClose={() => setSelectedTask(null)}
                     onTaskClick={(t) => setSelectedTask(t)}
                     onUpdate={async (id, updates) => {
-                        const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name)`);
+                        const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name, avatar_url)`);
                         if (data) {
                             setSelectedTask(data[0] as any);
                             fetchData();

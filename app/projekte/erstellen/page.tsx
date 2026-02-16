@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, Briefcase, Calculator, Users, Clock, Plus, X, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Save, Briefcase, Calculator, Users, Clock, Plus, X, BarChart3, ChevronDown, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
+import UserAvatar from '../../components/UI/UserAvatar';
 
 import { supabase } from '../../supabaseClient';
 
@@ -52,6 +53,19 @@ export default function CreateProjectWizard() {
         googleDocUrl: ''
     });
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isPmDropdownOpen, setIsPmDropdownOpen] = useState(false);
+    const pmDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (pmDropdownRef.current && !pmDropdownRef.current.contains(event.target as Node)) {
+                setIsPmDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Check Admin Role
     React.useEffect(() => {
@@ -532,14 +546,62 @@ export default function CreateProjectWizard() {
                     </div>
                     <div>
                         <label className="text-sm font-semibold text-gray-700 block mb-1">Projektmanager</label>
-                        <select
-                            className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition"
-                            value={basicInfo.pmId}
-                            onChange={e => setBasicInfo({ ...basicInfo, pmId: e.target.value })}
-                        >
-                            <option value="">Kein PM</option>
-                            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                        </select>
+                        <div className="relative" ref={pmDropdownRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsPmDropdownOpen(!isPmDropdownOpen)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between hover:bg-white focus:ring-2 focus:ring-blue-500 transition"
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    {basicInfo.pmId ? (
+                                        <>
+                                            <UserAvatar
+                                                src={employees.find(e => e.id === basicInfo.pmId)?.avatar_url}
+                                                name={employees.find(e => e.id === basicInfo.pmId)?.name || ''}
+                                                initials={employees.find(e => e.id === basicInfo.pmId)?.initials || ''}
+                                                size="xs"
+                                            />
+                                            <span className="truncate text-gray-900">{employees.find(e => e.id === basicInfo.pmId)?.name}</span>
+                                        </>
+                                    ) : (
+                                        <span className="text-gray-500">Kein PM</span>
+                                    )}
+                                </div>
+                                <ChevronDown size={18} className={`text-gray-400 transition-transform ${isPmDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isPmDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setBasicInfo({ ...basicInfo, pmId: '' });
+                                            setIsPmDropdownOpen(false);
+                                        }}
+                                        className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition ${!basicInfo.pmId ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-500'}`}
+                                    >
+                                        <span>Kein PM</span>
+                                        {!basicInfo.pmId && <Check size={16} />}
+                                    </button>
+                                    <div className="h-px bg-gray-50 my-1 mx-2" />
+                                    {employees.map(emp => (
+                                        <button
+                                            key={emp.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setBasicInfo({ ...basicInfo, pmId: emp.id });
+                                                setIsPmDropdownOpen(false);
+                                            }}
+                                            className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition ${basicInfo.pmId === emp.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700'}`}
+                                        >
+                                            <UserAvatar src={emp.avatar_url} name={emp.name} initials={emp.initials} size="xs" />
+                                            <span className="flex-1 text-left truncate">{emp.name}</span>
+                                            {basicInfo.pmId === emp.id && <Check size={16} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

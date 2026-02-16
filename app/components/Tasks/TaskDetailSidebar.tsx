@@ -4,6 +4,7 @@ import { Todo, Employee, Project } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import ConfirmModal from '../Modals/ConfirmModal';
+import UserAvatar from '../UI/UserAvatar';
 
 interface TaskDetailSidebarProps {
     task: Todo;
@@ -76,7 +77,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
         setLoadingSubtasks(true);
         const { data, error } = await supabase
             .from('todos')
-            .select(`*, employees(id, initials, name)`)
+            .select(`*, employees(id, initials, name, avatar_url)`)
             .eq('parent_id', task.id)
             .order('created_at', { ascending: true });
 
@@ -139,7 +140,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
             parent_id: task.id,
             title: 'Neue Unteraufgabe',
             is_done: false
-        }]).select(`*, employees(id, initials, name)`);
+        }]).select(`*, employees(id, initials, name, avatar_url)`);
 
         if (data) {
             const newSubtask = data[0] as any;
@@ -264,7 +265,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                     <span>/</span>
                                     <button
                                         onClick={async () => {
-                                            const { data } = await supabase.from('todos').select(`*, employees(id, initials, name)`).eq('id', crumb.id).single();
+                                            const { data } = await supabase.from('todos').select(`*, employees(id, initials, name, avatar_url)`).eq('id', crumb.id).single();
                                             if (data) onTaskClick?.(data as any);
                                         }}
                                         className="truncate max-w-[120px] hover:text-blue-600 transition"
@@ -466,9 +467,13 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                             <Trash2 size={14} />
                                         </button>
                                         {subtask.employees && (
-                                            <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold ml-1">
-                                                {subtask.employees.initials}
-                                            </div>
+                                            <UserAvatar
+                                                src={subtask.employees.avatar_url}
+                                                name={subtask.employees.name}
+                                                initials={subtask.employees.initials}
+                                                size="xs"
+                                                className="ml-1"
+                                            />
                                         )}
                                     </div>
                                 </div>
