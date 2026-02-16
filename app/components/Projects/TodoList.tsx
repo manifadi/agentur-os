@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Pencil, Trash2, X, Plus, Calendar, Check } from 'lucide-react';
 import { Todo, Employee } from '../../types';
+import UserAvatar from '../UI/UserAvatar';
 
 interface TodoListProps {
     todos: Todo[];
@@ -155,7 +156,14 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        {todo.employees && <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold shrink-0" title={todo.employees.name}>{todo.employees.initials}</div>}
+                                        {todo.employees && (
+                                            <UserAvatar
+                                                src={todo.employees.avatar_url}
+                                                name={todo.employees.name}
+                                                initials={todo.employees.initials}
+                                                size="xs"
+                                            />
+                                        )}
                                         <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
                                             <button onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={12} /></button>
                                         </div>

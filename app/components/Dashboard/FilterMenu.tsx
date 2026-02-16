@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Filter, X, ChevronDown, Check, User, ArrowUpDown, Tag } from 'lucide-react';
 import { Employee } from '../../types';
+import UserAvatar from '../UI/UserAvatar';
 
 interface FilterMenuProps {
     employees: Employee[];
@@ -111,16 +112,26 @@ export default function FilterMenu({
                             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
                                 <User size={12} /> Projektmanager
                             </label>
-                            <select
-                                className="w-full text-sm border-gray-200 rounded-lg p-2 bg-gray-50 focus:bg-white transition-colors"
-                                value={activePmId || ''}
-                                onChange={(e) => setActivePmId(e.target.value || null)}
-                            >
-                                <option value="">Alle Manager</option>
+                            <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-none pr-1">
+                                <button
+                                    onClick={() => setActivePmId(null)}
+                                    className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-colors ${!activePmId ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50'}`}
+                                >
+                                    <span>Alle Manager</span>
+                                    {!activePmId && <Check size={14} className="text-blue-600" />}
+                                </button>
                                 {employees.map(emp => (
-                                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                    <button
+                                        key={emp.id}
+                                        onClick={() => setActivePmId(emp.id)}
+                                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors ${activePmId === emp.id ? 'bg-blue-50 text-blue-700 font-medium border border-blue-100' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        <UserAvatar src={emp.avatar_url} name={emp.name} initials={emp.initials} size="xs" />
+                                        <span className="flex-1 text-left truncate">{emp.name}</span>
+                                        {activePmId === emp.id && <Check size={14} className="text-blue-600 shrink-0" />}
+                                    </button>
                                 ))}
-                            </select>
+                            </div>
                         </div>
                     </div>
                 </div>

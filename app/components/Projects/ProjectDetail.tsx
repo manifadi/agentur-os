@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
 import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
+import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { supabase } from '../../supabaseClient';
 import TodoList from './TodoList';
@@ -202,12 +203,12 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const fetchDetails = async () => {
         setLoading(true);
         // Add email and phone to employee selection
-        const { data: t } = await supabase.from('todos').select(`*, employees(id, initials, name, email, phone)`).eq('project_id', project.id).order('created_at', { ascending: true });
+        const { data: t } = await supabase.from('todos').select(`*, employees(id, initials, name, email, phone, avatar_url)`).eq('project_id', project.id).order('created_at', { ascending: true });
         if (t) setTodos(t as any);
 
         const { data: l } = await supabase
             .from('project_logs')
-            .select('*')
+            .select('*, employees(id, name, initials, avatar_url)')
             .eq('project_id', project.id)
             .or(`is_public.eq.true${currentEmployee?.id ? `,employee_id.eq.${currentEmployee.id}` : ''}`)
             .order('entry_date', { ascending: false });
@@ -218,7 +219,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
 
         const { data: te } = await supabase.from('time_entries').select(`
 id, project_id, employee_id, position_id, agency_position_id, date, hours, description, created_at,
-    employees(id, name, initials, hourly_rate, job_title)
+    employees(id, name, initials, hourly_rate, job_title, avatar_url)
         `).eq('project_id', project.id);
         if (te) setTimeEntries(te as any);
 
@@ -233,7 +234,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             assigned_to: assigneeId || null,
             deadline: deadline || null,
             is_done: false
-        }]).select(`*, employees(id, initials, name)`);
+        }]).select(`*, employees(id, initials, name, avatar_url)`);
 
         if (error) {
             console.error('Error adding todo:', error);
@@ -258,7 +259,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         await supabase.from('todos').update({ is_done: !currentStatus }).eq('id', id);
     };
     const handleUpdateTodo = async (id: string, title: string, assigneeId: string | null, deadline: string | null) => {
-        const { data } = await supabase.from('todos').update({ title, assigned_to: assigneeId || null, deadline: deadline || null }).eq('id', id).select(`*, employees(id, initials, name)`);
+        const { data } = await supabase.from('todos').update({ title, assigned_to: assigneeId || null, deadline: deadline || null }).eq('id', id).select(`*, employees(id, initials, name, avatar_url)`);
         if (data) setTodos(prev => prev.map(t => t.id === id ? data[0] as any : t));
     };
     const handleDeleteTodo = async (id: string) => {
@@ -422,7 +423,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     <div className="text-sm text-gray-500 mb-1">Projektmanager</div>
                     <div className="flex items-center justify-start md:justify-end gap-2">
                         <span className="text-sm font-medium">{project.employees?.name || 'Nicht zugewiesen'}</span>
-                        <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white shrink-0">{project.employees?.initials || '--'}</div>
+                        <UserAvatar
+                            src={project.employees?.avatar_url}
+                            name={project.employees?.name}
+                            initials={project.employees?.initials}
+                            size="sm"
+                            className="shadow-sm"
+                        />
                     </div>
                     <div className={`mt-2 text-xs font-medium ${getDeadlineColorClass(project.deadline)}`}>Deadline: {project.deadline || '-'}</div>
                 </div>
@@ -540,7 +547,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     onClose={() => setSelectedTask(null)}
                     onTaskClick={(t) => setSelectedTask(t)}
                     onUpdate={async (id, updates) => {
-                        const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name)`);
+                        const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name, avatar_url)`);
                         if (data) {
                             setTodos(prev => prev.map(t => t.id === id ? { ...t, ...data[0] } : t));
                             setSelectedTask(data[0] as any);

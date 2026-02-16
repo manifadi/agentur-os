@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
-import { Pencil, X, Plus, Shield, ShieldAlert, User, UserPlus, Trash, Building2, Mail } from 'lucide-react';
+import { Pencil, X, Plus, Shield, ShieldAlert, User, UserPlus, Trash, Building2, Mail, Camera } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
+import UserAvatar from '../UI/UserAvatar';
+import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 
 interface AdminUserManagementProps {
     employees: Employee[];
@@ -38,6 +40,39 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-900">{mode === 'create' ? 'Neuen Mitarbeiter anlegen' : 'Mitarbeiter bearbeiten'}</h3>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><X size={20} /></button>
+                </div>
+
+                <div className="flex flex-col items-center mb-8">
+                    <div className="relative group">
+                        <UserAvatar
+                            src={formData.avatar_url}
+                            name={formData.name}
+                            initials={formData.initials}
+                            size="xl"
+                            className="shadow-lg border-4 border-gray-50 ring-1 ring-gray-200"
+                        />
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            <Camera className="text-white" size={24} />
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        try {
+                                            const url = await uploadFileToSupabase(file, 'avatars');
+                                            setFormData({ ...formData, avatar_url: url });
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert('Upload fehlgeschlagen');
+                                        }
+                                    }
+                                }}
+                            />
+                        </label>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Klicke zum Ändern</p>
                 </div>
 
                 <div className="space-y-4">
@@ -389,7 +424,12 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                                     <tr key={emp.id} className="hover:bg-gray-50/50 transition">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{emp.initials}</div>
+                                                <UserAvatar
+                                                    src={emp.avatar_url}
+                                                    name={emp.name}
+                                                    initials={emp.initials}
+                                                    size="sm"
+                                                />
                                                 <div>
                                                     <div className="font-medium text-gray-900">{emp.name}</div>
                                                     {emp.job_title && <div className="text-xs text-gray-400">{emp.job_title}</div>}

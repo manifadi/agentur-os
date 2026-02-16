@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Project, Client, Todo } from '../../types';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
+import UserAvatar from '../UI/UserAvatar';
 
 interface ProjectListProps {
     projects: Project[];
@@ -52,7 +53,15 @@ export default function ProjectList({ projects, selectedClient, onSelectProject,
                                         </div>
                                     )}
                                 </td>
-                                <td className="py-3 px-4 align-top"><div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold shrink-0" title={project.employees?.name}>{project.employees?.initials || '-'}</div></td>
+                                <td className="py-3 px-4 align-top">
+                                    <UserAvatar
+                                        src={project.employees?.avatar_url}
+                                        name={project.employees?.name}
+                                        initials={project.employees?.initials}
+                                        size="sm"
+                                        className="shadow-sm"
+                                    />
+                                </td>
                                 <td className="py-3 px-4 align-top"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${getStatusStyle(project.status)}`}>{project.status}</span></td>
                                 <td className={`py-3 px-4 text-sm text-right align-top ${getDeadlineColorClass(project.deadline)}`}>{project.deadline}</td>
                                 <td className="py-3 px-4 text-gray-400 group-hover:text-gray-600 align-top"><ChevronRight size={16} /></td>

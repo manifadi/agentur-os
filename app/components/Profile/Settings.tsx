@@ -8,6 +8,9 @@ import AdminClientManagement from './AdminClientManagement';
 import AdminRateManagement from './AdminRateManagement';
 import AdminAgencySettings from './AdminAgencySettings';
 import { useApp } from '../../context/AppContext';
+import UserAvatar from '../UI/UserAvatar';
+import { uploadFileToSupabase } from '../../utils/supabaseUtils';
+import { Camera } from 'lucide-react';
 
 interface SettingsProps {
     session: any;
@@ -29,6 +32,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
     const [jobTitle, setJobTitle] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
     // Effect to auto-select if session matches
     useEffect(() => {
@@ -42,9 +46,30 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 setJobTitle(found.job_title || '');
                 setEmail(found.email || '');
                 setPhone(found.phone || '');
+                setAvatarUrl(found.avatar_url || null);
             }
         }
     }, [employees, session]);
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setLoading(true);
+        try {
+            const publicUrl = await uploadFileToSupabase(file, 'avatars');
+            setAvatarUrl(publicUrl);
+            if (currentUser) {
+                await supabase.from('employees').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+                onUpdate();
+            }
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            alert('Upload fehlgeschlagen.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSave = async () => {
         if (!currentUser) return;
@@ -158,6 +183,33 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                         )}
                                     </select>
                                     <p className="text-xs text-gray-400 mt-2">Wähle deinen Namen aus der Liste, um deine Daten zu bearbeiten.</p>
+                                </div>
+
+                                {/* AVATAR SECTION */}
+                                <div className="flex items-center gap-6 mb-8 p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                    <div className="relative group">
+                                        <UserAvatar
+                                            src={avatarUrl}
+                                            name={name}
+                                            initials={initials}
+                                            size="xl"
+                                            className="shadow-md border-2 border-white ring-1 ring-gray-200"
+                                        />
+                                        <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                            <Camera className="text-white" size={24} />
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-900 mb-1">Profilbild</h3>
+                                        <p className="text-xs text-gray-500 mb-3">Lade ein Foto hoch, um dich für deine Kollegen erkennbar zu machen.</p>
+                                        <button
+                                            onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
+                                            className="text-xs font-bold bg-white border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 transition shadow-sm"
+                                        >
+                                            Foto ändern
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {currentUser && (

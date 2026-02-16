@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Employee, Project, Todo, TimeEntry } from '../../types';
-import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, CheckCircle2, Circle, Plus, UserPlus, FilePlus, X } from 'lucide-react';
+import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, CheckCircle2, Circle, Plus, UserPlus, FilePlus, X, Search } from 'lucide-react';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
 
 import TimeEntryModal from '../Modals/TimeEntryModal';
-import GlobalSearch from '../GlobalSearch';
 
 interface UserDashboardProps {
     onSelectProject: (p: Project) => void;
@@ -241,9 +240,15 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     <p className="text-lg text-gray-500 font-medium">Hier ist dein Überblick für heute.</p>
                 </div>
 
-                {/* Global Search */}
-                <div className="flex-1 max-w-2xl">
-                    <GlobalSearch />
+                {/* Global Search Trigger */}
+                <div className="flex-1 flex justify-center">
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('agentur-os-open-search'))}
+                        className="p-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 text-gray-400 hover:text-gray-900 hover:bg-white hover:border-gray-300 transition-all shadow-sm group"
+                        title="Suche öffnen (⌘K)"
+                    >
+                        <Search size={22} className="group-hover:text-blue-500 transition-colors" />
+                    </button>
                 </div>
 
                 <div className="flex gap-3 shrink-0">

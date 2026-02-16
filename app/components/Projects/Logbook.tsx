@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Clock, Plus, ImageIcon, X, Pencil, Trash2, Lock, Globe } from 'lucide-react';
 import { ProjectLog } from '../../types';
 import ConfirmModal from '../Modals/ConfirmModal';
+import UserAvatar from '../UI/UserAvatar';
 
 interface LogbookProps {
     logs: ProjectLog[];
@@ -212,7 +213,17 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                             ) : (
                                 <div className="pr-4 relative">
                                     <div className="flex justify-between items-start">
-                                        <div className="text-xs font-bold text-gray-500 mb-0.5">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            {log.employees && (
+                                                <UserAvatar
+                                                    src={log.employees.avatar_url}
+                                                    name={log.employees.name}
+                                                    initials={log.employees.initials}
+                                                    size="xs"
+                                                />
+                                            )}
+                                            <div className="text-xs font-bold text-gray-500">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
+                                        </div>
                                         {!log.is_public && <Lock size={12} className="text-gray-300" />}
                                     </div>
                                     <div className="text-sm font-medium text-gray-900">{log.title}</div>

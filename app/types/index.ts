@@ -46,6 +46,7 @@ export interface Employee {
     organization_id?: string;
     hourly_rate?: number; // [NEW]
     phone?: string; // [NEW]
+    avatar_url?: string | null; // [NEW] Avatar support
 }
 
 export interface Department {
@@ -85,6 +86,7 @@ export interface ProjectLog {
     employee_id?: string | null;
     is_public?: boolean;
     projects?: { title: string };
+    employees?: Employee; // [NEW] Joined author
 }
 
 export interface Project {

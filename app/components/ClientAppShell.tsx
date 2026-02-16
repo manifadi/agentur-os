@@ -7,6 +7,7 @@ import { Project, Client, Employee, Todo } from '../types';
 import { AppContext } from '../context/AppContext';
 import MainSidebar from './MainSidebar';
 import LoginScreen from './LoginScreen';
+import GlobalSearch from './GlobalSearch';
 
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -19,7 +20,18 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     const [session, setSession] = useState<any>(null);
     const [loadingSession, setLoadingSession] = useState(true);
+    const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('sidebarExpanded');
+            return saved !== null ? JSON.parse(saved) : false;
+        }
+        return false;
+    });
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        localStorage.setItem('sidebarExpanded', JSON.stringify(isSidebarExpanded));
+    }, [isSidebarExpanded]);
 
     // Data
     const [clients, setClients] = useState<Client[]>([]);
@@ -38,11 +50,20 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     // --- INIT & FETCH ---
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setLoadingSession(false);
-        });
+        console.log("Initializing session...");
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                console.log("Session fetched:", session ? "Authenticated" : "Not Authenticated");
+                setSession(session);
+                setLoadingSession(false);
+            })
+            .catch(err => {
+                console.error("Critical error fetching session:", err);
+                setLoadingSession(false);
+            });
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            console.log("Auth state changed:", _event, session ? "Authenticated" : "Not Authenticated");
             setSession(session);
         });
         return () => subscription.unsubscribe();
@@ -211,21 +232,18 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 {!['/login', '/onboarding', '/reset-password'].includes(pathname || '') && (
                     <MainSidebar
                         currentView={getSidebarView()}
-                        setCurrentView={(v) => {
-                            switch (v) {
-                                case 'dashboard': router.push('/dashboard'); break;
-                                case 'projects_overview': router.push('/uebersicht'); break;
-                                case 'global_tasks': router.push('/aufgaben'); break;
-                                case 'resource_planning': router.push('/ressourcen'); break;
-                                case 'time_tracking': router.push('/zeiterfassung'); break;
-                                case 'settings': router.push('/einstellungen'); break;
-                            }
-                        }}
-                        handleLogout={handleLogout}
+                        onLogout={handleLogout}
+                        isSidebarExpanded={isSidebarExpanded}
+                        setIsSidebarExpanded={setIsSidebarExpanded}
+                        agencySettings={agencySettings}
+                        session={session}
+                        activeUser={currentUser}
                     />
                 )}
 
-                <main className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative ${isResetPassword || pathname === '/onboarding' ? '' : 'ml-20'}`}>
+                <GlobalSearch />
+
+                <main className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}>
                     {children}
                 </main>
             </div>

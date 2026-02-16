@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '../context/AppContext';
 import DashboardView from '../components/Dashboard/DashboardView';
-import ContextSidebar from '../components/ContextSidebar';
 import ProjectDetail from '../components/Projects/ProjectDetail';
 import TimeEntryModal from '../components/Modals/TimeEntryModal'; // NEW
 import ClientModal from '../components/Modals/ClientModal';
@@ -253,23 +252,8 @@ export default function UebersichtPage() {
     };
 
     return (
-        <div className="flex h-full">
-            {/* Sidebar */}
-            {!selectedProject && (
-                <div className="flex-shrink-0 h-full">
-                    <ContextSidebar
-                        clients={clients}
-                        employees={employees}
-                        selectedClient={selectedClient}
-                        setSelectedClient={setSelectedClient}
-                        openClientModal={(c) => { setEditingClient(c); setClientModalOpen(true); }}
-                        openEmployeeModal={(e) => { setEditingEmployee(e); setEmployeeModalOpen(true); }}
-                        onResetSelection={() => setSelectedClient(null)}
-                    />
-                </div>
-            )}
-
-            <div ref={scrollContainerRef} className="flex-1 h-full overflow-y-auto p-4 md:p-8">
+        <div className="h-full w-full">
+            <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 md:p-8">
                 {selectedProject ? (
                     <ProjectDetail
                         project={selectedProject}

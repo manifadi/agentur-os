@@ -67,28 +67,30 @@ export default function LoginScreen() {
                     </div>
 
                     {!isForgotPassword && (
-                        <div>
-                            <div className="flex justify-between items-center mb-1">
-                                <label className="block text-xs font-bold text-gray-500 uppercase">Passwort</label>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsForgotPassword(true);
-                                        setMsg('');
-                                    }}
-                                    className="text-[10px] text-blue-600 hover:underline font-bold"
-                                >
-                                    Passwort vergessen?
-                                </button>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 px-1">Passwort</label>
+                                <input
+                                    type="password"
+                                    required
+                                    minLength={6}
+                                    className="w-full rounded-xl border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                                <div className="flex justify-end mt-1.5 px-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsForgotPassword(true);
+                                            setMsg('');
+                                        }}
+                                        className="text-[10px] text-gray-400 hover:text-blue-600 transition-colors font-semibold"
+                                    >
+                                        Passwort vergessen?
+                                    </button>
+                                </div>
                             </div>
-                            <input
-                                type="password"
-                                required
-                                minLength={6}
-                                className="w-full rounded-xl border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
                         </div>
                     )}
 

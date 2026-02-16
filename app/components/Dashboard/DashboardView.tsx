@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Activity, ListTodo, Timer, Plus, Search, FilePlus } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { LayoutGrid, Plus, Search, Timer, ChevronsUpDown } from 'lucide-react';
 import { Project, Client, Employee } from '../../types';
 import ProjectList from '../Projects/ProjectList';
+import UserAvatar from '../UI/UserAvatar';
 import GlobalSearch from '../GlobalSearch';
 import FilterMenu from './FilterMenu';
 import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
@@ -86,75 +87,114 @@ export default function DashboardView({
         return employees.filter(e => pmIds.has(e.id));
     }, [projects, selectedClient, employees]);
 
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     return (
-        <>
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div><h1 className="text-2xl font-bold tracking-tight mb-1">{selectedClient ? selectedClient.name : 'Alle Projekte'}</h1><p className="text-gray-500 text-sm">Übersicht aller laufenden Jobs</p></div>
-                <div className="flex items-center gap-3 w-full md:w-auto relative z-20 flex-1">
-                    <div className="flex-1 max-w-2xl">
-                        <GlobalSearch />
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 relative">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-100 pb-8">
+                <div className="relative" ref={dropdownRef}>
+                    <div
+                        className="flex items-center gap-3 hover:bg-gray-50 p-2 -m-2 rounded-2xl transition-all cursor-pointer group"
+                        onClick={() => setDropdownOpen(!dropdownOpen)}
+                    >
+                        {selectedClient && (
+                            <div className="w-10 h-10 flex items-center justify-center overflow-hidden shrink-0">
+                                {selectedClient.logo_url ? (
+                                    <img src={selectedClient.logo_url} className="w-full h-full object-contain" />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                                        <LayoutGrid size={20} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                                    {selectedClient ? selectedClient.name : 'Alle Projekte'}
+                                </h1>
+                                <ChevronsUpDown size={20} className={`text-gray-300 group-hover:text-blue-500 transition-all ${dropdownOpen ? 'rotate-180 text-blue-500' : ''}`} />
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-0.5">
+                                {selectedClient ? 'Fokussierte Ansicht' : 'Gesamtübersicht'}
+                            </p>
+                        </div>
                     </div>
+
+                    {/* DROP-DOWN MENU */}
+                    {dropdownOpen && (
+                        <div className="absolute top-full left-0 mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-2 space-y-1">
+                                <button
+                                    onClick={() => { onSelectClient(null as any); setDropdownOpen(false); }}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${!selectedClient ? 'bg-gray-900 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+                                >
+                                    <LayoutGrid size={18} />
+                                    <span className="text-sm font-bold">Alle Projekte</span>
+                                </button>
+                                <div className="h-px bg-gray-50 my-1 mx-2" />
+                                <div className="max-h-[70vh] overflow-y-auto scrollbar-none space-y-1">
+                                    {clients.map(c => (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => { onSelectClient(c); setDropdownOpen(false); }}
+                                            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${selectedClient?.id === c.id ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center border border-gray-100 shrink-0 overflow-hidden">
+                                                {c.logo_url ? <img src={c.logo_url} className="w-full h-full object-contain" /> : c.name[0]}
+                                            </div>
+                                            <span className="text-sm font-semibold truncate">{c.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {/* Search Trigger Button */}
+                    <button
+                        onClick={() => {
+                            window.dispatchEvent(new CustomEvent('agentur-os-open-search'));
+                        }}
+                        className="p-2.5 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all border border-gray-100 shadow-sm"
+                        title="Suche öffnen (⌘K)"
+                    >
+                        <Search size={22} />
+                    </button>
+
                     <button
                         onClick={onOpenCreateModal}
-                        style={{ minWidth: 'fit-content' }}
-                        className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform whitespace-nowrap"
+                        className="flex items-center gap-2 bg-gray-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transform whitespace-nowrap"
                     >
-                        <FilePlus size={18} /> Projekt hinzufügen
+                        <Plus size={18} strokeWidth={3} /> Projekt hinzufügen
                     </button>
 
                     {/* FILTER MENU */}
-                    <div className="ml-2">
-                        <FilterMenu
-                            employees={relevantPms}
-                            activeStatus={activeStatus}
-                            setActiveStatus={setActiveStatus}
-                            activePmId={activePmId}
-                            setActivePmId={setActivePmId}
-                            sortOrder={sortOrder}
-                            setSortOrder={setSortOrder}
-                        />
-                    </div>
+                    <FilterMenu
+                        employees={relevantPms}
+                        activeStatus={activeStatus}
+                        setActiveStatus={setActiveStatus}
+                        activePmId={activePmId}
+                        setActivePmId={setActivePmId}
+                        sortOrder={sortOrder}
+                        setSortOrder={setSortOrder}
+                    />
                 </div>
             </header>
-
-            {!selectedClient && activeStatus.length === 0 && !activePmId && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600"><Activity size={24} /></div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{stats.activeProjects}</div>
-                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Aktive Projekte</div>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600"><ListTodo size={24} /></div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{stats.openTasks}</div>
-                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Offene Aufgaben</div>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600"><Timer size={24} /></div>
-                        <div>
-                            <div className="text-sm font-bold text-gray-900 line-clamp-1">{stats.nextDeadline ? stats.nextDeadline.title : 'Keine Deadlines'}</div>
-                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                {stats.nextDeadline && stats.nextDeadline.deadline ? `Deadline: ${new Date(stats.nextDeadline.deadline).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}` : 'Alles erledigt'}
-                            </div>
-                        </div>
-                    </div>
-                    {/* Time Tracking Widget */}
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 relative group cursor-pointer hover:border-blue-200 transition-colors" onClick={onAddTime}>
-                        <div className="w-12 h-12 rounded-xl bg-gray-900 flex items-center justify-center text-white"><Timer size={24} /></div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{todaysHours.toLocaleString('de-DE')} h</div>
-                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Heute erfasst</div>
-                        </div>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"><Plus size={16} /></div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="mb-4 flex items-center gap-2">
                 {/* Remove redundant horizontal filter list, or keep as active filter pills? */}
@@ -162,7 +202,19 @@ export default function DashboardView({
                 {(activeStatus.length > 0 || activePmId) && (
                     <div className="flex gap-2">
                         {activeStatus.map(s => <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md border border-gray-200">{s}</span>)}
-                        {activePmId && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-md border border-blue-100">{employees.find(e => e.id === activePmId)?.initials}</span>}
+                        {activePmId && (
+                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-2 py-1 rounded-md border border-blue-100">
+                                {employees.find(e => e.id === activePmId) && (
+                                    <UserAvatar
+                                        src={employees.find(e => e.id === activePmId)?.avatar_url}
+                                        name={employees.find(e => e.id === activePmId)?.name}
+                                        initials={employees.find(e => e.id === activePmId)?.initials}
+                                        size="xs"
+                                    />
+                                )}
+                                <span className="text-xs">{employees.find(e => e.id === activePmId)?.name}</span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -212,6 +264,6 @@ export default function DashboardView({
                 confirmText="Löschen"
                 cancelText="Abbrechen"
             />
-        </>
+        </div>
     );
 }
