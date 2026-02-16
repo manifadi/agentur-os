@@ -8,7 +8,6 @@ import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
 import TimeEntryModal from '../Modals/TimeEntryModal';
-import SpotlightSearch from '../SpotlightSearch';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -88,20 +87,6 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
     // We keep local state for the layout to ensure smooth dragging
     const [layoutState, setLayoutState] = useState<RGLLayoutItem[]>([]);
-    const [showSpotlight, setShowSpotlight] = useState(false);
-
-    // Cmd+K to open Spotlight
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault();
-                setShowSpotlight(true);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
     const [entryToEdit, setEntryToEdit] = useState<TimeEntry | undefined>(undefined);
 
     // ─── Data Prep ───────────────────────────────────────────────
@@ -379,7 +364,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 {/* Actions */}
                 <div className="flex items-center gap-3 shrink-0">
                     <button
-                        onClick={() => setShowSpotlight(true)}
+                        onClick={() => window.dispatchEvent(new CustomEvent('agentur-os-open-search'))}
                         className="w-11 h-11 bg-white border border-gray-100 rounded-xl text-gray-400 flex items-center justify-center hover:border-blue-300 hover:text-blue-500 hover:shadow-md transition-all group"
                         title="Suche (Cmd+K)"
                     >
@@ -495,13 +480,6 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
             <TimeEntryModal isOpen={showAddTimeModal} onClose={() => setShowAddTimeModal(false)} currentUser={currentUser} projects={projects} entryToEdit={entryToEdit} onEntryCreated={() => { fetchData(); setShowAddTimeModal(false); }} />
 
-            <SpotlightSearch
-                isOpen={showSpotlight}
-                onClose={() => setShowSpotlight(false)}
-                projects={projects}
-                todos={assignedTasks}
-                onNavigate={(type, id) => console.log('Navigate', type, id)}
-            />
         </div>
     );
 }

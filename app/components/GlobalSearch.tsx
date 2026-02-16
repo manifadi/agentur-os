@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Briefcase, Users, User, FileText, X, Layout, CheckSquare, ChevronRight } from 'lucide-react';
+import { Search, Briefcase, Users, User, FileText, X, Layout, CheckSquare, ChevronRight, Plus, Clock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Project, Client, Employee, Todo } from '../types';
 import { supabase } from '../supabaseClient';
@@ -84,24 +84,46 @@ export default function GlobalSearch() {
                 matchedClients.some(c => c.id === p.client_id)
             );
 
-            // 3. Fetch Logs from Supabase
-            let matchedLogs: any[] = [];
-            if (currentUser?.organization_id) {
-                const { data: logsData } = await supabase
-                    .from('project_logs')
-                    .select('*, projects(title)')
-                    .eq('organization_id', currentUser.organization_id)
-                    .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
-                    .limit(10);
+            // 3. Filter Todos (assigned to current organization)
+            const matchedTodos = (currentUser?.organization_id) ? (
+                // We'd ideally fetch todos across internal/client projects or globally
+                // If AppContext has all todos, we can filter them here.
+                // For now, let's assume we can search by title in what we have.
+                [] // Placeholder for more complex cross-project todo search if needed
+            ) : [];
 
-                if (logsData) matchedLogs = logsData;
+            // 4. Fetch Logs and Todos from Supabase
+            let matchedLogs: any[] = [];
+            let fetchedTodos: Todo[] = [];
+
+            if (currentUser?.organization_id) {
+                const [logsRes, todosRes] = await Promise.all([
+                    supabase
+                        .from('project_logs')
+                        .select('*, projects(title)')
+                        .eq('organization_id', currentUser.organization_id)
+                        .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+                        .limit(10),
+                    supabase
+                        .from('todos')
+                        .select('*, projects(title)')
+                        .eq('organization_id', currentUser.organization_id)
+                        .ilike('title', `%${query}%`)
+                        .limit(10)
+                ]);
+
+                if (logsRes.data) matchedLogs = logsRes.data;
+                if (todosRes.data) fetchedTodos = todosRes.data.map(t => ({
+                    ...t,
+                    project_title: t.projects?.title
+                }));
             }
 
             setResults({
                 projects: matchedProjects,
                 clients: matchedClients,
                 employees: [],
-                todos: [],
+                todos: fetchedTodos,
                 logs: matchedLogs
             });
             setLoading(false);
@@ -199,6 +221,35 @@ export default function GlobalSearch() {
                                 </section>
                             )}
 
+                            {/* TODOS */}
+                            {results.todos.length > 0 && (
+                                <section>
+                                    <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                        <CheckSquare size={12} /> Aufgaben
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-1">
+                                        {results.todos.map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => handleSelect(t.project_id ? `/uebersicht?project_id=${t.project_id}&task_id=${t.id}` : `/aufgaben?task_id=${t.id}`)}
+                                                className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                            >
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all shadow-sm ${t.is_done ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                                                    <CheckSquare size={20} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className={`font-bold transition truncate ${t.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>{t.title}</div>
+                                                    <div className="text-[10px] text-gray-400 truncate tracking-widest uppercase">
+                                                        {t.project_title || 'Private Aufgabe'}
+                                                    </div>
+                                                </div>
+                                                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+
                             {/* LOGS */}
                             {results.logs.length > 0 && (
                                 <section>
@@ -225,7 +276,7 @@ export default function GlobalSearch() {
                             )}
 
                             {/* Fallback Empty */}
-                            {results.projects.length === 0 && results.clients.length === 0 && results.logs.length === 0 && !loading && (
+                            {results.projects.length === 0 && results.clients.length === 0 && results.todos.length === 0 && results.logs.length === 0 && !loading && (
                                 <div className="py-12 text-center">
                                     <div className="text-gray-300 mb-2"><Search size={40} className="mx-auto" /></div>
                                     <p className="text-gray-500 font-medium">Keine Ergebnisse für "{query}"</p>
@@ -233,18 +284,56 @@ export default function GlobalSearch() {
                             )}
                         </div>
                     ) : (
-                        <div className="py-12 text-center">
-                            <div className="w-16 h-16 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-4 text-gray-300">
-                                <Search size={28} />
+                        <div className="py-8 scrollbar-none">
+                            <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Vorschläge</div>
+                            <div className="grid grid-cols-1 gap-1">
+                                <button
+                                    onClick={() => handleSelect('/projekte/erstellen')}
+                                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-gray-900 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                        <Plus size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition">Neues Projekt erstellen</div>
+                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Schnellaktion</div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+                                </button>
+                                <button
+                                    onClick={() => handleSelect('/zeiterfassung')}
+                                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                        <Clock size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition">Zeit erfassen</div>
+                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Stundeneintrag hinzufügen</div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+                                </button>
+                                <button
+                                    onClick={() => handleSelect('/aufgaben')}
+                                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                        <CheckSquare size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition">Meine Aufgaben</div>
+                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">To-Do Liste öffnen</div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+                                </button>
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900">Globale Suche</h3>
-                            <p className="text-sm text-gray-400 mt-1 max-w-[280px] mx-auto">Suche nach Projekten, Kunden oder Logbucheinträgen.</p>
+
                             <div className="mt-8 flex items-center justify-center gap-6">
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                    <span className="bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">Enter</span> zum Auswählen
+                                    <span className="bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">Enter</span> wählen
                                 </div>
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                    <span className="bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">ESC</span> zum Schließen
+                                    <span className="bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">ESC</span> schließen
                                 </div>
                             </div>
                         </div>
