@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
 import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import UserAvatar from '../UI/UserAvatar';
@@ -108,6 +108,32 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const handleStatusUpdate = async (newStatus: string) => {
         await onUpdateProject(project.id, { status: newStatus });
         setIsStatusDropdownOpen(false);
+    };
+
+    const isFavorite = currentEmployee?.dashboard_config?.favoriteProjectIds?.includes(project.id);
+
+    const handleToggleFavorite = async () => {
+        if (!currentEmployee) return;
+
+        const currentFavorites = currentEmployee.dashboard_config?.favoriteProjectIds || [];
+        const newFavorites = isFavorite
+            ? currentFavorites.filter(id => id !== project.id)
+            : [...currentFavorites, project.id];
+
+        const newConfig = {
+            ...currentEmployee.dashboard_config,
+            widgets: currentEmployee.dashboard_config?.widgets || [],
+            favoriteProjectIds: newFavorites
+        };
+
+        const { error } = await supabase
+            .from('employees')
+            .update({ dashboard_config: newConfig })
+            .eq('id', currentEmployee.id);
+
+        if (!error) {
+            // fetchData logic is in AppContext, but we might just rely on realtime
+        }
     };
 
     useEffect(() => {
@@ -391,7 +417,16 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             {project.clients?.name || 'Kein Kunde'} <span className="text-gray-300 mx-1">|</span> {project.job_number}
                         </div>
                     </div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2 break-words">{project.title}</h1>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight break-words">{project.title}</h1>
+                        <button
+                            onClick={handleToggleFavorite}
+                            className={`p-1.5 rounded-lg transition-all ${isFavorite ? 'text-yellow-400 fill-yellow-400 bg-yellow-50' : 'text-gray-300 hover:text-gray-400 bg-gray-50'}`}
+                            title={isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                        >
+                            <Star size={20} strokeWidth={isFavorite ? 2.5 : 2} />
+                        </button>
+                    </div>
                     <div className="relative" ref={statusDropdownRef}>
                         <button
                             onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}

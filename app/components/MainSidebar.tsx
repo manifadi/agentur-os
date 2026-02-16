@@ -194,8 +194,7 @@ export default function MainSidebar({
                         </div>
                     )}
                 </button>
-
-            </div >
-        </aside >
+            </div>
+        </aside>
     );
 }

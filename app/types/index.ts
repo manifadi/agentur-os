@@ -35,6 +35,21 @@ export interface ClientContact {
     organization_id: string;
 }
 
+export type WidgetId = 'favorite_projects' | 'deadlines' | 'assigned_todos' | 'private_todos' | 'resource_planning' | 'time_tracking' | 'calendar';
+
+export interface DashboardWidgetConfig {
+    id: WidgetId;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+export interface DashboardConfig {
+    widgets: DashboardWidgetConfig[];
+    favoriteProjectIds?: string[];
+}
+
 export interface Employee {
     id: string;
     name: string;
@@ -47,6 +62,7 @@ export interface Employee {
     hourly_rate?: number; // [NEW]
     phone?: string; // [NEW]
     avatar_url?: string | null; // [NEW] Avatar support
+    dashboard_config?: DashboardConfig; // [NEW] Phase 2
 }
 
 export interface Department {

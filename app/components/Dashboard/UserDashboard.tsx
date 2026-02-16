@@ -1,11 +1,27 @@
-import React, { useMemo, useState } from 'react';
-import { Employee, Project, Todo, TimeEntry } from '../../types';
-import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, CheckCircle2, Circle, Plus, UserPlus, FilePlus, X, Search } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import { Employee, Project, Todo, TimeEntry, DashboardConfig, WidgetId, DashboardWidgetConfig } from '../../types';
+import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2 } from 'lucide-react';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
-
 import TimeEntryModal from '../Modals/TimeEntryModal';
+import SpotlightSearch from '../SpotlightSearch';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+// Define our own LayoutItem interface to avoid type confusion
+interface RGLLayoutItem {
+    i: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    minW?: number;
+    minH?: number;
+}
 
 interface UserDashboardProps {
     onSelectProject: (p: Project) => void;
@@ -13,439 +29,478 @@ interface UserDashboardProps {
     onQuickAction: (action: string) => void;
 }
 
+// ─── Constants ────────────────────────────────────────────────────
+// 12-column grid for maximum flexibility
+const GRID_COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+const ROW_HEIGHT = 60;
+
+// Default layout matching the screenshot:
+// Row 1: Tasks (4), Time (4), Deadlines (4)
+// Row 2: Resource Planning / Schedule (12)
+const DEFAULT_WIDGETS: DashboardWidgetConfig[] = [
+    { id: 'assigned_todos', x: 0, y: 0, w: 4, h: 6 },
+    { id: 'time_tracking', x: 4, y: 0, w: 4, h: 6 },
+    { id: 'deadlines', x: 8, y: 0, w: 4, h: 6 },
+    { id: 'resource_planning', x: 0, y: 6, w: 12, h: 5 } // Wide bottom widget
+];
+
+const MIN_W = 2;
+const MIN_H = 3;
+
+// ─── Migration Helper ─────────────────────────────────────────────
+function migrateConfig(savedWidgets: any[]): DashboardWidgetConfig[] {
+    if (!Array.isArray(savedWidgets)) return DEFAULT_WIDGETS;
+
+    // Check if completely new schema (x, y, w, h) or old (position, size)
+    const isNewSchema = savedWidgets.every(w => 'x' in w && 'y' in w && 'w' in w && 'h' in w);
+    if (isNewSchema) return savedWidgets;
+
+    // Migrate old 4x2 grid (position 0-7) to 12-col grid
+    return savedWidgets.map((w: any) => {
+        // Old size map: small(1x1) -> 3x4 (in 12-col), medium(2x1) -> 6x4, large(2x2) -> 6x8
+        let width = 3; // default small
+        let height = 4;
+
+        if (w.size === 'medium' || w.w === 2) width = 6;
+        if (w.size === 'large' || (w.w === 2 && w.h === 2)) { width = 6; height = 8; }
+
+        // Map position (0-3 row 1, 4-7 row 2) to x/y
+        const pos = typeof w.position === 'number' ? w.position : 0;
+        const oldCol = pos % 4; // 0-3
+        const oldRow = Math.floor(pos / 4); // 0-1
+
+        return {
+            id: w.id,
+            x: oldCol * 3, // 0->0, 1->3, 2->6, 3->9
+            y: oldRow * 5, // Arbitrary spacing
+            w: width,
+            h: height
+        };
+    });
+}
+
+// ─── Component ────────────────────────────────────────────────────
 export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
     const { currentUser, projects, allocations, members, timeEntries, fetchData } = useApp();
     const [showAddTimeModal, setShowAddTimeModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [showGallery, setShowGallery] = useState(false); // Widget gallery
 
-    // [FIX] Use Ref to store timeouts so they persist across renders/state updates
-    const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
-    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+    // We keep local state for the layout to ensure smooth dragging
+    const [layoutState, setLayoutState] = useState<RGLLayoutItem[]>([]);
+    const [showSpotlight, setShowSpotlight] = useState(false);
 
-    // [FIX] Cleanup: On unmount, execute ALL pending completions immediately
-    React.useEffect(() => {
-        return () => {
-            Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
-                clearTimeout(timeout);
-                onToggleTodo(id, true); // Force complete
-            });
-            pendingTimeouts.current = {};
+    // Cmd+K to open Spotlight
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setShowSpotlight(true);
+            }
         };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-
-    // Add Time State - Removed as now handled by Modal
-    // const [newTime, setNewTime] = useState({ projectId: '', positionId: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
-    // const [submittingTime, setSubmittingTime] = useState(false);
-
-
-
-    // [NEW] Edit Entry State
     const [entryToEdit, setEntryToEdit] = useState<TimeEntry | undefined>(undefined);
 
-    // 1. My Open Tasks (Assigned & !Done)
-    const myTasks = currentUser ? projects.flatMap(p =>
+    // ─── Data Prep ───────────────────────────────────────────────
+    const assignedTasks = currentUser ? projects.flatMap(p =>
         (p.todos || [])
-            .filter(t => t.assigned_to === currentUser.id && (!t.is_done || pendingIds.has(t.id)))
+            .filter(t => t.assigned_to === currentUser.id && (!t.is_done))
             .map(t => ({ ...t, project: p }))
     ) : [];
 
-    // [NEW] Today's Time Entries
-    const todayEntries = useMemo(() => {
+    const todayTotal = useMemo(() => {
         const todayStr = new Date().toISOString().split('T')[0];
-        return (timeEntries || []).filter((t: any) => t.date === todayStr);
+        return (timeEntries || []).filter((t: any) => t.date === todayStr).reduce((acc: number, t: any) => acc + (Number(t.hours) || 0), 0);
     }, [timeEntries]);
 
-    const todayTotal = todayEntries.reduce((acc: number, t: any) => acc + (Number(t.hours) || 0), 0);
-
-    // handleAddTime moved to TimeEntryModal
-
-    // 2. My Projects
-    const myProjects = currentUser ? projects.filter(p => {
-        const isPM = p.project_manager_id === currentUser.id;
-        const hasTasks = p.todos?.some(t => t.assigned_to === currentUser.id && !t.is_done);
-        const isMember = members?.some((m: any) => m.project_id === p.id && m.employee_id === currentUser.id);
-        const hasAllocations = allocations?.some((a: any) => a.project_id === p.id && a.employee_id === currentUser.id);
-        return isPM || hasTasks || isMember || hasAllocations;
-    }) : [];
-
-    // 3. Upcoming Deadlines (Derived for 3rd Box)
-    const deadlines = projects // Use all projects for deadlines or filtered? Using filtered myProjects is safer if logic exists.
+    const deadlines = projects
         .filter(p => p.deadline && new Date(p.deadline) > new Date())
         .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
         .slice(0, 5);
 
-    // 4. Weekly Data (unchanged logic, just ensuring it's here)
-    const weeklyData = useMemo(() => {
-        if (!allocations || !currentUser) return { days: [], rows: [], total: 0, dailyTotals: {} };
-        // ... (Simplified re-implementation for brevity, relying on identical logic as before)
-        // Note: For this tool call, I'll copy the logic if I can, but to save space/complexity I'll trust the previous logic was fine. 
-        // Actually, I need the logic to render the bottom table. I will include a stripped down version or assume the full re-write.
-        // Let's assume standard logic for now or copy it from previous.
-        const today = new Date();
-        const d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-        const dayNum = d.getUTCDay() || 7;
-        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        const currentWeek = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-        const currentYear = today.getFullYear();
+    const favoriteProjects = useMemo(() => {
+        const favIds = currentUser?.dashboard_config?.favoriteProjectIds || [];
+        return projects.filter(p => favIds.includes(p.id));
+    }, [projects, currentUser]);
 
-        const mondayDate = new Date(d);
-        mondayDate.setUTCDate(d.getUTCDate() - 3);
+    const { personalTodos } = useApp();
+    const userPersonalTodos = useMemo(() => {
+        return (personalTodos || [])
+            .filter(t => currentUser ? t.assigned_to === currentUser.id : true)
+            .filter(t => !t.is_done);
+    }, [personalTodos, currentUser]);
 
-        const isoDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-        const dateLabels = [];
-        const formatter = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-        for (let i = 0; i < 5; i++) {
-            const dayDate = new Date(mondayDate);
-            dayDate.setUTCDate(mondayDate.getUTCDate() + i);
-            dateLabels.push({ iso: isoDays[i], label: formatter.format(dayDate) });
-        }
+    const allAvailableWidgets = [
+        { id: 'favorite_projects', title: 'Favoriten', icon: Star, color: 'blue' },
+        { id: 'deadlines', title: 'Nächste Termine/Deadlines', icon: Calendar, color: 'orange' },
+        { id: 'assigned_todos', title: 'Zugewiesene To-Dos', icon: CheckSquare, color: 'blue' },
+        { id: 'private_todos', title: 'Private To-Do-Liste', icon: CheckSquare, color: 'green' },
+        { id: 'resource_planning', title: 'Wochenplan', icon: Calendar, color: 'purple' },
+        { id: 'time_tracking', title: 'Stundenerfassung', icon: Clock, color: 'blue' }
+    ];
 
-        const myAllocs = allocations.filter((a: any) => a.employee_id === currentUser.id && a.year === currentYear && a.week_number === currentWeek);
-        const projectGroups: Record<string, any> = {};
-        const dailyTotals: Record<string, number> = { monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0 };
-        let grandTotal = 0;
+    // ─── Config & Layout ──────────────────────────────────────────
+    const currentWidgets = useMemo(() => {
+        if (!currentUser?.dashboard_config?.widgets) return DEFAULT_WIDGETS;
+        return migrateConfig(currentUser.dashboard_config.widgets);
+    }, [currentUser]);
 
-        myAllocs.forEach((a: any) => {
-            if (!projectGroups[a.project_id]) projectGroups[a.project_id] = { project: projects.find(p => p.id === a.project_id), hoursByDay: {}, total: 0 };
-            isoDays.forEach(day => {
-                const val = a[day] || 0;
-                if (val > 0) {
-                    projectGroups[a.project_id].hoursByDay[day] = (projectGroups[a.project_id].hoursByDay[day] || 0) + val;
-                    projectGroups[a.project_id].total += val;
-                    dailyTotals[day] += val;
-                    grandTotal += val;
-                }
-            });
-        });
+    // Sync layoutState with currentWidgets on load/change
+    useEffect(() => {
+        const initialLayout: RGLLayoutItem[] = currentWidgets.map(w => ({
+            i: w.id,
+            x: w.x,
+            y: w.y,
+            w: w.w,
+            h: w.h,
+            minW: MIN_W,
+            minH: MIN_H
+        }));
+        setLayoutState(initialLayout);
+    }, [currentWidgets]);
 
-        return { days: dateLabels, rows: Object.values(projectGroups), total: grandTotal, dailyTotals };
-    }, [allocations, currentUser?.id, projects]);
+    // ─── Handlers ─────────────────────────────────────────────────
+    const handleLayoutChange = (newLayout: RGLLayoutItem[]) => {
+        setLayoutState(newLayout); // Update local state immediately for smoothness
+    };
 
+    const saveLayout = async (finalLayout: RGLLayoutItem[]) => {
+        if (!currentUser) return;
 
-    // --- APPLE DESIGN COMPONENTS ---
-    const BentoBox = ({ title, icon: Icon, children, count, color = "blue" }: any) => (
-        <div className="flex flex-col bg-white/70 backdrop-blur-xl border border-white/60 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden h-full transition-all duration-500 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
-            <div className="p-6 pb-4 flex justify-between items-center shrink-0">
-                <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-                    <div className={`p-2 rounded-full bg-${color}-500/10 text-${color}-600`}>
-                        <Icon size={20} strokeWidth={2.5} />
-                    </div>
-                    {title}
-                </h2>
-                {count !== undefined && (
-                    <span className="bg-gray-100 text-gray-500 text-[13px] font-bold px-3 py-1 rounded-full">{count}</span>
-                )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-                {children}
-            </div>
-        </div>
-    );
+        // Convert Layout[] back to DashboardWidgetConfig[]
+        const newWidgets: DashboardWidgetConfig[] = finalLayout.map(l => ({
+            id: l.i as WidgetId,
+            x: l.x,
+            y: l.y,
+            w: l.w,
+            h: l.h
+        }));
 
-    const ListItem = ({ title, subtitle, icon, action, onClick, showTooltip }: any) => (
-        <div className="group/item relative flex items-center mx-2 rounded-2xl transition-all duration-300">
-            {/* Checkbox Area */}
-            {icon && (
-                <div className="relative z-20 p-4 pr-1 shrink-0">
-                    {icon}
-                </div>
-            )}
+        const { error } = await supabase
+            .from('employees')
+            .update({ dashboard_config: { widgets: newWidgets } })
+            .eq('id', currentUser.id);
 
-            {/* Content Area */}
-            <div
-                onClick={onClick}
-                className="flex-1 flex items-center justify-between gap-4 p-4 pl-2 rounded-2xl hover:bg-gray-50/80 transition-all cursor-pointer group/content overflow-hidden min-h-[72px]"
-            >
-                <div className="flex-1 min-w-0 max-w-[260px]">
-                    <div className="font-semibold text-gray-900 line-clamp-2 tracking-tight leading-tight">{title}</div>
-                    {subtitle && <div className="text-[11px] text-gray-500 truncate mt-1 font-medium">{subtitle}</div>}
-                </div>
+        if (!error) fetchData();
+    };
 
-                <div className="flex items-center gap-2 shrink-0">
-                    {action && <div className="text-gray-400 group-hover/content:text-gray-600 transition-colors">{action}</div>}
-                    <ArrowRight size={14} className="text-gray-300 opacity-0 group-hover/content:opacity-100 -translate-x-2 group-hover/content:translate-x-0 transition-all duration-300" />
-                </div>
+    const handleRemoveWidget = async (id: WidgetId) => {
+        const newWidgets = currentWidgets.filter(w => w.id !== id);
+        if (!currentUser) return;
+        const { error } = await supabase
+            .from('employees')
+            .update({ dashboard_config: { widgets: newWidgets } })
+            .eq('id', currentUser.id);
+        if (!error) fetchData();
+    };
 
-                {/* Tooltip */}
-                {showTooltip && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover/content:opacity-100 transition-all duration-200 pointer-events-none z-30 translate-x-2 group-hover/content:translate-x-0">
-                        <div className="bg-gray-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl whitespace-nowrap shadow-2xl flex items-center gap-1.5 border border-white/10">
-                            Zum Projekt
-                            <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+    const handleAddWidget = async (id: WidgetId) => {
+        // Add at top left or find first open spot (react-grid-layout handles collision automatically by pushing down)
+        const newWidget: DashboardWidgetConfig = { id, x: 0, y: 0, w: 4, h: 6 };
+        const newWidgets = [...currentWidgets, newWidget];
 
+        if (!currentUser) return;
+        const { error } = await supabase
+            .from('employees')
+            .update({ dashboard_config: { widgets: newWidgets } })
+            .eq('id', currentUser.id);
 
-
-    const handleToggleTodoWithDelay = async (todoId: string, currentIsDone: boolean) => {
-        if (!currentIsDone) {
-            // Check if already pending (using Ref is reliable)
-            if (pendingTimeouts.current[todoId]) return;
-
-            // Optimistic UI update
-            setPendingIds(prev => {
-                const newSet = new Set(prev);
-                newSet.add(todoId);
-                return newSet;
-            });
-
-            const timeout = setTimeout(async () => {
-                await onToggleTodo(todoId, true); // Mark as done in DB
-
-                // Cleanup Ref
-                delete pendingTimeouts.current[todoId];
-
-                // Cleanup UI State
-                setPendingIds(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(todoId);
-                    return newSet;
-                });
-            }, 3000);
-
-            // Store in Ref
-            pendingTimeouts.current[todoId] = timeout;
-        } else {
-            // If it's pending completion (Undo)
-            if (pendingTimeouts.current[todoId]) {
-                clearTimeout(pendingTimeouts.current[todoId]);
-                delete pendingTimeouts.current[todoId];
-
-                // Revert UI
-                setPendingIds(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(todoId);
-                    return newSet;
-                });
-            } else {
-                // Normal uncheck (if it was already done in DB)
-                await onToggleTodo(todoId, false);
-            }
+        if (!error) {
+            fetchData();
+            setShowGallery(false);
         }
     };
 
-    if (!currentUser) return null;
+    // ─── Render Widget Content ────────────────────────────────────
+    const renderWidgetContent = (id: string, w: number, h: number) => {
+        const isSmall = w < 4 && h < 4;
 
-    return (
-        <div className="h-[calc(100vh-2rem)] flex flex-col p-6 max-w-[1920px] mx-auto space-y-8 animate-in fade-in duration-500">
-            {/* HERADER */}
-            <header className="shrink-0 flex justify-between items-center gap-8">
-                <div>
-                    <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">Guten Morgen, {currentUser.name.split(' ')[0]}.</h1>
-                    <p className="text-lg text-gray-500 font-medium">Hier ist dein Überblick für heute.</p>
-                </div>
-
-                {/* Global Search Trigger */}
-                <div className="flex-1 flex justify-center">
-                    <button
-                        onClick={() => window.dispatchEvent(new CustomEvent('agentur-os-open-search'))}
-                        className="p-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/60 text-gray-400 hover:text-gray-900 hover:bg-white hover:border-gray-300 transition-all shadow-sm group"
-                        title="Suche öffnen (⌘K)"
-                    >
-                        <Search size={22} className="group-hover:text-blue-500 transition-colors" />
-                    </button>
-                </div>
-
-                <div className="flex gap-3 shrink-0">
-                    <button onClick={() => onQuickAction('create_project')} style={{ minWidth: 'fit-content' }} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transform whitespace-nowrap"><Plus size={18} /> Projekt hinzufügen</button>
-                    <button onClick={() => onQuickAction('create_client')} className="flex items-center gap-2 bg-white/80 backdrop-blur border border-white/60 text-gray-900 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-white transition shadow-sm hover:shadow-md"><UserPlus size={18} /> Kunde</button>
-                </div>
-            </header>
-
-            {/* BENTO GRID */}
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* 1. TASKS */}
-                <BentoBox title="Meine Aufgaben" icon={CheckSquare} count={myTasks.length} color="blue">
-                    {myTasks.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center">
-                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4"><Check size={32} className="opacity-20" /></div>
-                            <p className="font-medium">Alles erledigt</p>
-                            <p className="text-sm">Genieß deinen Tag!</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-1">
-                            {myTasks.map(t => (
-                                <ListItem
-                                    key={t.id}
-                                    icon={
+        switch (id) {
+            case 'assigned_todos':
+                return (
+                    <div className="h-full flex flex-col">
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                            {assignedTasks.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
+                                    <CheckSquare size={32} strokeWidth={1.5} />
+                                    <span className="text-xs font-medium mt-2">Alles erledigt</span>
+                                </div>
+                            ) : (
+                                assignedTasks.map(t => (
+                                    <div key={t.id} className="group flex items-start gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, t.is_done || pendingIds.has(t.id)) }}
-                                            className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${t.is_done || pendingIds.has(t.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'}`}
+                                            onClick={() => onToggleTodo(t.id, !t.is_done)}
+                                            className="mt-0.5 w-5 h-5 rounded-full border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center shrink-0"
                                         >
-                                            <Check size={12} className={`text-white transition-opacity ${t.is_done || pendingIds.has(t.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                                            {t.is_done && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
                                         </button>
-                                    }
-                                    title={<span className={t.is_done || pendingIds.has(t.id) ? 'text-gray-400 line-through' : ''}>{t.title}</span>}
-                                    subtitle={`${t.project.job_number} • ${t.project.clients?.name}`}
-                                    onClick={() => onSelectProject(t.project)}
-                                    showTooltip={true}
-                                    action={
-                                        t.deadline && (
-                                            <span className={`text-[10px] font-bold tracking-tight ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-400'}`}>
-                                                {new Date(t.deadline).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-gray-800 leading-snug truncate">{t.title}</p>
+                                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-0.5 truncate">{t.project?.title}</p>
+                                        </div>
+                                        {t.deadline && (
+                                            <span className={`ml-auto text-[10px] font-bold ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-300'}`}>
+                                                {new Date(t.deadline).getDate()}.{new Date(t.deadline).getMonth() + 1}.
                                             </span>
-                                        )
-                                    }
-                                />
-                            ))}
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
-                    )}
-                </BentoBox>
-
-                {/* 2. TIME TRACKING (Replaces Active Projects) */}
-                <BentoBox title="Stundenerfassung" icon={Clock} count={todayTotal > 0 ? `${todayTotal.toFixed(2)} h` : undefined} color="blue">
-                    <div className="flex flex-col h-full">
-                        {todayEntries.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                                <p className="text-sm">Noch keine Stunden heute.</p>
+                    </div>
+                );
+            case 'time_tracking':
+                return (
+                    <div className="h-full flex flex-col items-center justify-center relative">
+                        {todayTotal > 0 ? (
+                            <div className="text-center">
+                                <span className="text-5xl font-black text-gray-900 tracking-tighter tabular-nums">{todayTotal.toFixed(1)}</span>
+                                <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">Stunden heute</span>
                             </div>
                         ) : (
-                            <div className="flex-1 space-y-2 overflow-y-auto min-h-0 px-1">
-                                {todayEntries.map((t: any) => (
-                                    <div
-                                        key={t.id}
-                                        onClick={() => {
-                                            setEntryToEdit(t);
-                                            setShowAddTimeModal(true);
-                                        }}
-                                        className="relative flex items-start justify-between p-3 rounded-xl bg-blue-50/30 border border-blue-100/50 hover:bg-blue-50 transition group cursor-pointer"
-                                    >
-                                        <div className="min-w-0 flex-1 mr-4">
-                                            {/* Top: Client Info */}
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                                {t.projects?.clients?.logo_url && (
-                                                    <img
-                                                        src={t.projects.clients.logo_url}
-                                                        alt={t.projects.clients.name}
-                                                        className="h-3 w-auto max-w-[20px] object-contain opacity-70 grayscale group-hover:grayscale-0 transition-all"
-                                                    />
-                                                )}
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-gray-500 transition-colors">
-                                                    {t.projects?.clients?.name} <span className="text-gray-300">|</span> {t.projects?.job_number}
-                                                </span>
-                                            </div>
-
-                                            {/* Main: Title & Desc */}
-                                            <div className="font-bold text-gray-900 truncate text-sm leading-tight group-hover:text-blue-700 transition-colors">
-                                                {t.projects?.title || 'Unbekanntes Projekt'}
-                                            </div>
-                                            {t.description && (
-                                                <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                    {t.description}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Right: Hours (Hidden on Hover) */}
-                                        <div className="font-mono font-bold text-blue-600 text-sm whitespace-nowrap bg-blue-100/50 px-2 py-1 rounded-lg group-hover:opacity-0 transition-opacity duration-200">
-                                            {Number(t.hours).toFixed(2)} h
-                                        </div>
-
-                                        {/* Hover Action: Edit Button */}
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
-                                            <span className="bg-gray-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-md flex items-center gap-1.5">
-                                                Bearbeiten
-                                            </span>
-                                        </div>
+                            <span className="text-sm text-gray-400 font-medium opacity-60">Noch keine Stunden heute.</span>
+                        )}
+                        <button
+                            onClick={() => setShowAddTimeModal(true)}
+                            className="absolute bottom-0 w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                        >
+                            <Plus size={14} strokeWidth={3} /> Stunden hinzufügen
+                        </button>
+                    </div>
+                );
+            case 'deadlines':
+                return (
+                    <div className="h-full flex flex-col items-center justify-center">
+                        {deadlines.length === 0 ? (
+                            <span className="text-sm text-gray-400 font-medium opacity-60">Keine anstehenden Termine.</span>
+                        ) : (
+                            <div className="w-full space-y-2">
+                                {deadlines.map(p => (
+                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl bg-orange-50/50 border border-orange-100">
+                                        <div className={`w-2 h-2 rounded-full ${getDeadlineColorClass(p.deadline!)}`} />
+                                        <span className="text-sm font-bold text-gray-800 truncate flex-1">{p.title}</span>
+                                        <span className="text-[10px] font-bold text-gray-400">{new Date(p.deadline!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}.</span>
                                     </div>
                                 ))}
                             </div>
                         )}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setEntryToEdit(undefined);
-                                setShowAddTimeModal(true);
-                            }}
-                            className="mt-4 w-[90%] mx-auto py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition shadow-sm hover:shadow-md"
-                        >
-                            <Plus size={16} /> Stunden hinzufügen
-                        </button>
                     </div>
-                </BentoBox>
-
-                {/* 3. DEADLINES / UPDATES */}
-                <BentoBox title="Nächste Deadlines" icon={Calendar} color="orange">
-                    {deadlines.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-gray-400">Keine anstehenden Termine.</div>
-                    ) : (
-                        <div className="space-y-1">
-                            {deadlines.map(p => (
-                                <ListItem
-                                    key={p.id + 'dl'}
-                                    icon={<span className="text-orange-500 font-bold text-xs">{new Date(p.deadline!).getDate()}.</span>}
-                                    title={p.title}
-                                    subtitle={p.clients?.name || 'Deadline'}
+                );
+            case 'resource_planning':
+                return (
+                    <div className="h-full flex items-center justify-center text-gray-300">
+                        {/* Placeholder for weekly plan visualization */}
+                        <div className="w-full grid grid-cols-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center opacity-50">
+                            <span>Projekt</span>
+                            <span>Mo</span>
+                            <span>Di</span>
+                            <span>Mi</span>
+                            <span>Do</span>
+                            <span>Fr</span>
+                        </div>
+                    </div>
+                );
+            case 'favorite_projects':
+                return (
+                    <div className="h-full flex flex-col gap-3">
+                        {favoriteProjects.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-300 py-8">
+                                <Star size={32} strokeWidth={1.5} className="opacity-40" />
+                                <span className="text-xs font-medium mt-3">Noch keine Favoriten</span>
+                            </div>
+                        ) : (
+                            favoriteProjects.map(p => (
+                                <button
+                                    key={p.id}
                                     onClick={() => onSelectProject(p)}
-                                    action={<span className="text-xs text-gray-400 font-medium">{Math.ceil((new Date(p.deadline!).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} Tage</span>}
-                                />
+                                    className="group relative flex items-center gap-4 p-4 bg-white/50 backdrop-blur-sm border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 rounded-2xl transition-all w-full text-left shadow-sm hover:shadow-md"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                                        <Star size={18} fill="currentColor" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <span className="block text-sm font-bold text-gray-800 truncate">{p.title}</span>
+                                        <span className="block text-[10px] font-medium text-gray-400 uppercase tracking-widest mt-0.5">{p.clients?.name}</span>
+                                    </div>
+                                    <ArrowRight size={16} className="text-gray-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                                </button>
+                            ))
+                        )}
+                    </div>
+                );
+            case 'private_todos':
+                return (
+                    <div className="h-full flex flex-col">
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                            {userPersonalTodos.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60 py-8">
+                                    <CheckCircle2 size={32} strokeWidth={1.5} />
+                                    <span className="text-xs font-medium mt-2">Private Liste leer</span>
+                                </div>
+                            ) : (
+                                userPersonalTodos.map(t => (
+                                    <div key={t.id} className="group flex items-start gap-3 p-3 rounded-2xl hover:bg-white/80 hover:shadow-sm transition-all border border-transparent hover:border-gray-100">
+                                        <button
+                                            onClick={() => onToggleTodo(t.id, !t.is_done)}
+                                            className="mt-0.5 w-5 h-5 rounded-full border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center shrink-0 shadow-sm"
+                                        >
+                                            {t.is_done && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
+                                        </button>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-gray-800 leading-snug truncate group-hover:text-blue-600 transition-colors">{t.title}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
+    // ─── Render ───────────────────────────────────────────────────
+    if (!currentUser) return null;
+
+    return (
+        <div className="min-h-screen bg-gray-50/50 p-6 md:p-10 max-w-[1920px] mx-auto animate-in fade-in duration-500">
+
+            {/* Header */}
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none">Guten Morgen, {currentUser.name.split(' ')[0]}.</h1>
+                    <p className="text-gray-500 font-medium mt-2">Hier ist dein Überblick für heute.</p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 shrink-0">
+                    <button
+                        onClick={() => setShowSpotlight(true)}
+                        className="w-11 h-11 bg-white border border-gray-100 rounded-xl text-gray-400 flex items-center justify-center hover:border-blue-300 hover:text-blue-500 hover:shadow-md transition-all group"
+                        title="Suche (Cmd+K)"
+                    >
+                        <Search size={20} strokeWidth={2.5} />
+                    </button>
+                    {isEditMode && (
+                        <button onClick={() => setShowGallery(true)} className="bg-white border border-gray-100 hover:border-blue-300 text-gray-700 hover:text-blue-600 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                            <Plus size={16} strokeWidth={3} /> Widget
+                        </button>
+                    )}
+                    <button onClick={() => onQuickAction('create_project')} className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-gray-200 flex items-center gap-2">
+                        <Plus size={16} strokeWidth={3} /> Projekt
+                    </button>
+                    {/* Settings / Edit Mode Toggle */}
+                    <button
+                        onClick={() => setIsEditMode(!isEditMode)}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${isEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border border-gray-100 text-gray-400 hover:text-gray-900'}`}
+                    >
+                        {isEditMode ? <Check size={20} strokeWidth={3} /> : <Settings2 size={20} />}
+                    </button>
+                </div>
+            </header>
+
+            {/* Grid Layout */}
+            <div className="relative">
+                <ResponsiveGridLayout
+                    className="layout"
+                    layouts={{ lg: layoutState }}
+                    breakpoints={GRID_COLS}
+                    cols={GRID_COLS}
+                    rowHeight={ROW_HEIGHT}
+                    isDraggable={isEditMode}
+                    isResizable={isEditMode}
+                    onLayoutChange={(layout) => handleLayoutChange(layout as any)}
+                    onDragStop={(layout) => saveLayout(layout as any)}
+                    onResizeStop={(layout) => saveLayout(layout as any)}
+                    margin={[24, 24]}
+                    containerPadding={[0, 0]}
+                    draggableHandle=".drag-handle"
+                >
+                    {currentWidgets.map(widget => {
+                        const info = allAvailableWidgets.find(i => i.id === widget.id);
+                        if (!info) return <div key={widget.id} data-grid={{ x: 0, y: 0, w: 4, h: 6 }}>Unknown Widget</div>;
+
+                        return (
+                            <div key={widget.id} className="group relative flex flex-col bg-white rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-shadow">
+                                {/* Header */}
+                                <div className="p-6 pb-2 flex items-center gap-3 shrink-0 drag-handle cursor-grab active:cursor-grabbing">
+                                    <div className={`w-8 h-8 rounded-xl bg-${info.color}-50 text-${info.color}-500 flex items-center justify-center`}>
+                                        <info.icon size={16} strokeWidth={2.5} />
+                                    </div>
+                                    <span className="text-base font-bold text-gray-900 tracking-tight">{info.title}</span>
+                                    {widget.id === 'assigned_todos' && (
+                                        <span className="ml-auto w-6 h-6 rounded-full bg-gray-50 text-gray-500 text-[10px] font-black flex items-center justify-center">
+                                            {assignedTasks.length}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 p-6 pt-2 overflow-hidden">
+                                    {renderWidgetContent(widget.id, widget.w, widget.h)}
+                                </div>
+
+                                {/* Edit Mode Controls */}
+                                {isEditMode && (
+                                    <>
+                                        <div className="absolute inset-0 border-2 border-blue-500/20 rounded-[32px] pointer-events-none" />
+                                        <button
+                                            onClick={() => handleRemoveWidget(widget.id)}
+                                            className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer z-50"
+                                        >
+                                            <Minus size={16} strokeWidth={4} />
+                                        </button>
+                                        {/* Resize Handle Override - react-grid-layout adds its own handle, but we can style it or overlay */}
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })}
+                </ResponsiveGridLayout>
+
+                {/* Empty State / Add Widget Button (if no widgets) */}
+                {currentWidgets.length === 0 && (
+                    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[32px]">
+                        <p className="text-gray-400 font-medium mb-4">Dein Dashboard ist leer.</p>
+                        <button onClick={() => setShowGallery(true)} className="bg-blue-600 text-white px-6 py-2 rounded-xl text-sm font-bold">Variablen hinzufügen</button>
+                    </div>
+                )}
+            </div>
+
+            {/* Widget Gallery Modal */}
+            {showGallery && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-gray-900/40 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 p-12">
+                        <div className="flex justify-between items-center mb-10">
+                            <h2 className="text-3xl font-black text-gray-900">Widget hinzufügen</h2>
+                            <button onClick={() => setShowGallery(false)} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"><Plus size={24} className="rotate-45" /></button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {allAvailableWidgets.filter(w => !currentWidgets.find(cw => cw.id === w.id)).map(w => (
+                                <button key={w.id} onClick={() => handleAddWidget(w.id as WidgetId)} className="flex items-center gap-4 p-6 rounded-3xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group">
+                                    <div className={`w-12 h-12 rounded-2xl bg-${w.color}-50 text-${w.color}-500 flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                        <w.icon size={24} />
+                                    </div>
+                                    <span className="font-bold text-gray-900">{w.title}</span>
+                                </button>
                             ))}
                         </div>
-                    )}
-                </BentoBox>
-            </div>
+                    </div>
+                </div>
+            )}
 
-            {/* BOTTOM: SCHEDULE (GLASS CARD) */}
-            <div className="h-[35%] shrink-0 flex flex-col bg-white/70 backdrop-blur-xl border border-white/60 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                <div className="p-6 border-b border-gray-100/50 flex justify-between items-center shrink-0">
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <Clock size={20} className="text-gray-400" />
-                        Wochenplan {new Date().getFullYear()} / {weeklyData.rows?.[0] ? 'KW Current' : 'Aktuell'}
-                        <span className="text-gray-400 font-medium text-lg ml-2">({weeklyData.total.toFixed(2)} h)</span>
-                    </h2>
-                </div>
-                <div className="flex-1 overflow-auto p-0">
-                    <table className="w-full text-sm text-left border-collapse">
-                        <thead className="bg-gray-50/50 text-xs font-bold text-gray-500 sticky top-0 backdrop-blur-md z-10">
-                            <tr>
-                                <th className="px-6 py-3 border-b border-gray-200/50 w-1/3">Projekt</th>
-                                {weeklyData.days.map(d => (
-                                    <th key={d.iso} className="px-2 py-3 text-center border-b border-gray-200/50 w-16">
-                                        {d.iso.substring(0, 2).toUpperCase()}
-                                    </th>
-                                ))}
-                                <th className="px-6 py-3 text-center border-b border-gray-200/50 w-24">Gesamt</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100/50">
-                            {weeklyData.rows.map((row: any) => (
-                                <tr key={row.project?.id} className="hover:bg-white/50 transition">
-                                    <td className="px-6 py-3">
-                                        <div className="font-bold text-gray-900">{row.project?.title}</div>
-                                        <div className="text-xs text-gray-500">{row.project?.clients?.name}</div>
-                                    </td>
-                                    {weeklyData.days.map((d: any) => (
-                                        <td key={d.iso} className="px-2 py-3 text-center">
-                                            {row.hoursByDay[d.iso] > 0 ? (
-                                                <span className="font-bold text-gray-900">{row.hoursByDay[d.iso]}</span>
-                                            ) : <span className="text-gray-300">-</span>}
-                                        </td>
-                                    ))}
-                                    <td className="px-6 py-3 text-center font-bold text-gray-900">{row.total.toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {/* ADD TIME MODAL */}
-            {/* ADD TIME MODAL */}
-            <TimeEntryModal
-                isOpen={showAddTimeModal}
-                onClose={() => setShowAddTimeModal(false)}
-                currentUser={currentUser}
+            <TimeEntryModal isOpen={showAddTimeModal} onClose={() => setShowAddTimeModal(false)} currentUser={currentUser} projects={projects} entryToEdit={entryToEdit} onEntryCreated={() => { fetchData(); setShowAddTimeModal(false); }} />
+
+            <SpotlightSearch
+                isOpen={showSpotlight}
+                onClose={() => setShowSpotlight(false)}
                 projects={projects}
-                entryToEdit={entryToEdit} // Pass the entry to edit
-                onEntryCreated={() => {
-                    fetchData(); // Refresh data
-                    setShowAddTimeModal(false);
-                }}
+                todos={assignedTasks}
+                onNavigate={(type, id) => console.log('Navigate', type, id)}
             />
         </div>
     );

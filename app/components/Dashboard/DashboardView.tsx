@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { LayoutGrid, Plus, Search, Timer, ChevronsUpDown } from 'lucide-react';
+import { LayoutGrid, Plus, Search, Timer, ChevronsUpDown, Settings2, X, Eye, EyeOff, ArrowUp, ArrowDown, Save } from 'lucide-react';
 import { Project, Client, Employee } from '../../types';
 import ProjectList from '../Projects/ProjectList';
 import UserAvatar from '../UI/UserAvatar';
@@ -10,6 +10,7 @@ import { supabase } from '../../supabaseClient';
 import { Todo } from '../../types';
 import { useApp } from '../../context/AppContext';
 import ConfirmModal from '../Modals/ConfirmModal';
+import { deleteFileFromSupabase, uploadFileToSupabase } from '../../utils/supabaseUtils';
 
 interface DashboardViewProps {
     projects: Project[];
@@ -101,6 +102,7 @@ export default function DashboardView({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+
     return (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 relative">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-100 pb-8">
@@ -183,6 +185,7 @@ export default function DashboardView({
                         <Plus size={18} strokeWidth={3} /> Projekt hinzufügen
                     </button>
 
+
                     {/* FILTER MENU */}
                     <FilterMenu
                         employees={relevantPms}
@@ -195,6 +198,7 @@ export default function DashboardView({
                     />
                 </div>
             </header>
+
 
             <div className="mb-4 flex items-center gap-2">
                 {/* Remove redundant horizontal filter list, or keep as active filter pills? */}
@@ -223,7 +227,7 @@ export default function DashboardView({
                 projects={filteredProjects}
                 selectedClient={selectedClient}
                 onSelectProject={onSelectProject}
-                showOpenTodos={false} // Removed legacy prop requirement or handled inside? The prop was showOpenTodos={advancedFilters.showOpenTodos}. We removed that filter from menu for now as current user didn't request it explicitly in new prompt, but could re-add if needed.
+                showOpenTodos={false}
                 onTaskClick={(t) => setSelectedTask(t)}
             />
 
