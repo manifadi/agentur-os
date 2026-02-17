@@ -11,9 +11,10 @@ interface TodoListProps {
     onUpdate: (id: string, title: string, assigneeId: string | null, deadline: string | null) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
     onTaskClick?: (task: Todo) => void;
+    highlightId?: string | null;
 }
 
-export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, onDelete, onTaskClick }: TodoListProps) {
+export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, onDelete, onTaskClick, highlightId }: TodoListProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newAssignee, setNewAssignee] = useState('');
@@ -101,16 +102,25 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
     };
 
     return (
-        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[300px]">
+        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col min-h-[300px]">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-gray-400" /> Aufgaben</h2>
-            <div className="overflow-y-auto pr-2 space-y-3 flex-1">
+            <div className="overflow-y-auto pr-2 px-2 py-1 space-y-3 flex-1 custom-scrollbar">
                 {todos.filter(t => !t.parent_id || pendingIds.has(t.id)).map((todo) => {
                     const isPending = pendingIds.has(todo.id);
                     const isDoneEffective = todo.is_done || isPending;
                     const subtaskCount = todos.filter(t => t.parent_id === todo.id).length;
+                    const isHighlighted = highlightId === todo.id;
 
                     return (
-                        <div key={todo.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 group transition">
+                        <div
+                            key={todo.id}
+                            ref={(el) => {
+                                if (isHighlighted && el) {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }}
+                            className={`flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 group transition ${isHighlighted ? 'animate-highlight' : ''}`}
+                        >
                             {editingId === todo.id ? (
                                 <div className="flex flex-1 items-center gap-2 flex-wrap">
                                     <input autoFocus type="text" className="flex-1 min-w-[120px] bg-gray-50 rounded-xl border-none text-sm px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />

@@ -51,6 +51,8 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         clientId: project.client_id
     });
 
+    const highlightId = searchParams.get('highlight_task_id');
+
     const pdfInputRef = useRef<HTMLInputElement>(null);
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
@@ -193,30 +195,30 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
 
         // Project-specific Realtime listener
         const channel = supabase
-            .channel(`project-details-${project.id}`)
+            .channel(`project - details - ${project.id} `)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'todos', filter: `project_id=eq.${project.id}` },
+                { event: '*', schema: 'public', table: 'todos', filter: `project_id = eq.${project.id} ` },
                 () => fetchDetails()
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'project_logs', filter: `project_id=eq.${project.id}` },
+                { event: '*', schema: 'public', table: 'project_logs', filter: `project_id = eq.${project.id} ` },
                 () => fetchDetails()
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'time_entries', filter: `project_id=eq.${project.id}` },
+                { event: '*', schema: 'public', table: 'time_entries', filter: `project_id = eq.${project.id} ` },
                 () => fetchDetails()
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'project_sections', filter: `project_id=eq.${project.id}` },
+                { event: '*', schema: 'public', table: 'project_sections', filter: `project_id = eq.${project.id} ` },
                 () => fetchDetails()
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'project_positions', filter: `project_id=eq.${project.id}` },
+                { event: '*', schema: 'public', table: 'project_positions', filter: `project_id = eq.${project.id} ` },
                 () => fetchDetails()
             )
             .subscribe();
@@ -236,7 +238,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             .from('project_logs')
             .select('*, employees(id, name, initials, avatar_url)')
             .eq('project_id', project.id)
-            .or(`is_public.eq.true${currentEmployee?.id ? `,employee_id.eq.${currentEmployee.id}` : ''}`)
+            .or(`is_public.eq.true${currentEmployee?.id ? `,employee_id.eq.${currentEmployee.id}` : ''} `)
             .order('entry_date', { ascending: false });
         if (l) setLogs(l as any);
 
@@ -393,7 +395,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 <button onClick={onClose} className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"><ArrowLeft size={16} className="mr-1" /> Zurück zur Übersicht</button>
                 <div className="flex gap-2 self-end">
                     <button onClick={() => setShowTimeModal(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black shadow-sm transition"><Upload size={16} /> Zeit erfassen</button>
-                    <button onClick={() => window.location.href = `/projekte/erstellen?edit=${project.id}`} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Bearbeiten</button>
+                    <button onClick={() => window.location.href = `/ projekte / erstellen ? edit = ${project.id} `} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Bearbeiten</button>
                     <button onClick={onDeleteProject} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
                 </div>
             </div>
@@ -421,7 +423,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         <h1 className="text-2xl md:text-3xl font-bold tracking-tight break-words">{project.title}</h1>
                         <button
                             onClick={handleToggleFavorite}
-                            className={`p-1.5 rounded-lg transition-all ${isFavorite ? 'text-yellow-400 fill-yellow-400 bg-yellow-50' : 'text-gray-300 hover:text-gray-400 bg-gray-50'}`}
+                            className={`p - 1.5 rounded - lg transition - all ${isFavorite ? 'text-yellow-400 fill-yellow-400 bg-yellow-50' : 'text-gray-300 hover:text-gray-400 bg-gray-50'} `}
                             title={isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                         >
                             <Star size={20} strokeWidth={isFavorite ? 2.5 : 2} />
@@ -430,7 +432,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     <div className="relative" ref={statusDropdownRef}>
                         <button
                             onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all hover:brightness-95 flex items-center gap-1 ${getStatusStyle(project.status)}`}
+                            className={`px - 3 py - 1 rounded - full text - xs font - medium border transition - all hover: brightness - 95 flex items - center gap - 1 ${getStatusStyle(project.status)} `}
                         >
                             {project.status}
                         </button>
@@ -441,10 +443,10 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                     <button
                                         key={status}
                                         onClick={() => handleStatusUpdate(status)}
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between group transition-colors ${project.status === status ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                                        className={`w - full text - left px - 4 py - 2 text - sm hover: bg - gray - 50 flex items - center justify - between group transition - colors ${project.status === status ? 'text-blue-600 font-semibold' : 'text-gray-700'} `}
                                     >
                                         <span className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${getStatusStyle(status).split(' ')[0]}`}></div>
+                                            <div className={`w - 2 h - 2 rounded - full ${getStatusStyle(status).split(' ')[0]} `}></div>
                                             {status}
                                         </span>
                                         {project.status === status && <div className="w-1 h-1 bg-blue-600 rounded-full" />}
@@ -466,7 +468,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             className="shadow-sm"
                         />
                     </div>
-                    <div className={`mt-2 text-xs font-medium ${getDeadlineColorClass(project.deadline)}`}>Deadline: {project.deadline || '-'}</div>
+                    <div className={`mt - 2 text - xs font - medium ${getDeadlineColorClass(project.deadline)} `}>Deadline: {project.deadline || '-'}</div>
                 </div>
             </div>
 
@@ -474,13 +476,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             <div className="flex gap-6 border-b border-gray-100 mb-6">
                 <button
                     onClick={() => handleTabChange('details')}
-                    className={`pb-3 text-sm font-bold transition ${activeTab === 'details' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
+                    className={`pb - 3 text - sm font - bold transition ${activeTab === 'details' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-700'} `}
                 >
                     Projekt Details
                 </button>
                 <button
                     onClick={() => handleTabChange('contract')}
-                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'contract' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
+                    className={`pb - 3 text - sm font - bold transition flex items - center gap - 2 ${activeTab === 'contract' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'} `}
                 >
                     <FileText size={16} /> Vertrag & Angebot
                 </button>
@@ -528,6 +530,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             onUpdate={handleUpdateTodo}
                             onDelete={handleDeleteTodo}
                             onTaskClick={(t) => setSelectedTask(t)}
+                            highlightId={highlightId}
                         />
                     </div>
                 </div>

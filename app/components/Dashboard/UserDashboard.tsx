@@ -8,6 +8,11 @@ import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
 import TimeEntryModal from '../Modals/TimeEntryModal';
+import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
+import { useRouter } from 'next/navigation';
+
+import Link from 'next/link';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -80,7 +85,8 @@ function migrateConfig(savedWidgets: any[]): DashboardWidgetConfig[] {
 
 // ─── Component ────────────────────────────────────────────────────
 export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
-    const { currentUser, projects, allocations, members, timeEntries, fetchData } = useApp();
+    const router = useRouter();
+    const { currentUser, employees, projects, allocations, members, timeEntries, fetchData } = useApp();
     const [showAddTimeModal, setShowAddTimeModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [showGallery, setShowGallery] = useState(false); // Widget gallery
@@ -88,6 +94,8 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     // We keep local state for the layout to ensure smooth dragging
     const [layoutState, setLayoutState] = useState<RGLLayoutItem[]>([]);
     const [entryToEdit, setEntryToEdit] = useState<TimeEntry | undefined>(undefined);
+    const [selectedTask, setSelectedTask] = useState<Todo | null>(null);
+    const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void; } | null>(null);
 
     // ─── Data Prep ───────────────────────────────────────────────
     const assignedTasks = currentUser ? projects.flatMap(p =>
@@ -96,13 +104,24 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             .map(t => ({ ...t, project: p }))
     ) : [];
 
-    const todayTotal = useMemo(() => {
+    const todayEntries = useMemo(() => {
         const todayStr = new Date().toISOString().split('T')[0];
-        return (timeEntries || []).filter((t: any) => t.date === todayStr).reduce((acc: number, t: any) => acc + (Number(t.hours) || 0), 0);
+        return (timeEntries || []).filter((t: any) => t.date === todayStr);
     }, [timeEntries]);
 
+    const todayTotal = useMemo(() => {
+        return todayEntries.reduce((acc: number, t: any) => acc + (Number(t.hours) || 0), 0);
+    }, [todayEntries]);
+
     const deadlines = projects
-        .filter(p => p.deadline && new Date(p.deadline) > new Date())
+        .filter(p => {
+            if (!p.deadline) return false;
+            const deadlineDate = new Date(p.deadline);
+            const now = new Date();
+            const diffDays = (deadlineDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+            // Show if upcoming OR overdue by less than 3 days
+            return diffDays > -3;
+        })
         .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
         .slice(0, 5);
 
@@ -207,30 +226,51 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             case 'assigned_todos':
                 return (
                     <div className="h-full flex flex-col">
-                        <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 space-y-3 custom-scrollbar">
                             {assignedTasks.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
                                     <CheckSquare size={32} strokeWidth={1.5} />
                                     <span className="text-xs font-medium mt-2">Alles erledigt</span>
                                 </div>
                             ) : (
-                                assignedTasks.map(t => (
-                                    <div key={t.id} className="group flex items-start gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                                (assignedTasks as any[]).map(t => (
+                                    <div
+                                        key={t.id}
+                                        onClick={() => router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`)}
+                                        className="group/item relative flex items-start gap-4 p-4 rounded-2xl hover:bg-white/60 transition-all border border-transparent hover:border-gray-200/50 hover:shadow-sm cursor-pointer"
+                                    >
                                         <button
-                                            onClick={() => onToggleTodo(t.id, !t.is_done)}
-                                            className="mt-0.5 w-5 h-5 rounded-full border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center shrink-0"
+                                            onClick={(e) => { e.stopPropagation(); onToggleTodo(t.id, !t.is_done); }}
+                                            className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${t.is_done ? 'bg-blue-500 border-blue-500' : 'border-gray-300 group-hover/item:border-blue-400'}`}
                                         >
-                                            {t.is_done && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
+                                            {t.is_done && <Check size={10} className="text-white" />}
                                         </button>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-800 leading-snug truncate">{t.title}</p>
-                                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-0.5 truncate">{t.project?.title}</p>
+                                        <div className="flex-1 min-w-0 pr-8">
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className={`text-sm font-semibold transition-all leading-tight ${t.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover/item:text-blue-700'}`}>
+                                                    {t.title}
+                                                    {t.title.length > 30 && '...'}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{t.project?.title}</span>
+                                            </div>
+                                            {t.deadline && (
+                                                <div className={`flex items-center gap-1 text-[10px] font-medium mt-1.5 ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-400'}`}>
+                                                    <Calendar size={10} />
+                                                    {new Date(t.deadline).toLocaleDateString('de-DE')}
+                                                </div>
+                                            )}
                                         </div>
-                                        {t.deadline && (
-                                            <span className={`ml-auto text-[10px] font-bold ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-300'}`}>
-                                                {new Date(t.deadline).getDate()}.{new Date(t.deadline).getMonth() + 1}.
-                                            </span>
-                                        )}
+
+                                        {/* Floating Action Button */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`);
+                                            }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                                        >
+                                            Details <ArrowRight size={10} />
+                                        </button>
                                     </div>
                                 ))
                             )}
@@ -239,21 +279,49 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 );
             case 'time_tracking':
                 return (
-                    <div className="h-full flex flex-col items-center justify-center relative">
-                        {todayTotal > 0 ? (
-                            <div className="text-center">
-                                <span className="text-5xl font-black text-gray-900 tracking-tighter tabular-nums">{todayTotal.toFixed(1)}</span>
-                                <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">Stunden heute</span>
+                    <div className="h-full flex flex-col">
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar pb-14">
+                            {todayEntries.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60 py-8">
+                                    <Clock size={32} strokeWidth={1.5} />
+                                    <span className="text-xs font-medium mt-2">Noch keine Einträge heute</span>
+                                </div>
+                            ) : (
+                                todayEntries.map((entry: any) => (
+                                    <div
+                                        key={entry.id}
+                                        onClick={() => { setEntryToEdit(entry); setShowAddTimeModal(true); }}
+                                        className="group flex items-center justify-between p-3 rounded-xl hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 transition-all cursor-pointer"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-gray-900">{entry.hours}h</span>
+                                                <span className="text-xs text-gray-500 truncate">{entry.projects?.title || 'Intern'}</span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 truncate mt-0.5">{entry.description || 'Keine Beschreibung'}</div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setEntryToEdit(entry); setShowAddTimeModal(true); }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-blue-600 transition-all"
+                                        >
+                                            <Settings2 size={14} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-lg">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Heute Gesamt</span>
+                                <span className="text-xl font-black text-gray-900">{todayTotal.toFixed(2)}h</span>
                             </div>
-                        ) : (
-                            <span className="text-sm text-gray-400 font-medium opacity-60">Noch keine Stunden heute.</span>
-                        )}
-                        <button
-                            onClick={() => setShowAddTimeModal(true)}
-                            className="absolute bottom-0 w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                        >
-                            <Plus size={14} strokeWidth={3} /> Stunden hinzufügen
-                        </button>
+                            <button
+                                onClick={() => { setEntryToEdit(undefined); setShowAddTimeModal(true); }}
+                                className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center hover:scale-105 transition-all shadow-md shadow-gray-200"
+                            >
+                                <Plus size={18} strokeWidth={3} />
+                            </button>
+                        </div>
                     </div>
                 );
             case 'deadlines':
@@ -319,7 +387,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             case 'private_todos':
                 return (
                     <div className="h-full flex flex-col">
-                        <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 space-y-3 custom-scrollbar">
                             {userPersonalTodos.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60 py-8">
                                     <CheckCircle2 size={32} strokeWidth={1.5} />
@@ -327,16 +395,33 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 </div>
                             ) : (
                                 userPersonalTodos.map(t => (
-                                    <div key={t.id} className="group flex items-start gap-3 p-3 rounded-2xl hover:bg-white/80 hover:shadow-sm transition-all border border-transparent hover:border-gray-100">
+                                    <div
+                                        key={t.id}
+                                        onClick={() => setSelectedTask(t as any)}
+                                        className="group/item relative flex items-center gap-4 p-4 rounded-2xl hover:bg-white/60 transition-all border border-transparent hover:border-gray-200/50 hover:shadow-sm cursor-pointer"
+                                    >
                                         <button
-                                            onClick={() => onToggleTodo(t.id, !t.is_done)}
-                                            className="mt-0.5 w-5 h-5 rounded-full border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center shrink-0 shadow-sm"
+                                            onClick={(e) => { e.stopPropagation(); onToggleTodo(t.id, !t.is_done); }}
+                                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${t.is_done ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover/item:border-green-500'}`}
                                         >
-                                            {t.is_done && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
+                                            {t.is_done && <Check size={10} className="text-white" />}
                                         </button>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-800 leading-snug truncate group-hover:text-blue-600 transition-colors">{t.title}</p>
+                                        <div className="flex-1 min-w-0 pr-10">
+                                            <div className={`text-sm font-semibold transition-all leading-tight ${t.is_done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                                {t.title}
+                                            </div>
                                         </div>
+
+                                        {/* Floating Action Button */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedTask(t as any);
+                                            }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                                        >
+                                            Bearbeiten
+                                        </button>
                                     </div>
                                 ))
                             )}
@@ -352,7 +437,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     if (!currentUser) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50/50 p-6 md:p-10 max-w-[1920px] mx-auto animate-in fade-in duration-500">
+        <div className="min-h-screen p-6 md:p-10 max-w-[1920px] mx-auto animate-in fade-in duration-500">
 
             {/* Header */}
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
@@ -480,6 +565,42 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
             <TimeEntryModal isOpen={showAddTimeModal} onClose={() => setShowAddTimeModal(false)} currentUser={currentUser} projects={projects} entryToEdit={entryToEdit} onEntryCreated={() => { fetchData(); setShowAddTimeModal(false); }} />
 
+            {selectedTask && (
+                <TaskDetailSidebar
+                    task={selectedTask}
+                    employees={employees}
+                    projects={projects}
+                    onClose={() => setSelectedTask(null)}
+                    onTaskClick={(t) => setSelectedTask(t)}
+                    onUpdate={async (id, updates) => {
+                        const { error } = await supabase.from('todos').update(updates).eq('id', id);
+                        if (!error) fetchData();
+                    }}
+                    onDelete={async (id) => {
+                        setConfirmConfig({
+                            title: 'Aufgabe löschen?',
+                            message: 'Möchtest du diese Aufgabe wirklich unwiderruflich löschen?',
+                            onConfirm: async () => {
+                                const { error } = await supabase.from('todos').delete().eq('id', id);
+                                if (!error) {
+                                    setSelectedTask(null);
+                                    fetchData();
+                                }
+                                setConfirmConfig(null);
+                            }
+                        });
+                    }}
+                    onRefresh={fetchData}
+                />
+            )}
+
+            <ConfirmModal
+                isOpen={!!confirmConfig}
+                onCancel={() => setConfirmConfig(null)}
+                onConfirm={confirmConfig?.onConfirm || (() => { })}
+                title={confirmConfig?.title || ''}
+                message={confirmConfig?.message || ''}
+            />
         </div>
     );
 }

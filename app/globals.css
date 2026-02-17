@@ -111,6 +111,17 @@ body {
   animation: wiggle 0.5s ease-in-out infinite;
 }
 
+@keyframes highlight-scale {
+  0% { transform: scale(1); background-color: transparent; }
+  10% { transform: scale(1.02); background-color: rgba(59, 130, 246, 0.1); }
+  30% { transform: scale(1.02); background-color: rgba(59, 130, 246, 0.1); }
+  100% { transform: scale(1); background-color: transparent; }
+}
+
+.animate-highlight {
+  animation: highlight-scale 2s ease-out forwards;
+}
+
 /* React Grid Layout Overrides */
 .react-grid-item.react-grid-placeholder {
     background: rgba(0, 0, 0, 0.05) !important;
