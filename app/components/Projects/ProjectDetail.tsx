@@ -203,7 +203,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'project_logs', filter: `project_id = eq.${project.id} ` },
+                { event: '*', schema: 'public', table: 'project_logs', filter: `project_id=eq.${project.id}` },
                 () => fetchDetails()
             )
             .on(
@@ -234,12 +234,14 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         const { data: t } = await supabase.from('todos').select(`*, employees(id, initials, name, email, phone, avatar_url)`).eq('project_id', project.id).order('created_at', { ascending: true });
         if (t) setTodos(t as any);
 
-        const { data: l } = await supabase
+        const { data: l, error: lError } = await supabase
             .from('project_logs')
             .select('*, employees(id, name, initials, avatar_url)')
             .eq('project_id', project.id)
-            .or(`is_public.eq.true${currentEmployee?.id ? `,employee_id.eq.${currentEmployee.id}` : ''} `)
+            .or(`is_public.eq.true${currentEmployee?.id ? `,employee_id.eq.${currentEmployee.id}` : ''}`)
             .order('entry_date', { ascending: false });
+
+        if (lError) console.error("Error fetching logs:", lError);
         if (l) setLogs(l as any);
 
         const { data: s } = await supabase.from('project_sections').select(`*, positions: project_positions(*)`).eq('project_id', project.id).order('order_index');
@@ -311,8 +313,10 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             title,
             content,
             image_url: images.length > 0 ? images[0] : null,
+            image_urls: images,
             entry_date: date,
-            employee_id: currentEmployee?.id || null
+            employee_id: currentEmployee?.id || null,
+            is_public: isPublic
         } as any;
 
         if (project.organization_id) {
@@ -322,11 +326,11 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         const { error } = await supabase.from('project_logs').insert([p]);
 
         if (error) {
-            console.error("Error adding log:", error);
+            console.error("Error adding log:", error, JSON.stringify(error, null, 2));
             setConfirmConfig({
                 isOpen: true,
                 title: 'Fehler',
-                message: "Fehler beim Erstellen des Logbucheintrags: " + error.message,
+                message: `Fehler beim Erstellen des Logbucheintrags:\n${error.message}\n${error.details}\n${error.hint}\nCode: ${error.code}`,
                 onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
                 type: 'danger',
                 confirmText: 'OK',
@@ -342,7 +346,9 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             title,
             content,
             entry_date: date,
-            image_url: images.length > 0 ? images[0] : null
+            image_url: images.length > 0 ? images[0] : null,
+            image_urls: images,
+            is_public: isPublic
         }).eq('id', id);
         fetchDetails();
     };
