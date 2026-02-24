@@ -8,6 +8,7 @@ import { AppContext } from '../context/AppContext';
 import MainSidebar from './MainSidebar';
 import LoginScreen from './LoginScreen';
 import GlobalSearch from './GlobalSearch';
+import { Toaster } from 'sonner';
 
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -242,6 +243,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 )}
 
                 <GlobalSearch />
+                <Toaster position="bottom-right" expand={true} richColors duration={8000} closeButton />
 
                 <main className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}>
                     {children}

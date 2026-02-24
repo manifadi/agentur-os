@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
-import { Project, AgencySettings, Client, Employee } from '../../types';
+import { Project, AgencySettings, Client, ProjectInvoice } from '../../types';
 
 const styles = StyleSheet.create({
     page: {
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     },
     footerLine: {
         fontSize: 6,
-        color: '#6B7280', // Softer gray for cleaner look
+        color: '#6B7280',
         marginBottom: 1,
     },
     redLine: {
@@ -170,38 +170,64 @@ const styles = StyleSheet.create({
     }
 });
 
-interface ContractPDFProps {
+interface InvoicePDFProps {
     project: Project;
+    invoice: Partial<ProjectInvoice>;
     agency: AgencySettings | null;
     client: Client | null;
-    intro: string;
-    outro: string;
 }
 
-export default function ContractPDF({ project, agency, client, intro, outro }: ContractPDFProps) {
-    const getRate = (p: any) => p.hourly_rate ?? p.unit_price ?? 0;
-    const getAmount = (p: any) => p.hours_sold ?? p.quantity ?? 0;
-    const fmt = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' EUR';
-
-    let totalNet = 0;
-    if (project.sections && project.sections.length > 0) {
-        totalNet = project.sections.reduce((acc, section) => {
-            const sectionTotal = section.positions?.reduce((sum, p) => sum + (getRate(p) * getAmount(p)), 0) || 0;
-            return acc + sectionTotal;
-        }, 0);
-    } else {
-        totalNet = project.positions?.reduce((sum, p) => sum + (getRate(p) * getAmount(p)), 0) || 0;
-    }
-    const tax = totalNet * 0.20;
-    const totalGross = totalNet + tax;
-
+export default function InvoicePDF({ project, invoice, agency, client }: InvoicePDFProps) {
+    const fmt = (n: number) => (n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' EUR';
     const pm = project.employees;
+
+    const renderItems = () => {
+        if (invoice.billing_type === 'full') {
+            return (
+                <View style={styles.tableRow}>
+                    <Text style={styles.colNum}>1.0</Text>
+                    <Text style={styles.colDesc}>Gesamtabrechnung Projekt: {project.title}</Text>
+                    <Text style={styles.colQty}>1</Text>
+                    <Text style={styles.colUnit}>{fmt(invoice.total_net || 0).replace(' EUR', '')}</Text>
+                    <Text style={styles.colTotal}>{fmt(invoice.total_net || 0).replace(' EUR', '')}</Text>
+                </View>
+            );
+        } else if (invoice.billing_type === 'fraction') {
+            return (
+                <View style={styles.tableRow}>
+                    <Text style={styles.colNum}>1.0</Text>
+                    <Text style={styles.colDesc}>Teilabrechnung ({Math.round((invoice.billing_fraction || 1) * 100)}%) Projekt: {project.title}</Text>
+                    <Text style={styles.colQty}>1</Text>
+                    <Text style={styles.colUnit}>{fmt(invoice.total_net || 0).replace(' EUR', '')}</Text>
+                    <Text style={styles.colTotal}>{fmt(invoice.total_net || 0).replace(' EUR', '')}</Text>
+                </View>
+            );
+        } else if (invoice.billing_type === 'positions') {
+            const allPositions = project.sections?.flatMap(s => s.positions || []) || project.positions || [];
+            return invoice.billed_data?.items?.map((item, i) => {
+                const pos = allPositions.find(p => p.id === item.position_id);
+                if (!pos) return null;
+                return (
+                    <View key={i} style={styles.tableRow}>
+                        <Text style={styles.colNum}>{i + 1}.0</Text>
+                        <View style={styles.colDesc}>
+                            <Text style={{ fontWeight: 'bold' }}>{pos.title}</Text>
+                            <Text style={{ fontSize: 7, color: '#666' }}>Anteil: {item.percentage}% von {pos.quantity} {pos.unit}</Text>
+                        </View>
+                        <Text style={styles.colQty}>{item.percentage}%</Text>
+                        <Text style={styles.colUnit}>{fmt(pos.unit_price * pos.quantity).replace(' EUR', '')}</Text>
+                        <Text style={styles.colTotal}>{fmt(item.amount).replace(' EUR', '')}</Text>
+                    </View>
+                );
+            });
+        }
+        return null;
+    };
 
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-
-                {/* FIXED HEADER: ON EVERY PAGE */}
+                {/* FIXED HEADER */}
                 <View style={styles.headerFixed} fixed>
                     {agency?.document_header_url ? (
                         <Image src={agency.document_header_url} style={styles.headerLogo} />
@@ -213,10 +239,9 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                     )}
                 </View>
 
-                {/* META INFO (Not Fixed, flows with text) */}
+                {/* META INFO */}
                 <View style={styles.metaContainer}>
                     <View style={styles.addressBlock}>
-
                         <Text style={{ fontSize: 9, marginTop: 4 }}>{client?.full_name || client?.name}</Text>
                         <Text style={{ fontSize: 9 }}>{client?.address}</Text>
                         {project.invoice_contact?.name && <Text style={{ fontSize: 9 }}>{project.invoice_contact.name}</Text>}
@@ -225,8 +250,8 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
 
                     <View style={styles.metaBlock}>
                         <View style={styles.metaRow}>
-                            <Text style={styles.metaLabel}>Angebotsnummer</Text>
-                            <Text style={styles.metaValue}>{project.job_number}</Text>
+                            <Text style={styles.metaLabel}>Rechnungs-Nr.</Text>
+                            <Text style={styles.metaValue}>{invoice.invoice_number}</Text>
                         </View>
                         <View style={styles.metaRow}>
                             <Text style={styles.metaLabel}>Projektnummer</Text>
@@ -238,7 +263,11 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                         </View>
                         <View style={styles.metaRow}>
                             <Text style={styles.metaLabel}>Datum</Text>
-                            <Text style={styles.metaValue}>{new Date().toLocaleDateString('de-DE')}</Text>
+                            <Text style={styles.metaValue}>{new Date(invoice.invoice_date || new Date()).toLocaleDateString('de-DE')}</Text>
+                        </View>
+                        <View style={styles.metaRow}>
+                            <Text style={styles.metaLabel}>Kundennummer</Text>
+                            <Text style={styles.metaValue}>{client?.id.slice(0, 8)}</Text>
                         </View>
 
                         {pm && (
@@ -265,96 +294,42 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
 
                 {/* CONTENT */}
                 <View style={styles.titleBlock}>
-                    <Text style={styles.mainTitle}>Angebot – {project.title}</Text>
+                    <Text style={styles.mainTitle}>Rechnung – {project.title}</Text>
                 </View>
 
-                {intro && <Text style={styles.textBlock}>{intro}</Text>}
+                {invoice.intro_text && <Text style={styles.textBlock}>{invoice.intro_text}</Text>}
 
-                {/* TABLE (Restored Visuals) */}
+                {/* TABLE */}
                 <View style={styles.table}>
-                    {/* Header Background */}
                     <View style={styles.tableHeaderRow}>
                         <Text style={styles.colNum}>Pos.</Text>
                         <Text style={styles.colDesc}>Bezeichnung</Text>
-                        <Text style={styles.colQty}>Menge</Text>
-                        <Text style={styles.colUnit}>Einzel</Text>
-                        <Text style={styles.colTotal}>Gesamt</Text>
+                        <Text style={styles.colQty}>Menge / %</Text>
+                        <Text style={styles.colUnit}>Gesamtpreis Pos.</Text>
+                        <Text style={styles.colTotal}>Betreffende Summe</Text>
                     </View>
-
-                    {/* Content */}
-                    {(project.sections && project.sections.length > 0) ? project.sections.map((sec, i) => (
-                        <View key={sec.id} wrap={false}>
-                            {/* Section Title Row (No border bottom to group with items) */}
-                            <View style={[styles.tableRow, { backgroundColor: '#F9FAFB', borderBottomWidth: 0, paddingVertical: 4 }]}>
-                                <Text style={[styles.colNum, { fontWeight: 'bold' }]}>{i + 1}.0</Text>
-                                <Text style={[styles.colDesc, { fontWeight: 'bold' }]}>{sec.title}</Text>
-                                <Text style={styles.colQty}></Text>
-                                <Text style={styles.colUnit}></Text>
-                                <Text style={styles.colTotal}></Text>
-                            </View>
-
-                            {/* Positions */}
-                            {sec.positions?.map((pos, j) => (
-                                <View key={pos.id} style={styles.tableRow}>
-                                    <Text style={styles.colNum}>{i + 1}.{j + 1}</Text>
-                                    <View style={styles.colDesc}>
-                                        <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{pos.title}</Text>
-                                        {pos.description && <Text style={{ fontSize: 8, color: '#4B5563' }}>{pos.description}</Text>}
-                                    </View>
-                                    <Text style={styles.colQty}>{getAmount(pos)} {pos.unit || 'Std.'}</Text>
-                                    <Text style={styles.colUnit}>{fmt(getRate(pos)).replace(' EUR', '')}</Text>
-                                    <Text style={styles.colTotal}>{fmt(getRate(pos) * getAmount(pos)).replace(' EUR', '')}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    )) : (
-                        // Flat
-                        project.positions?.map((pos, i) => (
-                            <View key={pos.id} style={styles.tableRow} wrap={false}>
-                                <Text style={styles.colNum}>{i + 1}.0</Text>
-                                <View style={styles.colDesc}>
-                                    <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{pos.title}</Text>
-                                    {pos.description && <Text style={{ fontSize: 8, color: '#4B5563' }}>{pos.description}</Text>}
-                                </View>
-                                <Text style={styles.colQty}>{getAmount(pos)} {pos.unit || 'Std.'}</Text>
-                                <Text style={styles.colUnit}>{fmt(getRate(pos)).replace(' EUR', '')}</Text>
-                                <Text style={styles.colTotal}>{fmt(getRate(pos) * getAmount(pos)).replace(' EUR', '')}</Text>
-                            </View>
-                        ))
-                    )}
+                    {renderItems()}
                 </View>
 
                 {/* TOTALS */}
                 <View style={styles.totalBlock}>
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Nettobetrag</Text>
-                        <Text style={styles.totalValue}>{fmt(totalNet)}</Text>
+                        <Text style={styles.totalValue}>{fmt(invoice.total_net || 0)}</Text>
                     </View>
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>zzgl. 20% USt.</Text>
-                        <Text style={styles.totalValue}>{fmt(tax)}</Text>
+                        <Text style={styles.totalValue}>{fmt(invoice.total_tax || 0)}</Text>
                     </View>
                     <View style={[styles.totalRow, { borderTopWidth: 1, borderTopColor: '#000', marginTop: 4, paddingTop: 4 }]}>
                         <Text style={styles.totalLabelBold}>Gesamtsumme</Text>
-                        <Text style={styles.totalValueBold}>{fmt(totalGross)}</Text>
+                        <Text style={styles.totalValueBold}>{fmt(invoice.total_gross || 0)}</Text>
                     </View>
                 </View>
 
-                {outro && <View style={{ marginTop: 20 }}><Text style={styles.textBlock}>{outro}</Text></View>}
+                {invoice.outro_text && <View style={{ marginTop: 20 }}><Text style={styles.textBlock}>{invoice.outro_text}</Text></View>}
 
-                {/* SIGNATURES */}
-                <View style={{ marginTop: 40, flexDirection: 'row', gap: 40 }} wrap={false}>
-                    <View style={{ flex: 1 }}>
-                        <View style={{ height: 40, borderBottomWidth: 1, borderBottomColor: '#000', marginBottom: 4 }} />
-                        <Text style={{ fontSize: 7, color: '#666' }}>Ort, Datum, Unterschrift Auftraggeber</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <View style={{ height: 40, borderBottomWidth: 1, borderBottomColor: '#000', marginBottom: 4 }} />
-                        <Text style={{ fontSize: 7, color: '#666' }}>Ort, Datum, Unterschrift Auftragnehmer</Text>
-                    </View>
-                </View>
-
-                {/* FIXED FOOTER: ON EVERY PAGE */}
+                {/* FIXED FOOTER */}
                 <View style={styles.footerFixed} fixed>
                     <View style={styles.footerCol}>
                         <View style={styles.redLine} />
@@ -378,6 +353,6 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                     </View>
                 </View>
             </Page>
-        </Document>
+        </Document >
     );
 }

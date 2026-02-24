@@ -133,6 +133,30 @@ export interface Project {
     openTodosPreview?: Todo[];
     sections?: ProjectSection[];
     positions?: ProjectPosition[];
+    invoices?: ProjectInvoice[];
+}
+
+export interface ProjectInvoice {
+    id: string;
+    project_id: string;
+    organization_id: string;
+    invoice_number: string;
+    billing_type: 'full' | 'fraction' | 'positions';
+    billing_fraction?: number;
+    billed_data: {
+        items?: { position_id: string; percentage: number; amount: number }[];
+        title: string;
+    };
+    total_net: number;
+    total_tax: number;
+    total_gross: number;
+    intro_text?: string;
+    outro_text?: string;
+    invoice_date: string;
+    invoice_contact_id?: string | null;
+    status: 'draft' | 'final';
+    version: number;
+    created_at: string;
 }
 
 export interface ProjectSection {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
 import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import UserAvatar from '../UI/UserAvatar';
@@ -12,6 +12,8 @@ import TimeEntryModal from '../Modals/TimeEntryModal';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import ContractPDF from '../Contracts/ContractPDF';
 import ProjectContractTab from './ProjectContractTab';
+import ProjectInvoiceTab from './ProjectInvoiceTab';
+import { Receipt } from 'lucide-react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
 import ConfirmModal from '../Modals/ConfirmModal';
@@ -56,8 +58,8 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const pdfInputRef = useRef<HTMLInputElement>(null);
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
-    // Contract Logic
-    const [activeTab, setActiveTab] = useState<'details' | 'contract'>('details');
+    // Contract & Invoice Logic
+    const [activeTab, setActiveTab] = useState<'details' | 'contract' | 'invoice'>('details');
     const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
     const [contractIntro, setContractIntro] = useState('');
@@ -84,12 +86,12 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     // Sync Tab with URL
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab === 'contract' || tab === 'details') {
-            setActiveTab(tab);
+        if (tab === 'contract' || tab === 'details' || tab === 'invoice') {
+            setActiveTab(tab as any);
         }
     }, [searchParams]);
 
-    const handleTabChange = (tab: 'details' | 'contract') => {
+    const handleTabChange = (tab: 'details' | 'contract' | 'invoice') => {
         setActiveTab(tab);
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
@@ -478,15 +480,21 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             <div className="flex gap-6 border-b border-gray-100 mb-6">
                 <button
                     onClick={() => handleTabChange('details')}
-                    className={`pb - 3 text - sm font - bold transition ${activeTab === 'details' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-700'} `}
+                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'details' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
                 >
-                    Projekt Details
+                    <Layout size={16} /> Projekt Details
                 </button>
                 <button
                     onClick={() => handleTabChange('contract')}
-                    className={`pb - 3 text - sm font - bold transition flex items - center gap - 2 ${activeTab === 'contract' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'} `}
+                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'contract' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
                 >
                     <FileText size={16} /> Vertrag & Angebot
+                </button>
+                <button
+                    onClick={() => handleTabChange('invoice')}
+                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'invoice' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
+                >
+                    <Receipt size={16} /> Rechnung
                 </button>
             </div>
 
@@ -542,6 +550,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
             {activeTab === 'contract' && (
                 <ProjectContractTab
+                    project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
+                    agencySettings={agencySettings}
+                    templates={templates}
+                    onUpdateProject={onUpdateProject}
+                />
+            )}
+
+            {activeTab === 'invoice' && (
+                <ProjectInvoiceTab
                     project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
                     agencySettings={agencySettings}
                     templates={templates}
