@@ -311,10 +311,8 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             title,
             content,
             image_url: images.length > 0 ? images[0] : null,
-            image_urls: images,
             entry_date: date,
-            employee_id: currentEmployee?.id || null,
-            is_public: isPublic
+            employee_id: currentEmployee?.id || null
         } as any;
 
         if (project.organization_id) {
@@ -344,9 +342,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             title,
             content,
             entry_date: date,
-            image_url: images.length > 0 ? images[0] : null,
-            image_urls: images,
-            is_public: isPublic
+            image_url: images.length > 0 ? images[0] : null
         }).eq('id', id);
         fetchDetails();
     };
@@ -395,7 +391,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 <button onClick={onClose} className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"><ArrowLeft size={16} className="mr-1" /> Zurück zur Übersicht</button>
                 <div className="flex gap-2 self-end">
                     <button onClick={() => setShowTimeModal(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black shadow-sm transition"><Upload size={16} /> Zeit erfassen</button>
-                    <button onClick={() => window.location.href = `/ projekte / erstellen ? edit = ${project.id} `} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Bearbeiten</button>
+                    <button onClick={() => window.location.href = `/projekte/erstellen?edit=${project.id}`} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Bearbeiten</button>
                     <button onClick={onDeleteProject} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
                 </div>
             </div>

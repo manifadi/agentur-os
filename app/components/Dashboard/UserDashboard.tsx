@@ -97,6 +97,56 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     const [selectedTask, setSelectedTask] = useState<Todo | null>(null);
     const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void; } | null>(null);
 
+    // [FIX] Undo delay for private to-dos
+    const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+    React.useEffect(() => {
+        return () => {
+            Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
+                clearTimeout(timeout);
+                onToggleTodo(id, false); // force complete
+            });
+            pendingTimeouts.current = {};
+        };
+    }, []);
+
+    const handleTogglePrivateTodoWithDelay = async (todoId: string, currentIsDone: boolean) => {
+        if (!currentIsDone) {
+            if (pendingTimeouts.current[todoId]) return;
+
+            setPendingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(todoId);
+                return newSet;
+            });
+
+            const timeout = setTimeout(async () => {
+                await onToggleTodo(todoId, false);
+                delete pendingTimeouts.current[todoId];
+                setPendingIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(todoId);
+                    return newSet;
+                });
+            }, 3000);
+
+            pendingTimeouts.current[todoId] = timeout;
+        } else {
+            if (pendingTimeouts.current[todoId]) {
+                clearTimeout(pendingTimeouts.current[todoId]);
+                delete pendingTimeouts.current[todoId];
+                setPendingIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(todoId);
+                    return newSet;
+                });
+            } else {
+                await onToggleTodo(todoId, true);
+            }
+        }
+    };
+
     // ─── Data Prep ───────────────────────────────────────────────
     const assignedTasks = currentUser ? projects.flatMap(p =>
         (p.todos || [])
@@ -394,36 +444,41 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                     <span className="text-xs font-medium mt-2">Private Liste leer</span>
                                 </div>
                             ) : (
-                                userPersonalTodos.map(t => (
-                                    <div
-                                        key={t.id}
-                                        onClick={() => setSelectedTask(t as any)}
-                                        className="group/item relative flex items-center gap-4 p-4 rounded-2xl hover:bg-white/60 transition-all border border-transparent hover:border-gray-200/50 hover:shadow-sm cursor-pointer"
-                                    >
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onToggleTodo(t.id, !t.is_done); }}
-                                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${t.is_done ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover/item:border-green-500'}`}
-                                        >
-                                            {t.is_done && <Check size={10} className="text-white" />}
-                                        </button>
-                                        <div className="flex-1 min-w-0 pr-10">
-                                            <div className={`text-sm font-semibold transition-all leading-tight ${t.is_done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                                                {t.title}
-                                            </div>
-                                        </div>
+                                userPersonalTodos.filter(t => !t.parent_id || pendingIds.has(t.id)).map(t => {
+                                    const isPending = pendingIds.has(t.id);
+                                    const isDoneEffective = t.is_done || isPending;
 
-                                        {/* Floating Action Button */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedTask(t as any);
-                                            }}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                                    return (
+                                        <div
+                                            key={t.id}
+                                            onClick={() => setSelectedTask(t as any)}
+                                            className="group/item relative flex items-center gap-4 p-4 rounded-2xl hover:bg-white/60 transition-all border border-transparent hover:border-gray-200/50 hover:shadow-sm cursor-pointer"
                                         >
-                                            Bearbeiten
-                                        </button>
-                                    </div>
-                                ))
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleTogglePrivateTodoWithDelay(t.id, isDoneEffective); }}
+                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isDoneEffective ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover/item:border-green-500'}`}
+                                            >
+                                                {isDoneEffective && <Check size={10} className="text-white" />}
+                                            </button>
+                                            <div className="flex-1 min-w-0 pr-10">
+                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                                    {t.title}
+                                                </div>
+                                            </div>
+
+                                            {/* Floating Action Button */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedTask(t as any);
+                                                }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                                            >
+                                                Bearbeiten
+                                            </button>
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
                     </div>
