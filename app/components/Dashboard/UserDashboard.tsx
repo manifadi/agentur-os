@@ -4,7 +4,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Employee, Project, Todo, TimeEntry, DashboardConfig, WidgetId, DashboardWidgetConfig } from '../../types';
-import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2 } from 'lucide-react';
+import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2, Filter, Layout } from 'lucide-react';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
@@ -98,6 +98,11 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     const [selectedTask, setSelectedTask] = useState<Todo | null>(null);
     const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void; } | null>(null);
 
+    const [personalSort, setPersonalSort] = useState<'deadline' | 'recent' | 'manual'>('deadline');
+    const [assignedSort, setAssignedSort] = useState<'deadline' | 'recent' | 'manual'>('deadline');
+    const [showAssignedSortMenu, setShowAssignedSortMenu] = useState(false);
+    const [showPersonalSortMenu, setShowPersonalSortMenu] = useState(false);
+
     // [FIX] Undo delay for private to-dos
     const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
     const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -153,11 +158,26 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     };
 
     // ─── Data Prep ───────────────────────────────────────────────
-    const assignedTasks = currentUser ? projects.flatMap(p =>
-        (p.todos || [])
-            .filter(t => t.assigned_to === currentUser.id && (!t.is_done))
-            .map(t => ({ ...t, project: p }))
-    ) : [];
+    const assignedTasks = useMemo(() => {
+        if (!currentUser) return [];
+        const tasks = projects.flatMap(p =>
+            (p.todos || [])
+                .filter(t => t.assigned_to === currentUser.id && (!t.is_done))
+                .map(t => ({ ...t, project: p }))
+        );
+
+        if (assignedSort === 'deadline') {
+            return tasks.sort((a, b) => {
+                if (!a.deadline) return 1;
+                if (!b.deadline) return -1;
+                return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+            });
+        } else if (assignedSort === 'recent') {
+            return tasks.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        } else {
+            return tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        }
+    }, [currentUser, projects, assignedSort]);
 
     const todayEntries = useMemo(() => {
         const todayStr = new Date().toISOString().split('T')[0];
@@ -187,10 +207,22 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
     const { personalTodos } = useApp();
     const userPersonalTodos = useMemo(() => {
-        return (personalTodos || [])
+        const filtered = (personalTodos || [])
             .filter(t => currentUser ? t.assigned_to === currentUser.id : true)
             .filter(t => !t.is_done);
-    }, [personalTodos, currentUser]);
+
+        if (personalSort === 'deadline') {
+            return filtered.sort((a, b) => {
+                if (!a.deadline) return 1;
+                if (!b.deadline) return -1;
+                return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+            });
+        } else if (personalSort === 'recent') {
+            return filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        } else {
+            return filtered.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        }
+    }, [personalTodos, currentUser, personalSort]);
 
     const allAvailableWidgets = [
         { id: 'favorite_projects', title: 'Favoriten', icon: Star, color: 'blue' },
@@ -565,11 +597,65 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                         <info.icon size={16} strokeWidth={2.5} />
                                     </div>
                                     <span className="text-base font-bold text-gray-900 tracking-tight">{info.title}</span>
-                                    {widget.id === 'assigned_todos' && (
-                                        <span className="ml-auto w-6 h-6 rounded-full bg-gray-50 text-gray-500 text-[10px] font-black flex items-center justify-center">
-                                            {assignedTasks.length}
-                                        </span>
-                                    )}
+
+                                    <div className="ml-auto flex items-center gap-4">
+                                        {/* Sort Selection for tasks */}
+                                        {(widget.id === 'assigned_todos' || widget.id === 'private_todos') && (
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => widget.id === 'assigned_todos' ? setShowAssignedSortMenu(!showAssignedSortMenu) : setShowPersonalSortMenu(!showPersonalSortMenu)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 hover:text-gray-900 hover:border-gray-200 transition-all font-bold text-[10px] uppercase tracking-widest"
+                                                >
+                                                    <Filter size={12} />
+                                                    <span>Sortieren</span>
+                                                </button>
+
+                                                {(widget.id === 'assigned_todos' ? showAssignedSortMenu : showPersonalSortMenu) && (
+                                                    <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[100] animate-in fade-in slide-in-from-top-1">
+                                                        {[
+                                                            { id: 'deadline', label: 'Nach Datum', icon: Calendar },
+                                                            { id: 'recent', label: 'Zuletzt hinzugefügt', icon: Plus },
+                                                            { id: 'manual', label: 'Manuell', icon: Layout }
+                                                        ].map((option) => (
+                                                            <button
+                                                                key={option.id}
+                                                                onClick={() => {
+                                                                    if (widget.id === 'assigned_todos') {
+                                                                        setAssignedSort(option.id as any);
+                                                                        setShowAssignedSortMenu(false);
+                                                                    } else {
+                                                                        setPersonalSort(option.id as any);
+                                                                        setShowPersonalSortMenu(false);
+                                                                    }
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-between ${(widget.id === 'assigned_todos' ? assignedSort : personalSort) === option.id
+                                                                    ? 'text-blue-600 bg-blue-50/50'
+                                                                    : 'text-gray-500 hover:bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                <span className="flex items-center gap-2">
+                                                                    <option.icon size={12} />
+                                                                    {option.label}
+                                                                </span>
+                                                                {(widget.id === 'assigned_todos' ? assignedSort : personalSort) === option.id && <Check size={10} />}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {widget.id === 'assigned_todos' && (
+                                            <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-gray-200">
+                                                {assignedTasks.length}
+                                            </span>
+                                        )}
+                                        {widget.id === 'private_todos' && (
+                                            <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-gray-200">
+                                                {userPersonalTodos.length}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Content */}

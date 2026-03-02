@@ -232,8 +232,23 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
 
     const fetchDetails = async () => {
         setLoading(true);
-        // Add email and phone to employee selection
-        const { data: t } = await supabase.from('todos').select(`*, employees(id, initials, name, email, phone, avatar_url)`).eq('project_id', project.id).order('created_at', { ascending: true });
+        // [FIX] Try ordering by order_index first, fallback to created_at if it fails (e.g. column not added yet)
+        let { data: t, error: tError } = await supabase
+            .from('todos')
+            .select(`*, employees(id, initials, name, email, phone, avatar_url)`)
+            .eq('project_id', project.id)
+            .order('order_index', { ascending: true });
+
+        if (tError) {
+            console.error("Error fetching with order_index, falling back to created_at:", tError);
+            const { data: fallbackT } = await supabase
+                .from('todos')
+                .select(`*, employees(id, initials, name, email, phone, avatar_url)`)
+                .eq('project_id', project.id)
+                .order('created_at', { ascending: true });
+            t = fallbackT;
+        }
+
         if (t) setTodos(t as any);
 
         const { data: l, error: lError } = await supabase
@@ -258,14 +273,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         setLoading(false);
     };
 
-    const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null) => {
+    const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null, orderIndex: number) => {
         const { data, error } = await supabase.from('todos').insert([{
             project_id: project.id,
             organization_id: project.organization_id,
             title,
             assigned_to: assigneeId || null,
             deadline: deadline || null,
-            is_done: false
+            is_done: false,
+            order_index: orderIndex
         }]).select(`*, employees(id, initials, name, avatar_url)`);
 
         if (error) {

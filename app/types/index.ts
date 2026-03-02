@@ -88,6 +88,8 @@ export interface Todo {
     clients?: Client;
     job_number?: string;
     deadline?: string | null;
+    created_at?: string;
+    order_index?: number;
 }
 
 export interface ProjectLog {

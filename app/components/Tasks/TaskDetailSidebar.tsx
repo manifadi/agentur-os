@@ -292,6 +292,15 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                 e.target.style.height = e.target.scrollHeight + 'px';
                                 e.target.select();
                             }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (title !== task.title) {
+                                        handleUpdate({ title });
+                                    }
+                                    (e.target as HTMLTextAreaElement).blur();
+                                }
+                            }}
                             ref={(el) => {
                                 if (el) {
                                     el.style.height = 'auto';
