@@ -2,12 +2,15 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, Briefcase, Calculator, Users, Clock, Plus, X, BarChart3, ChevronDown, Check } from 'lucide-react';
+import { ArrowLeft, Save, Briefcase, Calculator, Users, Clock, Plus, X, BarChart3, ChevronDown, Check, Copy } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
 import UserAvatar from '../../components/UI/UserAvatar';
 
 import { supabase } from '../../supabaseClient';
+import PositionEditModal from '../../components/Modals/PositionEditModal';
+import CalculationImportModal from '../../components/Modals/CalculationImportModal';
+import { Edit2, Download } from 'lucide-react';
 
 export default function CreateProjectWizard() {
     const router = useRouter();
@@ -16,7 +19,10 @@ export default function CreateProjectWizard() {
     const isEditMode = !!editId;
 
     const { clients, employees, fetchData, currentUser } = useApp();
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(() => {
+        const s = searchParams.get('step');
+        return s ? parseInt(s) : 1;
+    });
     const [loading, setLoading] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
 
@@ -99,6 +105,9 @@ export default function CreateProjectWizard() {
         { id: '1', title: '1. Phase: Konzeption', description: '', positions: [] }
     ]);
     const [timeEntries, setTimeEntries] = useState<any[]>([]); // For Reporting
+    const [isPositionModalOpen, setIsPositionModalOpen] = useState(false);
+    const [editingPosition, setEditingPosition] = useState<{ sIdx: number, pIdx: number, data: WizardPosition } | null>(null);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     const [agencyPositions, setAgencyPositions] = useState<any[]>([]);
 
@@ -269,6 +278,38 @@ export default function CreateProjectWizard() {
         setSections(newSections);
     };
 
+    const duplicateSection = (index: number) => {
+        const sectionToCopy = sections[index];
+        const newSection: WizardSection = {
+            ...JSON.parse(JSON.stringify(sectionToCopy)),
+            id: 'TEMP_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+            title: `${sectionToCopy.title} (Kopie)`
+        };
+
+        // Give new temp IDs to all copied positions too
+        newSection.positions = newSection.positions.map(p => ({
+            ...p,
+            id: 'TEMP_POS_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9)
+        }));
+
+        const newSections = [...sections];
+        newSections.splice(index + 1, 0, newSection);
+        setSections(newSections);
+    };
+
+    const duplicatePosition = (sectionIndex: number, posIndex: number) => {
+        const posToCopy = sections[sectionIndex].positions[posIndex];
+        const newPos: WizardPosition = {
+            ...JSON.parse(JSON.stringify(posToCopy)),
+            id: 'TEMP_POS_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+            title: `${posToCopy.title} (Kopie)`
+        };
+
+        const newSections = [...sections];
+        newSections[sectionIndex].positions.splice(posIndex + 1, 0, newPos);
+        setSections(newSections);
+    };
+
     const calculateTotal = () => {
         let total = 0;
         sections.forEach(s => {
@@ -304,6 +345,54 @@ export default function CreateProjectWizard() {
 
         const nextJobNr = `${prefix}${nextNum.toString().padStart(4, '0')}`;
         setBasicInfo(prev => ({ ...prev, jobNr: nextJobNr }));
+    };
+
+    const handleSavePosition = (updatedPos: WizardPosition) => {
+        if (!editingPosition) return;
+        const newSections = [...sections];
+        newSections[editingPosition.sIdx].positions[editingPosition.pIdx] = updatedPos;
+        setSections(newSections);
+        setIsPositionModalOpen(false);
+        setEditingPosition(null);
+    };
+
+    const handleImportCalculation = (importedSections: any[]) => {
+        const newSections = [...sections];
+
+        importedSections.forEach(importData => {
+            const mappedPositions = importData.positions.map((p: any) => ({
+                id: 'TEMP_POS_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+                title: p.title,
+                description: p.description || '',
+                quantity: p.quantity || 0,
+                unit: p.unit || 'Stunden',
+                unitPrice: p.unit_price || 0
+            }));
+
+            if (importData.isFullSection) {
+                // Add as new section
+                newSections.push({
+                    id: 'TEMP_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+                    title: `${importData.title} (Imported)`,
+                    description: importData.description || '',
+                    positions: mappedPositions
+                });
+            } else {
+                // Add positions to last section if it exists, else create new
+                if (newSections.length > 0) {
+                    newSections[newSections.length - 1].positions.push(...mappedPositions);
+                } else {
+                    newSections.push({
+                        id: 'TEMP_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+                        title: 'Importierte Positionen',
+                        description: '',
+                        positions: mappedPositions
+                    });
+                }
+            }
+        });
+
+        setSections(newSections);
     };
 
     // Check Uniqueness
@@ -666,6 +755,12 @@ export default function CreateProjectWizard() {
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">Kalkulation</h2>
                     <p className="text-gray-500 text-sm mt-1">Erstelle die Struktur und das Angebot für das Projekt.</p>
+                    <button
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="mt-3 flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm border border-blue-100"
+                    >
+                        <Download size={14} strokeWidth={2.5} /> Kalkulation aus Projekt importieren
+                    </button>
                 </div>
                 <div className="text-right">
                     <div className="text-sm text-gray-500 uppercase font-bold tracking-wider">Gesamtsumme</div>
@@ -694,7 +789,22 @@ export default function CreateProjectWizard() {
                                     onChange={(e) => updateSection(sIdx, 'description', e.target.value)}
                                 />
                             </div>
-                            <button onClick={() => removeSection(sIdx)} className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition"><Users size={16} /></button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                                <button
+                                    onClick={() => duplicateSection(sIdx)}
+                                    className="p-2 text-gray-400 hover:text-blue-500 transition"
+                                    title="Sektion duplizieren"
+                                >
+                                    <Copy size={16} />
+                                </button>
+                                <button
+                                    onClick={() => removeSection(sIdx)}
+                                    className="p-2 text-gray-400 hover:text-red-500 transition"
+                                    title="Sektion löschen"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Positions Table */}
@@ -765,8 +875,33 @@ export default function CreateProjectWizard() {
                                             <td className="py-2 text-right font-medium text-gray-900">
                                                 {(pos.quantity * pos.unitPrice).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                             </td>
-                                            <td className="py-2 text-center opacity-0 group-hover:opacity-100 transition">
-                                                <button onClick={() => removePosition(sIdx, pIdx)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                                            <td className="py-2 px-1 text-center opacity-0 group-hover:opacity-100 transition">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingPosition({ sIdx: sIdx, pIdx: pIdx, data: pos });
+                                                            setIsPositionModalOpen(true);
+                                                        }}
+                                                        className="text-gray-300 hover:text-blue-500"
+                                                        title="Position bearbeiten"
+                                                    >
+                                                        <Edit2 size={13} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => duplicatePosition(sIdx, pIdx)}
+                                                        className="text-gray-300 hover:text-blue-500"
+                                                        title="Position duplizieren"
+                                                    >
+                                                        <Copy size={13} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => removePosition(sIdx, pIdx)}
+                                                        className="text-gray-300 hover:text-red-500"
+                                                        title="Position löschen"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1018,6 +1153,23 @@ export default function CreateProjectWizard() {
                 type={confirmConfig.type}
                 confirmText={confirmConfig.confirmText}
                 showCancel={confirmConfig.showCancel}
+            />
+
+            <PositionEditModal
+                isOpen={isPositionModalOpen}
+                onClose={() => {
+                    setIsPositionModalOpen(false);
+                    setEditingPosition(null);
+                }}
+                onSave={handleSavePosition}
+                position={editingPosition?.data || null}
+            />
+
+            <CalculationImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportCalculation}
+                currentProjectId={editId || undefined}
             />
         </div>
     );

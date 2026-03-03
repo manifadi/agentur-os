@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, BarChart3, Edit3 } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
 import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import UserAvatar from '../UI/UserAvatar';
@@ -17,6 +17,7 @@ import { Receipt } from 'lucide-react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
 import ConfirmModal from '../Modals/ConfirmModal';
+import DuplicateProjectModal from '../Modals/DuplicateProjectModal';
 
 interface ProjectDetailProps {
     project: Project;
@@ -82,6 +83,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         type: 'danger'
     });
     const statusDropdownRef = useRef<HTMLDivElement>(null);
+    const [showActionsMenu, setShowActionsMenu] = useState(false);
+    const actionsMenuRef = useRef<HTMLDivElement>(null);
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
     // Sync Tab with URL
     useEffect(() => {
@@ -103,6 +107,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         const handleClickOutside = (event: MouseEvent) => {
             if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
                 setIsStatusDropdownOpen(false);
+            }
+            if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+                setShowActionsMenu(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -372,6 +379,110 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         }
     };
 
+    const handleDuplicateProject = async (targetClientId: string) => {
+        setLoading(true);
+        try {
+            // 1. Fetch source details (sections and positions)
+            const { data: sourceSections, error: secErr } = await supabase
+                .from('project_sections')
+                .select('*, project_positions(*)')
+                .eq('project_id', project.id);
+
+            if (secErr) throw secErr;
+
+            // 2. Generate new job number
+            const yearShort = new Date().getFullYear().toString().slice(-2);
+            const prefix = `${yearShort}_`;
+
+            const { data: latestProjectData } = await supabase
+                .from('projects')
+                .select('job_number')
+                .ilike('job_number', `${prefix}%`)
+                .order('job_number', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            let nextNum = 1;
+            if (latestProjectData && latestProjectData.job_number) {
+                const parts = latestProjectData.job_number.split('_');
+                if (parts.length === 2 && !isNaN(parseInt(parts[1]))) {
+                    nextNum = parseInt(parts[1]) + 1;
+                }
+            }
+
+            const nextJobNumber = `${prefix}${nextNum.toString().padStart(4, '0')}`;
+
+            // 3. Create new project
+            const { data: newProject, error: projErr } = await supabase
+                .from('projects')
+                .insert([{
+                    title: `${project.title} (Kopie)`,
+                    job_number: nextJobNumber,
+                    client_id: targetClientId,
+                    organization_id: project.organization_id,
+                    project_manager_id: project.project_manager_id,
+                    status: 'Bearbeitung',
+                    deadline: project.deadline,
+                    google_doc_url: project.google_doc_url,
+                    contract_intro: project.contract_intro,
+                    contract_outro: project.contract_outro,
+                    invoice_contact_id: project.invoice_contact_id
+                }])
+                .select()
+                .single();
+
+            if (projErr) throw projErr;
+
+            // 3. Duplicate sections and positions
+            for (const section of (sourceSections || [])) {
+                const { data: newSection, error: newSecErr } = await supabase
+                    .from('project_sections')
+                    .insert([{
+                        project_id: newProject.id,
+                        organization_id: project.organization_id,
+                        title: section.title,
+                        description: section.description,
+                        order_index: section.order_index
+                    }])
+                    .select()
+                    .single();
+
+                if (newSecErr) throw newSecErr;
+
+                if (section.project_positions && section.project_positions.length > 0) {
+                    const newPositions = section.project_positions.map((p: any) => ({
+                        project_id: newProject.id,
+                        organization_id: project.organization_id,
+                        section_id: newSection.id,
+                        title: p.title,
+                        description: p.description,
+                        quantity: p.quantity,
+                        unit: p.unit,
+                        unit_price: p.unit_price,
+                        order_index: p.order_index,
+                        position_nr: p.position_nr
+                    }));
+
+                    const { error: newPosErr } = await supabase
+                        .from('project_positions')
+                        .insert(newPositions);
+
+                    if (newPosErr) throw newPosErr;
+                }
+            }
+
+            // 4. Redirect to new project in edit mode (Step 1)
+            router.push(`/projekte/erstellen?edit=${newProject.id}&step=1`);
+            setShowDuplicateModal(false);
+
+        } catch (err: any) {
+            console.error('Duplication error:', err);
+            alert('Fehler beim Kopieren des Projekts: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleAddLog = async (title: string, content: string, date: string, images: string[], isPublic: boolean) => {
         const p = {
             project_id: project.id,
@@ -460,10 +571,89 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
         <>
             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                 <button onClick={onClose} className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"><ArrowLeft size={16} className="mr-1" /> Zurück zur Übersicht</button>
-                <div className="flex gap-2 self-end">
-                    <button onClick={() => setShowTimeModal(true)} className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black shadow-sm transition"><Upload size={16} /> Zeit erfassen</button>
-                    <button onClick={() => window.location.href = `/projekte/erstellen?edit=${project.id}`} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm transition"><Settings size={16} /> Bearbeiten</button>
-                    <button onClick={onDeleteProject} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={18} /></button>
+                <div className="flex gap-2 self-end items-center">
+                    <button
+                        onClick={() => setShowTimeModal(true)}
+                        className="bg-gray-50 text-gray-700 p-2.5 rounded-xl border border-gray-100 hover:bg-white hover:border-blue-100 transition-all shadow-sm group relative"
+                        title="Zeiterfassung"
+                    >
+                        <div className="relative">
+                            <Clock size={20} className="group-hover:text-blue-500 transition-colors" />
+                            <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center border-2 border-white">
+                                <Plus size={8} strokeWidth={4} />
+                            </div>
+                        </div>
+                    </button>
+
+                    <div className="relative" ref={actionsMenuRef}>
+                        <button
+                            onClick={() => setShowActionsMenu(!showActionsMenu)}
+                            className={`p-2.5 rounded-xl border transition-all shadow-sm ${showActionsMenu ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-700 hover:bg-gray-50'}`}
+                        >
+                            <Settings size={20} />
+                        </button>
+
+                        {showActionsMenu && (
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[100] animate-in fade-in slide-in-from-top-1">
+                                <button
+                                    onClick={() => {
+                                        router.push(`/projekte/erstellen?edit=${project.id}&step=1`);
+                                        setShowActionsMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
+                                        <Edit3 size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Grunddaten bearbeiten
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        router.push(`/projekte/erstellen?edit=${project.id}&step=2`);
+                                        setShowActionsMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center">
+                                        <Calculator size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Kalkulation
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        router.push(`/projekte/erstellen?edit=${project.id}&step=4`);
+                                        setShowActionsMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center">
+                                        <BarChart3 size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Reporting
+                                </button>
+                                <div className="h-px bg-gray-50 my-1 mx-4" />
+                                <button
+                                    onClick={() => {
+                                        setShowDuplicateModal(true);
+                                        setShowActionsMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-green-50 text-green-500 flex items-center justify-center">
+                                        <Copy size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Projekt kopieren
+                                </button>
+                                <div className="h-px bg-gray-50 my-1 mx-4" />
+                                <button onClick={() => { onDeleteProject(); setShowActionsMenu(false); }} className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-red-500 hover:bg-red-50 transition-colors flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
+                                        <Trash2 size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Projekt löschen
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -702,6 +892,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 type={confirmConfig.type}
                 confirmText={confirmConfig.confirmText}
                 showCancel={confirmConfig.showCancel}
+            />
+            <DuplicateProjectModal
+                isOpen={showDuplicateModal}
+                onClose={() => setShowDuplicateModal(false)}
+                onConfirm={handleDuplicateProject}
+                clients={clients}
+                currentClientId={project.client_id}
             />
         </>
     );

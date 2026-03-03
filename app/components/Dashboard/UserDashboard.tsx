@@ -569,7 +569,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                             onClick={() => setShowAddMenu(!showAddMenu)}
                             className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-gray-200 flex items-center gap-2"
                         >
-                            <Plus size={16} strokeWidth={3} /> Hinzufügen
+                            <Plus size={16} strokeWidth={3} /> Aktionen
                         </button>
 
                         {showAddMenu && (
