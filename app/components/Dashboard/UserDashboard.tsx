@@ -102,13 +102,22 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     const [assignedSort, setAssignedSort] = useState<'deadline' | 'recent' | 'manual'>('deadline');
     const [showAssignedSortMenu, setShowAssignedSortMenu] = useState(false);
     const [showPersonalSortMenu, setShowPersonalSortMenu] = useState(false);
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const addMenuRef = React.useRef<HTMLDivElement>(null);
 
     // [FIX] Undo delay for private to-dos
     const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
     const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
-    React.useEffect(() => {
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+                setShowAddMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
         return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
             Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
                 clearTimeout(timeout);
                 onToggleTodo(id, false); // force complete
@@ -555,9 +564,43 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                             <Plus size={16} strokeWidth={3} /> Widget
                         </button>
                     )}
-                    <button onClick={() => onQuickAction('create_project')} className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-gray-200 flex items-center gap-2">
-                        <Plus size={16} strokeWidth={3} /> Projekt
-                    </button>
+                    <div className="relative" ref={addMenuRef}>
+                        <button
+                            onClick={() => setShowAddMenu(!showAddMenu)}
+                            className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-gray-200 flex items-center gap-2"
+                        >
+                            <Plus size={16} strokeWidth={3} /> Hinzufügen
+                        </button>
+
+                        {showAddMenu && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[200] animate-in fade-in slide-in-from-top-1">
+                                <button
+                                    onClick={() => {
+                                        onQuickAction('create_project');
+                                        setShowAddMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
+                                        <BriefcaseIcon size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Projekt hinzufügen
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onQuickAction('create_client');
+                                        setShowAddMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-green-50 text-green-500 flex items-center justify-center">
+                                        <Users size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Kunde hinzufügen
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     {/* Settings / Edit Mode Toggle */}
                     <button
                         onClick={() => setIsEditMode(!isEditMode)}

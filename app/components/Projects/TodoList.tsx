@@ -27,11 +27,12 @@ interface TodoListProps {
     onToggle: (id: string, currentStatus: boolean) => Promise<void>;
     onUpdate: (id: string, title: string, assigneeId: string | null, deadline: string | null) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    onReorder: (newTodos: Todo[]) => Promise<void>;
     onTaskClick?: (task: Todo) => void;
     highlightId?: string | null;
 }
 
-export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, onDelete, onTaskClick, highlightId }: TodoListProps) {
+export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, onDelete, onReorder, onTaskClick, highlightId }: TodoListProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newAssignee, setNewAssignee] = useState('');
@@ -73,18 +74,13 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
         const oldIndex = sortedTodos.findIndex((t) => t.id === active.id);
         const newIndex = sortedTodos.findIndex((t) => t.id === over.id);
 
+        if (oldIndex === -1 || newIndex === -1) return;
+
         const newSorted = arrayMove(sortedTodos, oldIndex, newIndex);
-
-        // Update order_index in database for all affected tasks
-        // For simplicity and robustness, we update all visible tasks' indices
-        const updates = newSorted.map((t, index) => ({
-            id: t.id,
-            order_index: index + 1
-        }));
-
-        for (const update of updates) {
-            await supabase.from('todos').update({ order_index: update.order_index }).eq('id', update.id);
-        }
+        
+        // Map back to the full todos list if filtered (optional but cleaner)
+        // Here we just pass the new sorted list to parent to handle state & DB
+        await onReorder(newSorted);
     };
 
     const startEditing = (todo: Todo) => {

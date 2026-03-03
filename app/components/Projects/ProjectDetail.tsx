@@ -274,7 +274,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
     };
 
     const handleAddTodo = async (title: string, assigneeId: string | null, deadline: string | null, orderIndex: number) => {
-        const { data, error } = await supabase.from('todos').insert([{
+        const todoData = {
             project_id: project.id,
             organization_id: project.organization_id,
             title,
@@ -282,7 +282,18 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             deadline: deadline || null,
             is_done: false,
             order_index: orderIndex
-        }]).select(`*, employees(id, initials, name, avatar_url)`);
+        };
+
+        let { data, error } = await supabase.from('todos').insert([todoData]).select(`*, employees(id, initials, name, avatar_url)`);
+
+        // [FIX] If order_index column doesn't exist yet, retry without it
+        if (error && error.message.includes("order_index")) {
+            console.warn("Retrying task creation without order_index:", error.message);
+            const { order_index, ...fallbackData } = todoData;
+            const fallbackResult = await supabase.from('todos').insert([fallbackData]).select(`*, employees(id, initials, name, avatar_url)`);
+            data = fallbackResult.data;
+            error = fallbackResult.error;
+        }
 
         if (error) {
             console.error('Error adding todo:', error);
@@ -323,6 +334,42 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             type: 'danger',
             confirmText: 'Löschen'
         });
+    };
+
+    const handleReorderTodos = async (newSorted: Todo[]) => {
+        // Optimistic update
+        const updatedTodosWithIndices = newSorted.map((t, index) => ({
+            ...t,
+            order_index: index + 1
+        }));
+
+        setTodos(updatedTodosWithIndices);
+
+        // Update in database
+        const updates = updatedTodosWithIndices.map(t => ({
+            id: t.id,
+            order_index: t.order_index
+        }));
+
+        const { error } = await supabase.from('todos').upsert(updates, { onConflict: 'id' });
+
+        if (error) {
+            console.error('Error saving reorder:', error);
+            if (error.message.includes("order_index")) {
+                setConfirmConfig({
+                    isOpen: true,
+                    title: 'Sortieren fehlgeschlagen',
+                    message: "Die neue Reihenfolge konnte nicht gespeichert werden, da die Tabellenspalte 'order_index' in der Datenbank fehlt. Bitte führe das SQL-Skript aus.",
+                    onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                    type: 'warning',
+                    confirmText: 'Verstanden',
+                    showCancel: false
+                });
+            }
+            // Optional: Revert on error? 
+            // Better to let fetchDetails fix it if Realtime is working, 
+            // or just leave it for now as the user will see the error.
+        }
     };
 
     const handleAddLog = async (title: string, content: string, date: string, images: string[], isPublic: boolean) => {
@@ -555,6 +602,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             onToggle={handleToggleTodo}
                             onUpdate={handleUpdateTodo}
                             onDelete={handleDeleteTodo}
+                            onReorder={handleReorderTodos}
                             onTaskClick={(t) => setSelectedTask(t)}
                             highlightId={highlightId}
                         />
