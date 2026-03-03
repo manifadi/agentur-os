@@ -9,30 +9,15 @@ import MainSidebar from './MainSidebar';
 import LoginScreen from './LoginScreen';
 import GlobalSearch from './GlobalSearch';
 import { Toaster } from 'sonner';
+import { useTheme } from '../hooks/useTheme';
 
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
 
-    // Apple Design System Global Styles
-    // Background: #F5F5F7 (Apple Light Gray)
-    // Font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto...
-    const appleBg = "bg-[#F5F5F7] text-gray-900 font-[system-ui]";
-
     const [session, setSession] = useState<any>(null);
     const [loadingSession, setLoadingSession] = useState(true);
-    const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('sidebarExpanded');
-            return saved !== null ? JSON.parse(saved) : false;
-        }
-        return false;
-    });
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        localStorage.setItem('sidebarExpanded', JSON.stringify(isSidebarExpanded));
-    }, [isSidebarExpanded]);
 
     // Data
     const [clients, setClients] = useState<Client[]>([]);
@@ -41,30 +26,37 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [projects, setProjects] = useState<Project[]>([]);
     const [allocations, setAllocations] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
-    const [timeEntries, setTimeEntries] = useState<any[]>([]); // [NEW]
+    const [timeEntries, setTimeEntries] = useState<any[]>([]);
     const [personalTodos, setPersonalTodos] = useState<Todo[]>([]);
     const [agencySettings, setAgencySettings] = useState<any>(null);
 
+    // Resolve current user after employees load
+    const currentUser = employees.find(e => e.email === session?.user?.email);
+
+    // Theme — pass employeeId so prefs sync to Supabase
+    const { prefs: themePrefs, updateThemePrefs, isSidebarExpanded, setSidebarExpanded, loaded: themeLoaded } = useTheme(currentUser?.id);
+
     // State mapping for Sidebar highlighting
-    // Mapping: URL path -> ViewState ID used in Sidebar (or just simplified)
-    const currentView = (pathname?.split('/')[1] || 'dashboard') as any;
+    const getSidebarView = () => {
+        if (!pathname) return 'dashboard';
+        if (pathname.startsWith('/uebersicht')) return 'projects_overview';
+        if (pathname.startsWith('/aufgaben')) return 'global_tasks';
+        if (pathname.startsWith('/ressourcen')) return 'resource_planning';
+        if (pathname.startsWith('/zeiterfassung')) return 'time_tracking';
+        if (pathname.startsWith('/einstellungen')) return 'settings';
+        return 'dashboard';
+    };
 
     // --- INIT & FETCH ---
     useEffect(() => {
-        console.log("Initializing session...");
         supabase.auth.getSession()
             .then(({ data: { session } }) => {
-                console.log("Session fetched:", session ? "Authenticated" : "Not Authenticated");
                 setSession(session);
                 setLoadingSession(false);
             })
-            .catch(err => {
-                console.error("Critical error fetching session:", err);
-                setLoadingSession(false);
-            });
+            .catch(() => setLoadingSession(false));
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            console.log("Auth state changed:", _event, session ? "Authenticated" : "Not Authenticated");
             setSession(session);
         });
         return () => subscription.unsubscribe();
@@ -78,7 +70,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
         setLoading(true);
 
-        // 1. Get current employee to find organization_id
         const { data: currentUserData } = await supabase.from('employees')
             .select('*')
             .eq('email', session.user.email)
@@ -91,7 +82,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
         const orgId = currentUserData.organization_id;
 
-        // 2. Fetch scoped data
         try {
             const [
                 { data: clientsData },
@@ -156,30 +146,23 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (!session) return;
         fetchData();
 
-        // Broad Realtime subscription for the public schema
         const channel = supabase
             .channel('schema-db-changes')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public' },
-                () => {
-                    fetchData();
-                }
+                () => fetchData()
             )
             .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [session]);
 
     // GATEKEEPER: Check if user is approved
     useEffect(() => {
         if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password') {
-            const currentUser = employees.find(e => e.email === session.user.email);
-            if (!currentUser) {
-                router.replace('/onboarding');
-            }
+            const found = employees.find(e => e.email === session.user.email);
+            if (!found) router.replace('/onboarding');
         }
     }, [loadingSession, session, loading, pathname, router, employees]);
 
@@ -192,20 +175,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     const isResetPassword = pathname === '/reset-password';
 
-    if (loadingSession) return <div className="flex h-screen items-center justify-center text-gray-400 font-medium text-sm">Lade App Session...</div>;
+    if (loadingSession) return (
+        <div className="flex h-screen items-center justify-center text-sm font-medium" style={{ color: 'var(--text-muted)', background: 'var(--bg-app)' }}>
+            Lade App Session...
+        </div>
+    );
     if (!session && !isResetPassword) return <LoginScreen />;
-
-    const getSidebarView = () => {
-        if (!pathname) return 'dashboard';
-        if (pathname.startsWith('/uebersicht')) return 'projects_overview';
-        if (pathname.startsWith('/aufgaben')) return 'global_tasks';
-        if (pathname.startsWith('/ressourcen')) return 'resource_planning';
-        if (pathname.startsWith('/zeiterfassung')) return 'time_tracking';
-        if (pathname.startsWith('/einstellungen')) return 'settings';
-        return 'dashboard';
-    };
-
-    const currentUser = employees.find(e => e.email === session?.user?.email);
 
     return (
         <AppContext.Provider value={{
@@ -227,15 +202,22 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             timeEntries,
             setTimeEntries,
             personalTodos,
-            setPersonalTodos
+            setPersonalTodos,
+            themePrefs,
+            updateThemePrefs,
+            isSidebarExpanded,
+            setSidebarExpanded,
         }}>
-            <div className={`flex h-screen w-screen overflow-hidden ${appleBg} antialiased selection:bg-blue-500/30 scroll-smooth`}>
+            <div
+                className="flex h-screen w-screen overflow-hidden antialiased"
+                style={{ background: 'var(--bg-app)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}
+            >
                 {!['/login', '/onboarding', '/reset-password'].includes(pathname || '') && (
                     <MainSidebar
                         currentView={getSidebarView()}
                         onLogout={handleLogout}
                         isSidebarExpanded={isSidebarExpanded}
-                        setIsSidebarExpanded={setIsSidebarExpanded}
+                        setIsSidebarExpanded={setSidebarExpanded}
                         agencySettings={agencySettings}
                         session={session}
                         activeUser={currentUser}
@@ -245,7 +227,10 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 <GlobalSearch />
                 <Toaster position="bottom-right" expand={true} richColors duration={8000} closeButton />
 
-                <main className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}>
+                <main
+                    className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}
+                    style={{ background: 'var(--bg-app)' }}
+                >
                     {children}
                 </main>
             </div>

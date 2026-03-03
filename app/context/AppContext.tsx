@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { Project, Client, Employee, Department, TimeEntry, Todo, AgencySettings } from '../types';
+import { ThemePreferences } from '../hooks/useTheme';
 
 interface AppContextType {
     session: any;
@@ -9,7 +10,7 @@ interface AppContextType {
     departments: any[];
     allocations: any[];
     members: any[]; // Project Members
-    timeEntries: TimeEntry[]; // [NEW]
+    timeEntries: TimeEntry[];
     currentUser?: Employee;
     personalTodos: Todo[];
     setPersonalTodos: (todos: Todo[]) => void;
@@ -20,12 +21,26 @@ interface AppContextType {
     setProjects: (projects: any[]) => void;
     setClients: (clients: Client[]) => void;
     setEmployees: (employees: Employee[]) => void;
-    setTimeEntries: (entries: TimeEntry[]) => void; // [NEW]
+    setTimeEntries: (entries: TimeEntry[]) => void;
     fetchData: () => Promise<void>;
 
     // Actions that might be global
     handleLogout: () => Promise<void>;
+
+    // Theme
+    themePrefs: ThemePreferences;
+    updateThemePrefs: (patch: Partial<ThemePreferences>) => void;
+    isSidebarExpanded: boolean;
+    setSidebarExpanded: (expanded: boolean) => void;
 }
+
+const defaultTheme: ThemePreferences = {
+    themeMode: 'light',
+    accentColor: 'default',
+    fontFamily: 'inter',
+    backgroundStyle: 'clean',
+    isSidebarExpanded: false,
+};
 
 export const AppContext = createContext<AppContextType>({
     session: null,
@@ -46,6 +61,10 @@ export const AppContext = createContext<AppContextType>({
     setPersonalTodos: () => { },
     fetchData: async () => { },
     handleLogout: async () => { },
+    themePrefs: defaultTheme,
+    updateThemePrefs: () => { },
+    isSidebarExpanded: false,
+    setSidebarExpanded: () => { },
 });
 
 export function useApp() {

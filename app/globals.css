@@ -2,37 +2,233 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   AGENTUR OS — DESIGN SYSTEM VARIABLES (Light Mode Default)
+   ============================================================ */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* App Backgrounds */
+  --bg-app: #F5F5F7;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: #F5F5F7;
+  --bg-subtle: #F5F5F7;
+
+  /* Sidebar */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #F3F4F6;
+  --sidebar-text: #6B7280;
+  --sidebar-text-hover: #111827;
+  --sidebar-active-bg: #111827;
+  --sidebar-active-text: #ffffff;
+  --sidebar-hover-bg: #F3F4F6;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6B7280;
+  --text-placeholder: #9CA3AF;
+
+  /* Borders */
+  --border-default: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --border-subtle: #F3F4F6;
+
+  /* Accent / Highlight Color */
+  --accent: #111827;
+  --accent-hover: #374151;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(17, 24, 39, 0.08);
+  --accent-subtle-hover: rgba(17, 24, 39, 0.12);
+
+  /* Selection */
+  --selection-bg: rgba(17, 24, 39, 0.15);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+
+  /* Font */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+html.dark {
+  --bg-app: #0F0F11;
+  --bg-surface: #1A1A1E;
+  --bg-card: #1E1E24;
+  --bg-input: #252530;
+  --bg-hover: #252530;
+  --bg-subtle: #1A1A1E;
+
+  --sidebar-bg: #111114;
+  --sidebar-border: #252530;
+  --sidebar-text: #71717A;
+  --sidebar-text-hover: #FAFAFA;
+  --sidebar-active-bg: #FAFAFA;
+  --sidebar-active-text: #111114;
+  --sidebar-hover-bg: #252530;
+
+  --text-primary: #FAFAFA;
+  --text-secondary: #D4D4D8;
+  --text-muted: #71717A;
+  --text-placeholder: #52525B;
+
+  --border-default: #2D2D35;
+  --border-strong: #3F3F46;
+  --border-subtle: #252530;
+
+  --selection-bg: rgba(250, 250, 250, 0.15);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ============================================================
+   BACKGROUND STYLES
+   ============================================================ */
+html[data-bg="subtle"] {
+  --bg-app: #FAF9F7;
+  --bg-subtle: #F5F3EF;
+}
+html.dark[data-bg="subtle"] {
+  --bg-app: #13121A;
+  --bg-subtle: #1A1825;
+}
+
+html[data-bg="canvas"] {
+  --bg-app: #F8F6F0;
+  --bg-subtle: #F0EDE4;
+}
+html.dark[data-bg="canvas"] {
+  --bg-app: #0E0D0F;
+  --bg-subtle: #181720;
+}
+
+/* ============================================================
+   ACCENT COLOR OVERRIDES
+   ============================================================ */
+html[data-accent="blue"] {
+  --accent: #3B82F6;
+  --accent-hover: #2563EB;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(59, 130, 246, 0.1);
+  --accent-subtle-hover: rgba(59, 130, 246, 0.15);
+  --sidebar-active-bg: #3B82F6;
+  --sidebar-active-text: #ffffff;
+}
+html[data-accent="violet"] {
+  --accent: #7C3AED;
+  --accent-hover: #6D28D9;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(124, 58, 237, 0.1);
+  --accent-subtle-hover: rgba(124, 58, 237, 0.15);
+  --sidebar-active-bg: #7C3AED;
+  --sidebar-active-text: #ffffff;
+}
+html[data-accent="rose"] {
+  --accent: #F43F5E;
+  --accent-hover: #E11D48;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(244, 63, 94, 0.1);
+  --accent-subtle-hover: rgba(244, 63, 94, 0.15);
+  --sidebar-active-bg: #F43F5E;
+  --sidebar-active-text: #ffffff;
+}
+html[data-accent="emerald"] {
+  --accent: #10B981;
+  --accent-hover: #059669;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(16, 185, 129, 0.1);
+  --accent-subtle-hover: rgba(16, 185, 129, 0.15);
+  --sidebar-active-bg: #10B981;
+  --sidebar-active-text: #ffffff;
+}
+html[data-accent="amber"] {
+  --accent: #D97706;
+  --accent-hover: #B45309;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(217, 119, 6, 0.1);
+  --accent-subtle-hover: rgba(217, 119, 6, 0.15);
+  --sidebar-active-bg: #D97706;
+  --sidebar-active-text: #ffffff;
+}
+html[data-accent="cyan"] {
+  --accent: #0891B2;
+  --accent-hover: #0E7490;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(8, 145, 178, 0.1);
+  --accent-subtle-hover: rgba(8, 145, 178, 0.15);
+  --sidebar-active-bg: #0891B2;
+  --sidebar-active-text: #ffffff;
+}
+html[data-accent="slate"] {
+  --accent: #475569;
+  --accent-hover: #334155;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(71, 85, 105, 0.1);
+  --accent-subtle-hover: rgba(71, 85, 105, 0.15);
+  --sidebar-active-bg: #475569;
+  --sidebar-active-text: #ffffff;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+html, body {
+  font-family: var(--font-family) !important;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  @apply antialiased;
+}
+
+::selection {
+  background-color: var(--selection-bg);
 }
 
 @layer base {
-
   input,
   select,
   textarea {
     @apply appearance-none rounded-xl outline-none bg-transparent;
+    font-family: inherit;
   }
 
-  /* Safari-specific fix for search inputs to remove cancel button if needed, 
-     but generally appearance-none handles most. 
-     Explicitly setting margins/paddings to 0 if not handled by Tailwind preflight can help too. */
-
-  /* Ensure default text color is inherited or set to a dark color to avoid "undefined" visibility issues */
   input,
   select,
   textarea {
-    @apply text-gray-900 border-0 placeholder:text-gray-400;
+    color: var(--text-primary);
+    border: 0;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-placeholder);
   }
 
   /* Hide spin buttons */
@@ -44,27 +240,18 @@
 
   input[type=number] {
     -moz-appearance: textfield;
-    /* Firefox */
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
-  @apply antialiased;
-  /* Better font rendering on macOS/Safari */
-}
-
-/* Global Scrollbar Styling */
+/* ============================================================
+   GLOBAL SCROLLBAR STYLING
+   ============================================================ */
 @layer base {
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
-  /* Chrome, Edge, and Safari */
   *::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -75,19 +262,13 @@ body {
   }
 
   *::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--scrollbar-thumb);
     border-radius: 20px;
     border: none;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(0, 0, 0, 0.2);
-  }
-
-  /* Firefox */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+    background-color: var(--scrollbar-thumb-hover);
   }
 }
 
@@ -99,6 +280,10 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
 @keyframes wiggle {
   0% { transform: rotate(0deg); }
   25% { transform: rotate(-0.5deg); }
@@ -106,25 +291,25 @@ body {
   75% { transform: rotate(0.5deg); }
   100% { transform: rotate(0deg); }
 }
-
 .animate-wiggle-subtle {
   animation: wiggle 0.5s ease-in-out infinite;
 }
 
 @keyframes highlight-scale {
   0% { transform: scale(1); background-color: transparent; }
-  10% { transform: scale(1.02); background-color: rgba(59, 130, 246, 0.1); }
-  30% { transform: scale(1.02); background-color: rgba(59, 130, 246, 0.1); }
+  10% { transform: scale(1.02); background-color: var(--accent-subtle); }
+  30% { transform: scale(1.02); background-color: var(--accent-subtle); }
   100% { transform: scale(1); background-color: transparent; }
 }
-
 .animate-highlight {
   animation: highlight-scale 2s ease-out forwards;
 }
 
-/* React Grid Layout Overrides */
+/* ============================================================
+   REACT GRID LAYOUT OVERRIDES
+   ============================================================ */
 .react-grid-item.react-grid-placeholder {
-    background: rgba(0, 0, 0, 0.05) !important;
+    background: var(--accent-subtle) !important;
     border-radius: 32px !important;
     opacity: 0.5 !important;
 }
@@ -140,7 +325,7 @@ body {
 
 .react-grid-item.resizing {
     z-index: 100 !important;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.15) !important;
+    box-shadow: var(--shadow-lg) !important;
     opacity: 0.9;
 }
 
@@ -162,14 +347,29 @@ body {
     bottom: 6px;
     width: 12px;
     height: 12px;
-    border-right: 3px solid rgba(0,0,0,0.2);
-    border-bottom: 3px solid rgba(0,0,0,0.2);
+    border-right: 3px solid var(--border-strong);
+    border-bottom: 3px solid var(--border-strong);
     border-bottom-right-radius: 4px;
     transition: all 0.2s;
 }
 
 .react-resizable-handle:hover::after {
-    border-color: rgba(0,0,0,0.5);
+    border-color: var(--text-muted);
     width: 16px;
     height: 16px;
+}
+
+/* ============================================================
+   THEME TRANSITION — smooth color changes
+   ============================================================ */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+/* Disable transition on animated elements to avoid conflicts */
+.react-grid-item,
+.react-grid-item * {
+  transition-property: left, top, width, height, transform, background-color, border-color, color;
 }

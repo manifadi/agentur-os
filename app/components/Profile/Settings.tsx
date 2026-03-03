@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucide, Shield, Building2 } from 'lucide-react';
+import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucide, Shield, Building2, Palette, ArrowRight } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
 import AdminUserManagement from './AdminUserManagement';
@@ -7,6 +7,7 @@ import AdminProjectList from './AdminProjectList';
 import AdminClientManagement from './AdminClientManagement';
 import AdminRateManagement from './AdminRateManagement';
 import AdminAgencySettings from './AdminAgencySettings';
+import AppearanceSettings from './AppearanceSettings';
 import { useApp } from '../../context/AppContext';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
@@ -23,7 +24,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
     const { projects, clients } = useApp(); // Get global projects and clients
     const [currentUser, setCurrentUser] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients' | 'rates' | 'agency'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients' | 'rates' | 'agency' | 'appearance'>('profile');
 
     // Form State
     const [name, setName] = useState('');
@@ -100,47 +101,44 @@ export default function Settings({ session, employees, departments, onUpdate }: 
         <div className="max-w-4xl mx-auto mt-10 p-6">
             <h1 className="text-3xl font-bold mb-6 flex items-center gap-3"><SettingsHeaderIcon size={32} /> Einstellungen</h1>
 
-            <div className="flex gap-4 mb-8 border-b border-gray-200">
-                <button
-                    onClick={() => setActiveTab('profile')}
-                    className={`pb-3 px-1 text-sm font-medium transition relative ${activeTab === 'profile' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                    Mein Profil
-                </button>
+            <div className="flex gap-1 mb-8 flex-wrap" style={{ borderBottom: '1px solid var(--border-default)' }}>
+                {([
+                    { id: 'profile', label: 'Mein Profil', icon: User },
+                    { id: 'appearance', label: 'Design', icon: Palette },
+                ] as const).map(({ id, label, icon: Icon }) => (
+                    <button
+                        key={id}
+                        onClick={() => setActiveTab(id)}
+                        className="pb-3 px-3 text-sm font-medium transition-all relative flex items-center gap-1.5"
+                        style={{
+                            color: activeTab === id ? 'var(--accent)' : 'var(--text-muted)',
+                            borderBottom: activeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
+                        }}
+                    >
+                        <Icon size={13} />{label}
+                    </button>
+                ))}
 
                 {currentUser && currentUser.role === 'admin' && (
-                    <>
+                    ([
+                        { id: 'admin', label: 'Team', icon: Shield },
+                        { id: 'projects', label: 'Projekte', icon: SettingsIconLucide },
+                        { id: 'clients', label: 'Kunden', icon: Building2 },
+                        { id: 'rates', label: 'Stundensätze', icon: SettingsIconLucide },
+                        { id: 'agency', label: 'Unternehmen', icon: Building2 },
+                    ] as const).map(({ id, label, icon: Icon }) => (
                         <button
-                            onClick={() => setActiveTab('admin')}
-                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'admin' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
+                            key={id}
+                            onClick={() => setActiveTab(id)}
+                            className="pb-3 px-3 text-sm font-medium transition-all relative flex items-center gap-1.5"
+                            style={{
+                                color: activeTab === id ? 'var(--accent)' : 'var(--text-muted)',
+                                borderBottom: activeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
+                            }}
                         >
-                            <Shield size={14} /> Team Verwaltung
+                            <Icon size={13} />{label}
                         </button>
-                        <button
-                            onClick={() => setActiveTab('projects')}
-                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'projects' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
-                        >
-                            <SettingsIconLucide size={14} /> Alle Projekte
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('clients')}
-                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'clients' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
-                        >
-                            <Building2 size={14} /> Kunden
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('rates')}
-                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'rates' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
-                        >
-                            <SettingsIconLucide size={14} /> Stundensätze
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('agency')}
-                            className={`pb-3 px-1 text-sm font-medium transition relative flex items-center gap-2 ${activeTab === 'agency' ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-purple-600'}`}
-                        >
-                            <Building2 size={14} /> Unternehmen
-                        </button>
-                    </>
+                    ))
                 )}
             </div>
 
@@ -284,44 +282,39 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                             )}
                         </div>
 
-                        {/* RIGHT COLUMN: PREFERENCES */}
+                        {/* RIGHT COLUMN: DESIGN SHORTCUT */}
                         <div className="space-y-6">
-                            {/* APPEARANCE */}
-                            <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm opacity-60 pointer-events-none relative overflow-hidden">
-                                <div className="absolute inset-0 bg-gray-50/50 z-10 flex items-center justify-center font-bold text-gray-400 text-xs rotate-12 transform border-gray-200 border-2 rounded-xl m-4 bg-white/80 uppercase tracking-widest">Coming Soon</div>
-                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Moon size={20} className="text-gray-400" /> Darstellung</h2>
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-600">Dark Mode</span>
-                                        <div className="w-10 h-6 bg-gray-200 rounded-full"></div>
+                            {/* Design / Appearance shortcut card */}
+                            <button
+                                onClick={() => setActiveTab('appearance')}
+                                className="w-full text-left p-5 rounded-2xl shadow-sm transition-all duration-150 group"
+                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+                                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-default)')}
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Palette size={18} style={{ color: 'var(--accent)' }} />
+                                        <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Design anpassen</h2>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-600">Kompakte Ansicht</span>
-                                        <div className="w-10 h-6 bg-gray-200 rounded-full"></div>
-                                    </div>
+                                    <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" style={{ color: 'var(--text-muted)' }} />
                                 </div>
-                            </section>
-
-                            {/* NOTIFICATIONS */}
-                            <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm opacity-60 pointer-events-none relative overflow-hidden">
-                                <div className="absolute inset-0 bg-gray-50/50 z-10 flex items-center justify-center font-bold text-gray-400 text-xs rotate-12 transform border-gray-200 border-2 rounded-xl m-4 bg-white/80 uppercase tracking-widest">Coming Soon</div>
-                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Bell size={20} className="text-gray-400" /> Benachrichtigungen</h2>
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <Mail size={16} className="text-gray-400" />
-                                        <span className="text-sm text-gray-600 flex-1">Email Zusammenfassung</span>
-                                        <input type="checkbox" disabled checked className="rounded text-gray-900 focus:ring-gray-900 border-gray-300" />
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Smartphone size={16} className="text-gray-400" />
-                                        <span className="text-sm text-gray-600 flex-1">Push Nachrichten</span>
-                                        <input type="checkbox" disabled className="rounded text-gray-900 focus:ring-gray-900 border-gray-300" />
-                                    </div>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Dark Mode, Schriftart, Akzentfarben und Hintergrund — alles anpassbar und geräteübergreifend synchronisiert.</p>
+                                {/* Mini preview swatches */}
+                                <div className="flex gap-1.5 mt-3">
+                                    {['#111827', '#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#D97706'].map(c => (
+                                        <div key={c} className="w-4 h-4 rounded-full" style={{ background: c }} />
+                                    ))}
                                 </div>
-                            </section>
+                            </button>
                         </div>
                     </div>
                 </>
+            ) : activeTab === 'appearance' ? (
+                <div>
+                    <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Passe das Design der App nach deinem Geschmack an. Alle Einstellungen werden automatisch gespeichert.</p>
+                    <AppearanceSettings />
+                </div>
             ) : activeTab === 'projects' && currentUser?.role === 'admin' ? (
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                     <h2 className="text-lg font-bold mb-4">Alle Projekte (Admin Übersicht)</h2>
