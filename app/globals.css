@@ -58,9 +58,9 @@
   --radius-xl: 20px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
-  --shadow-lg: 0 10px 30px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 /* ============================================================
@@ -96,9 +96,9 @@ html.dark {
   --scrollbar-thumb: rgba(255, 255, 255, 0.1);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.2);
-  --shadow-lg: 0 10px 30px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================================
@@ -108,6 +108,7 @@ html[data-bg="subtle"] {
   --bg-app: #FAF9F7;
   --bg-subtle: #F5F3EF;
 }
+
 html.dark[data-bg="subtle"] {
   --bg-app: #13121A;
   --bg-subtle: #1A1825;
@@ -117,6 +118,7 @@ html[data-bg="canvas"] {
   --bg-app: #F8F6F0;
   --bg-subtle: #F0EDE4;
 }
+
 html.dark[data-bg="canvas"] {
   --bg-app: #0E0D0F;
   --bg-subtle: #181720;
@@ -134,6 +136,7 @@ html[data-accent="blue"] {
   --sidebar-active-bg: #3B82F6;
   --sidebar-active-text: #ffffff;
 }
+
 html[data-accent="violet"] {
   --accent: #7C3AED;
   --accent-hover: #6D28D9;
@@ -143,6 +146,7 @@ html[data-accent="violet"] {
   --sidebar-active-bg: #7C3AED;
   --sidebar-active-text: #ffffff;
 }
+
 html[data-accent="rose"] {
   --accent: #F43F5E;
   --accent-hover: #E11D48;
@@ -152,6 +156,7 @@ html[data-accent="rose"] {
   --sidebar-active-bg: #F43F5E;
   --sidebar-active-text: #ffffff;
 }
+
 html[data-accent="emerald"] {
   --accent: #10B981;
   --accent-hover: #059669;
@@ -161,6 +166,7 @@ html[data-accent="emerald"] {
   --sidebar-active-bg: #10B981;
   --sidebar-active-text: #ffffff;
 }
+
 html[data-accent="amber"] {
   --accent: #D97706;
   --accent-hover: #B45309;
@@ -170,6 +176,7 @@ html[data-accent="amber"] {
   --sidebar-active-bg: #D97706;
   --sidebar-active-text: #ffffff;
 }
+
 html[data-accent="cyan"] {
   --accent: #0891B2;
   --accent-hover: #0E7490;
@@ -179,6 +186,7 @@ html[data-accent="cyan"] {
   --sidebar-active-bg: #0891B2;
   --sidebar-active-text: #ffffff;
 }
+
 html[data-accent="slate"] {
   --accent: #475569;
   --accent-hover: #334155;
@@ -192,7 +200,8 @@ html[data-accent="slate"] {
 /* ============================================================
    BASE STYLES
    ============================================================ */
-html, body {
+html,
+body {
   font-family: var(--font-family) !important;
   background-color: var(--bg-app);
   color: var(--text-primary);
@@ -212,10 +221,11 @@ body {
 }
 
 @layer base {
+
   input,
   select,
   textarea {
-    @apply appearance-none rounded-xl outline-none bg-transparent;
+    @apply appearance-none outline-none bg-transparent;
     font-family: inherit;
   }
 
@@ -285,22 +295,53 @@ body {
    ANIMATIONS
    ============================================================ */
 @keyframes wiggle {
-  0% { transform: rotate(0deg); }
-  25% { transform: rotate(-0.5deg); }
-  50% { transform: rotate(0deg); }
-  75% { transform: rotate(0.5deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-0.5deg);
+  }
+
+  50% {
+    transform: rotate(0deg);
+  }
+
+  75% {
+    transform: rotate(0.5deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
 }
+
 .animate-wiggle-subtle {
   animation: wiggle 0.5s ease-in-out infinite;
 }
 
 @keyframes highlight-scale {
-  0% { transform: scale(1); background-color: transparent; }
-  10% { transform: scale(1.02); background-color: var(--accent-subtle); }
-  30% { transform: scale(1.02); background-color: var(--accent-subtle); }
-  100% { transform: scale(1); background-color: transparent; }
+  0% {
+    transform: scale(1);
+    background-color: transparent;
+  }
+
+  10% {
+    transform: scale(1.02);
+    background-color: var(--accent-subtle);
+  }
+
+  30% {
+    transform: scale(1.02);
+    background-color: var(--accent-subtle);
+  }
+
+  100% {
+    transform: scale(1);
+    background-color: transparent;
+  }
 }
+
 .animate-highlight {
   animation: highlight-scale 2s ease-out forwards;
 }
@@ -309,60 +350,62 @@ body {
    REACT GRID LAYOUT OVERRIDES
    ============================================================ */
 .react-grid-item.react-grid-placeholder {
-    background: var(--accent-subtle) !important;
-    border-radius: 32px !important;
-    opacity: 0.5 !important;
+  background: var(--accent-subtle) !important;
+  border-radius: 32px !important;
+  opacity: 0.5 !important;
 }
 
 .react-grid-item {
-    transition: all 200ms ease;
-    transition-property: left, top, width, height;
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
 }
 
 .react-grid-item.cssTransforms {
-    transition-property: transform, width, height;
+  transition-property: transform, width, height;
 }
 
 .react-grid-item.resizing {
-    z-index: 100 !important;
-    box-shadow: var(--shadow-lg) !important;
-    opacity: 0.9;
+  z-index: 100 !important;
+  box-shadow: var(--shadow-lg) !important;
+  opacity: 0.9;
 }
 
 /* Custom Resize Handle */
 .react-resizable-handle {
-    background: none !important;
-    width: 24px !important;
-    height: 24px !important;
-    bottom: 8px !important;
-    right: 8px !important;
-    z-index: 50 !important;
-    cursor: se-resize !important;
+  background: none !important;
+  width: 24px !important;
+  height: 24px !important;
+  bottom: 8px !important;
+  right: 8px !important;
+  z-index: 50 !important;
+  cursor: se-resize !important;
 }
 
 .react-resizable-handle::after {
-    content: '';
-    position: absolute;
-    right: 6px;
-    bottom: 6px;
-    width: 12px;
-    height: 12px;
-    border-right: 3px solid var(--border-strong);
-    border-bottom: 3px solid var(--border-strong);
-    border-bottom-right-radius: 4px;
-    transition: all 0.2s;
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 12px;
+  height: 12px;
+  border-right: 3px solid var(--border-strong);
+  border-bottom: 3px solid var(--border-strong);
+  border-bottom-right-radius: 4px;
+  transition: all 0.2s;
 }
 
 .react-resizable-handle:hover::after {
-    border-color: var(--text-muted);
-    width: 16px;
-    height: 16px;
+  border-color: var(--text-muted);
+  width: 16px;
+  height: 16px;
 }
 
 /* ============================================================
    THEME TRANSITION — smooth color changes
    ============================================================ */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 200ms;
   transition-timing-function: ease;

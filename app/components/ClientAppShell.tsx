@@ -44,6 +44,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (pathname.startsWith('/ressourcen')) return 'resource_planning';
         if (pathname.startsWith('/zeiterfassung')) return 'time_tracking';
         if (pathname.startsWith('/einstellungen')) return 'settings';
+        if (pathname.startsWith('/kalender')) return 'kalender';
         return 'dashboard';
     };
 

@@ -278,3 +278,57 @@ export interface OrganizationTemplate {
     content: string;
     type: 'intro' | 'outro';
 }
+
+// ── Calendar ────────────────────────────────────────────────
+
+export type CalendarView = 'day' | 'week' | 'month';
+
+export type EventColor = 'blue' | 'violet' | 'rose' | 'green' | 'amber' | 'cyan' | 'slate' | 'red' | 'orange';
+
+export interface CalendarAttendee {
+    name: string;
+    email: string;
+    employee_id?: string | null;
+}
+
+export interface CalendarEvent {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    title: string;
+    description?: string | null;
+    location?: string | null;
+    start_at: string;           // ISO string (UTC)
+    end_at: string;             // ISO string (UTC)
+    all_day: boolean;
+    color: EventColor;
+    attendees: CalendarAttendee[];
+    created_at?: string;
+    // Joined
+    employees?: Employee;
+}
+
+export interface ExternalCalendar {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    name: string;
+    url: string;
+    color: string;
+    is_visible: boolean;
+    last_synced_at?: string | null;
+    created_at?: string;
+}
+
+export interface ParsedExternalEvent {
+    id: string;
+    externalCalendarId: string;
+    title: string;
+    start_at: string;
+    end_at: string;
+    all_day: boolean;
+    color: string;
+    calendarName: string;
+    description?: string;
+    location?: string;
+}
