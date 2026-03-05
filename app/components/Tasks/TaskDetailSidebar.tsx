@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, CheckCircle2, Calendar, User, Image as ImageIcon, Plus, Globe, Lock, Trash2, Layout, Edit2, Check } from 'lucide-react';
+import { X, CheckCircle2, Calendar, User, Image as ImageIcon, Plus, Globe, Lock, Trash2, Layout, Edit2, Check, GripVertical } from 'lucide-react';
 import { Todo, Employee, Project } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import ConfirmModal from '../Modals/ConfirmModal';
 import UserAvatar from '../UI/UserAvatar';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TaskDetailSidebarProps {
     task: Todo;
@@ -32,6 +35,11 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
     const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
     const [pendingCompletions, setPendingCompletions] = useState<Record<string, NodeJS.Timeout>>({});
     const [subtaskToDelete, setSubtaskToDelete] = useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     useEffect(() => {
         return () => {
@@ -79,6 +87,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
             .from('todos')
             .select(`*, employees(id, initials, name, avatar_url)`)
             .eq('parent_id', task.id)
+            .order('order_index', { ascending: true })
             .order('created_at', { ascending: true });
 
         if (data) setSubtasks(data as any);
@@ -134,12 +143,14 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
     };
 
     const handleAddSubtask = async () => {
+        const maxOrder = Math.max(0, ...subtasks.map(t => t.order_index || 0));
         const { data, error } = await supabase.from('todos').insert([{
             project_id: task.project_id || null,
             organization_id: task.organization_id,
             parent_id: task.id,
             title: 'Neue Unteraufgabe',
-            is_done: false
+            is_done: false,
+            order_index: maxOrder + 1
         }]).select(`*, employees(id, initials, name, avatar_url)`);
 
         if (data) {
@@ -147,6 +158,33 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
             setSubtasks([...subtasks, newSubtask]);
             setEditingSubtaskId(newSubtask.id);
             onRefresh?.();
+        }
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = subtasks.findIndex((t) => t.id === active.id);
+        const newIndex = subtasks.findIndex((t) => t.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newSorted = arrayMove(subtasks, oldIndex, newIndex);
+        const updated = newSorted.map((t, idx) => ({ ...t, order_index: idx }));
+        setSubtasks(updated);
+
+        try {
+            await Promise.all(
+                updated.map(t =>
+                    supabase.from('todos')
+                        .update({ order_index: t.order_index })
+                        .eq('id', t.id)
+                )
+            );
+            onRefresh?.();
+        } catch (e) {
+            console.error('Reorder error:', e);
         }
     };
 
@@ -414,79 +452,24 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                         </div>
 
                         <div className="space-y-2">
-                            {subtasks.map(subtask => (
-                                <div
-                                    key={subtask.id}
-                                    className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl group/sub transition cursor-pointer"
-                                    onClick={() => onTaskClick?.(subtask)}
-                                >
-                                    <button
-                                        onClick={(e) => handleToggleSubtaskWithDelay(subtask.id, subtask.is_done || !!pendingCompletions[subtask.id], e)}
-                                        className={`w-5 h-5 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check_sub ${subtask.is_done || pendingCompletions[subtask.id] ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500'}`}
-                                    >
-                                        <Check size={10} className={`text-white transition-opacity ${subtask.is_done || pendingCompletions[subtask.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
-                                    </button>
-
-                                    <div className="flex-1 min-w-0">
-                                        {editingSubtaskId === subtask.id ? (
-                                            <input
-                                                type="text"
-                                                className={`w-full bg-white border border-blue-200 rounded px-1 text-sm focus:ring-1 focus:ring-blue-500 p-0 ${subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}
-                                                value={subtask.title}
-                                                autoFocus
-                                                onClick={(e) => e.stopPropagation()}
-                                                onChange={(e) => {
-                                                    const newSub = [...subtasks];
-                                                    const idx = newSub.findIndex(t => t.id === subtask.id);
-                                                    newSub[idx].title = e.target.value;
-                                                    setSubtasks(newSub);
-                                                }}
-                                                onFocus={(e) => e.target.select()}
-                                                onBlur={async () => {
-                                                    await supabase.from('todos').update({ title: subtask.title }).eq('id', subtask.id);
-                                                    setEditingSubtaskId(null);
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') e.currentTarget.blur();
-                                                }}
-                                            />
-                                        ) : (
-                                            <span className={`text-sm truncate block ${subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                                                {subtask.title}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center gap-1 opacity-0 group-hover/sub:opacity-100 transition">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditingSubtaskId(subtask.id);
-                                            }}
-                                            className="p-1 text-gray-400 hover:text-blue-500 transition"
-                                            title="Bearbeiten"
-                                        >
-                                            <Edit2 size={14} />
-                                        </button>
-                                        <button
-                                            onClick={(e) => handleDeleteSubtask(subtask.id, e)}
-                                            className="p-1 text-gray-400 hover:text-red-500 transition"
-                                            title="Löschen"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                        {subtask.employees && (
-                                            <UserAvatar
-                                                src={subtask.employees.avatar_url}
-                                                name={subtask.employees.name}
-                                                initials={subtask.employees.initials}
-                                                size="xs"
-                                                className="ml-1"
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext items={subtasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                                    {subtasks.map(subtask => (
+                                        <SortableSubtask
+                                            key={subtask.id}
+                                            subtask={subtask}
+                                            editingSubtaskId={editingSubtaskId}
+                                            pendingCompletions={pendingCompletions}
+                                            onTaskClick={onTaskClick}
+                                            handleToggleSubtaskWithDelay={handleToggleSubtaskWithDelay}
+                                            setSubtasks={setSubtasks}
+                                            subtasks={subtasks}
+                                            setEditingSubtaskId={setEditingSubtaskId}
+                                            handleDeleteSubtask={handleDeleteSubtask}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                             {subtasks.length === 0 && !loadingSubtasks && (
                                 <div className="text-sm text-gray-400 italic pl-2">Noch keine Unteraufgaben vorhanden.</div>
                             )}
@@ -512,5 +495,122 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                 cancelText="Abbrechen"
             />
         </>
+    );
+}
+
+// Internal wrapper for a Sortable subtask item
+function SortableSubtask({
+    subtask,
+    editingSubtaskId,
+    pendingCompletions,
+    onTaskClick,
+    handleToggleSubtaskWithDelay,
+    setSubtasks,
+    subtasks,
+    setEditingSubtaskId,
+    handleDeleteSubtask
+}: {
+    subtask: any;
+    editingSubtaskId: string | null;
+    pendingCompletions: Record<string, NodeJS.Timeout>;
+    onTaskClick?: (task: Todo) => void;
+    handleToggleSubtaskWithDelay: (id: string, currentStatus: boolean, e: React.MouseEvent) => void;
+    setSubtasks: React.Dispatch<React.SetStateAction<Todo[]>>;
+    subtasks: Todo[];
+    setEditingSubtaskId: (id: string | null) => void;
+    handleDeleteSubtask: (id: string, e: React.MouseEvent) => void;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: subtask.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 50 : 'auto',
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`flex items-center gap-2 p-2 hover:bg-gray-50 rounded-xl group/sub transition cursor-pointer relative ${isDragging ? 'shadow-lg bg-white rotate-1' : ''}`}
+            onClick={() => onTaskClick?.(subtask)}
+        >
+            {/* Drag Handle */}
+            <div
+                {...attributes}
+                {...listeners}
+                className="p-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing opacity-0 group-hover/sub:opacity-100 transition-opacity -ml-1"
+                onClick={e => e.stopPropagation()}
+            >
+                <GripVertical size={14} />
+            </div>
+
+            <button
+                onClick={(e) => handleToggleSubtaskWithDelay(subtask.id, subtask.is_done || !!pendingCompletions[subtask.id], e)}
+                className={`w-5 h-5 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check_sub ${subtask.is_done || pendingCompletions[subtask.id] ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500'}`}
+            >
+                <Check size={10} className={`text-white transition-opacity ${subtask.is_done || pendingCompletions[subtask.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+            </button>
+
+            <div className="flex-1 min-w-0">
+                {editingSubtaskId === subtask.id ? (
+                    <input
+                        type="text"
+                        className={`w-full bg-white border border-blue-200 rounded px-1 text-sm focus:ring-1 focus:ring-blue-500 p-0 ${subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}
+                        value={subtask.title}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                            const newSub = [...subtasks];
+                            const idx = newSub.findIndex(t => t.id === subtask.id);
+                            newSub[idx].title = e.target.value;
+                            setSubtasks(newSub);
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={async () => {
+                            await supabase.from('todos').update({ title: subtask.title }).eq('id', subtask.id);
+                            setEditingSubtaskId(null);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                    />
+                ) : (
+                    <span className={`text-sm truncate block ${subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                        {subtask.title}
+                    </span>
+                )}
+            </div>
+
+            <div className="flex items-center gap-1 opacity-0 group-hover/sub:opacity-100 transition">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingSubtaskId(subtask.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-blue-500 transition border rounded-md border-transparent hover:border-blue-100 hover:bg-blue-50"
+                    title="Bearbeiten"
+                >
+                    <Edit2 size={12} />
+                </button>
+                <button
+                    onClick={(e) => handleDeleteSubtask(subtask.id, e)}
+                    className="p-1 text-gray-400 hover:text-red-500 transition border rounded-md border-transparent hover:border-red-100 hover:bg-red-50"
+                    title="Löschen"
+                >
+                    <Trash2 size={12} />
+                </button>
+                {subtask.employees && (
+                    <UserAvatar
+                        src={subtask.employees.avatar_url}
+                        name={subtask.employees.name}
+                        initials={subtask.employees.initials}
+                        size="xs"
+                        className="ml-1"
+                    />
+                )}
+            </div>
+        </div>
     );
 }

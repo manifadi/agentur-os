@@ -352,15 +352,16 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
         setTodos(updatedTodosWithIndices);
 
-        // Update in database
-        const updates = updatedTodosWithIndices.map(t => ({
-            id: t.id,
-            order_index: t.order_index
-        }));
-
-        const { error } = await supabase.from('todos').upsert(updates, { onConflict: 'id' });
-
-        if (error) {
+        // Update in database using individual update calls to avoid upsert constraints
+        try {
+            await Promise.all(
+                updatedTodosWithIndices.map(t =>
+                    supabase.from('todos')
+                        .update({ order_index: t.order_index })
+                        .eq('id', t.id)
+                )
+            );
+        } catch (error: any) {
             console.error('Error saving reorder:', error);
             if (error.message.includes("order_index")) {
                 setConfirmConfig({
