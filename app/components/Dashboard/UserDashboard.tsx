@@ -324,7 +324,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     <div className="h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 space-y-3 custom-scrollbar">
                             {assignedTasks.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
+                                <div className="h-full flex flex-col items-center justify-center text-text-placeholder opacity-60">
                                     <CheckSquare size={32} strokeWidth={1.5} />
                                     <span className="text-xs font-medium mt-2">Alles erledigt</span>
                                 </div>
@@ -337,23 +337,23 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                         <div
                                             key={t.id}
                                             onClick={() => router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`)}
-                                            className="group/item relative flex items-start gap-4 p-4 rounded-2xl hover:bg-white/60 transition-all border border-transparent hover:border-gray-200/50 hover:shadow-sm cursor-pointer"
+                                            className="group/item relative flex items-start gap-4 p-4 rounded-2xl hover:bg-hover transition-all border border-transparent hover:border-default hover:shadow-sm cursor-pointer"
                                         >
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, isDoneEffective); }}
-                                                className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isDoneEffective ? 'bg-blue-500 border-blue-500' : 'border-gray-300 group-hover/item:border-blue-400'}`}
+                                                className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isDoneEffective ? 'bg-accent border-accent' : 'border-text-muted group-hover/item:border-accent'}`}
                                             >
-                                                {isDoneEffective && <Check size={10} className="text-white" />}
+                                                {isDoneEffective && <Check size={10} className="text-accent-text" />}
                                             </button>
                                             <div className="flex-1 min-w-0 pr-8">
-                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-gray-400 line-through' : 'text-gray-900 group-hover/item:text-blue-700'}`}>
+                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-text-placeholder line-through' : 'text-text-primary group-hover/item:text-accent'}`}>
                                                     {t.title}
                                                     {t.title.length > 30 && '...'}
                                                 </div>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{t.project?.title}</span>
+                                                <span className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest truncate">{t.project?.title}</span>
                                             </div>
                                             {t.deadline && (
-                                                <div className={`flex items-center gap-1 text-[10px] font-medium mt-1.5 ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-gray-400'}`}>
+                                                <div className={`flex items-center gap-1 text-[10px] font-medium mt-1.5 ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-text-muted'}`}>
                                                     <Calendar size={10} />
                                                     {new Date(t.deadline).toLocaleDateString('de-DE')}
                                                 </div>
@@ -365,7 +365,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                                     e.stopPropagation();
                                                     router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`);
                                                 }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-text-primary text-surface px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
                                             >
                                                 Details <ArrowRight size={10} />
                                             </button>
@@ -381,7 +381,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     <div className="h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar pb-14">
                             {todayEntries.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60 py-8">
+                                <div className="h-full flex flex-col items-center justify-center text-text-placeholder opacity-60 py-8">
                                     <Clock size={32} strokeWidth={1.5} />
                                     <span className="text-xs font-medium mt-2">Noch keine Einträge heute</span>
                                 </div>
@@ -390,18 +390,18 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                     <div
                                         key={entry.id}
                                         onClick={() => { setEntryToEdit(entry); setShowAddTimeModal(true); }}
-                                        className="group flex items-center justify-between p-3 rounded-xl hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 transition-all cursor-pointer"
+                                        className="group flex items-center justify-between p-3 rounded-xl hover:bg-hover hover:shadow-sm border border-transparent hover:border-default transition-all cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-bold text-gray-900">{entry.hours}h</span>
-                                                <span className="text-xs text-gray-500 truncate">{entry.projects?.title || 'Intern'}</span>
+                                                <span className="text-sm font-bold text-text-primary">{entry.hours}h</span>
+                                                <span className="text-xs text-text-muted truncate">{entry.projects?.title || 'Intern'}</span>
                                             </div>
-                                            <div className="text-[10px] text-gray-400 truncate mt-0.5">{entry.description || 'Keine Beschreibung'}</div>
+                                            <div className="text-[10px] text-text-placeholder truncate mt-0.5">{entry.description || 'Keine Beschreibung'}</div>
                                         </div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setEntryToEdit(entry); setShowAddTimeModal(true); }}
-                                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-blue-600 transition-all"
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-text-muted hover:text-accent transition-all"
                                         >
                                             <Settings2 size={14} />
                                         </button>
@@ -409,14 +409,14 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 ))
                             )}
                         </div>
-                        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-lg">
+                        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-surface/80 backdrop-blur-md p-3 rounded-2xl border border-default shadow-lg">
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Heute Gesamt</span>
-                                <span className="text-xl font-black text-gray-900">{todayTotal.toFixed(2)}h</span>
+                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Heute Gesamt</span>
+                                <span className="text-xl font-black text-text-primary">{todayTotal.toFixed(2)}h</span>
                             </div>
                             <button
                                 onClick={() => { setEntryToEdit(undefined); setShowAddTimeModal(true); }}
-                                className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center hover:scale-105 transition-all shadow-md shadow-gray-200"
+                                className="w-10 h-10 bg-text-primary text-surface rounded-xl flex items-center justify-center hover:scale-105 transition-all shadow-md shadow-gray-200"
                             >
                                 <Plus size={18} strokeWidth={3} />
                             </button>
@@ -427,14 +427,14 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 return (
                     <div className="h-full flex flex-col items-center justify-center">
                         {deadlines.length === 0 ? (
-                            <span className="text-sm text-gray-400 font-medium opacity-60">Keine anstehenden Termine.</span>
+                            <span className="text-sm text-text-muted font-medium opacity-60">Keine anstehenden Termine.</span>
                         ) : (
                             <div className="w-full space-y-2">
                                 {deadlines.map(p => (
-                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl bg-orange-50/50 border border-orange-100">
+                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20">
                                         <div className={`w-2 h-2 rounded-full ${getDeadlineColorClass(p.deadline!)}`} />
-                                        <span className="text-sm font-bold text-gray-800 truncate flex-1">{p.title}</span>
-                                        <span className="text-[10px] font-bold text-gray-400">{new Date(p.deadline!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}.</span>
+                                        <span className="text-sm font-bold text-text-primary truncate flex-1">{p.title}</span>
+                                        <span className="text-[10px] font-bold text-text-muted">{new Date(p.deadline!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}.</span>
                                     </div>
                                 ))}
                             </div>
@@ -443,9 +443,9 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 );
             case 'resource_planning':
                 return (
-                    <div className="h-full flex items-center justify-center text-gray-300">
+                    <div className="h-full flex items-center justify-center text-text-placeholder">
                         {/* Placeholder for weekly plan visualization */}
-                        <div className="w-full grid grid-cols-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center opacity-50">
+                        <div className="w-full grid grid-cols-6 text-[10px] font-bold text-text-placeholder uppercase tracking-widest text-center opacity-50">
                             <span>Projekt</span>
                             <span>Mo</span>
                             <span>Di</span>
@@ -459,7 +459,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 return (
                     <div className="h-full flex flex-col gap-3">
                         {favoriteProjects.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-300 py-8">
+                            <div className="h-full flex flex-col items-center justify-center text-text-muted py-8">
                                 <Star size={32} strokeWidth={1.5} className="opacity-40" />
                                 <span className="text-xs font-medium mt-3">Noch keine Favoriten</span>
                             </div>
@@ -468,16 +468,16 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 <button
                                     key={p.id}
                                     onClick={() => onSelectProject(p)}
-                                    className="group relative flex items-center gap-4 p-4 bg-white/50 backdrop-blur-sm border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 rounded-2xl transition-all w-full text-left shadow-sm hover:shadow-md"
+                                    className="group relative flex items-center gap-4 p-4 bg-surface/50 backdrop-blur-sm border border-default hover:border-accent/40 hover:bg-accent-subtle/30 rounded-2xl transition-all w-full text-left shadow-sm hover:shadow-md"
                                 >
-                                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                                    <div className="w-10 h-10 rounded-xl bg-surface border border-default flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
                                         <Star size={18} fill="currentColor" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <span className="block text-sm font-bold text-gray-800 truncate">{p.title}</span>
-                                        <span className="block text-[10px] font-medium text-gray-400 uppercase tracking-widest mt-0.5">{p.clients?.name}</span>
+                                        <span className="block text-sm font-bold text-text-primary truncate">{p.title}</span>
+                                        <span className="block text-[10px] font-medium text-text-muted uppercase tracking-widest mt-0.5">{p.clients?.name}</span>
                                     </div>
-                                    <ArrowRight size={16} className="text-gray-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                                    <ArrowRight size={16} className="text-text-placeholder opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                 </button>
                             ))
                         )}
@@ -488,7 +488,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     <div className="h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 space-y-3 custom-scrollbar">
                             {userPersonalTodos.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60 py-8">
+                                <div className="h-full flex flex-col items-center justify-center text-text-placeholder opacity-60 py-8">
                                     <CheckCircle2 size={32} strokeWidth={1.5} />
                                     <span className="text-xs font-medium mt-2">Private Liste leer</span>
                                 </div>
@@ -501,16 +501,16 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                         <div
                                             key={t.id}
                                             onClick={() => setSelectedTask(t as any)}
-                                            className="group/item relative flex items-center gap-4 p-4 rounded-2xl hover:bg-white/60 transition-all border border-transparent hover:border-gray-200/50 hover:shadow-sm cursor-pointer"
+                                            className="group/item relative flex items-center gap-4 p-4 rounded-2xl hover:bg-hover transition-all border border-transparent hover:border-default hover:shadow-sm cursor-pointer"
                                         >
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, isDoneEffective); }}
-                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isDoneEffective ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover/item:border-green-500'}`}
+                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isDoneEffective ? 'bg-green-500 border-green-500' : 'border-text-placeholder group-hover/item:border-green-500'}`}
                                             >
                                                 {isDoneEffective && <Check size={10} className="text-white" />}
                                             </button>
                                             <div className="flex-1 min-w-0 pr-10">
-                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-text-placeholder line-through' : 'text-text-primary'}`}>
                                                     {t.title}
                                                 </div>
                                             </div>
@@ -521,7 +521,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                                     e.stopPropagation();
                                                     setSelectedTask(t as any);
                                                 }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-black text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-text-primary text-surface px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
                                             >
                                                 Bearbeiten
                                             </button>
@@ -546,42 +546,42 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             {/* Header */}
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none">Guten Morgen, {currentUser.name.split(' ')[0]}.</h1>
-                    <p className="text-gray-500 font-medium mt-2">Hier ist dein Überblick für heute.</p>
+                    <h1 className="text-3xl md:text-4xl font-black text-text-primary tracking-tight leading-none">Guten Morgen, {currentUser.name.split(' ')[0]}.</h1>
+                    <p className="text-text-secondary font-medium mt-2">Hier ist dein Überblick für heute.</p>
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-3 shrink-0">
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('agentur-os-open-search'))}
-                        className="w-11 h-11 bg-white border border-gray-100 rounded-xl text-gray-400 flex items-center justify-center hover:border-blue-300 hover:text-blue-500 hover:shadow-md transition-all group"
+                        className="w-11 h-11 bg-surface border border-default rounded-xl text-text-muted flex items-center justify-center hover:border-accent hover:text-accent hover:shadow-md transition-all group"
                         title="Suche (Cmd+K)"
                     >
                         <Search size={20} strokeWidth={2.5} />
                     </button>
                     {isEditMode && (
-                        <button onClick={() => setShowGallery(true)} className="bg-white border border-gray-100 hover:border-blue-300 text-gray-700 hover:text-blue-600 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                        <button onClick={() => setShowGallery(true)} className="bg-surface border border-default hover:border-accent text-text-secondary hover:text-accent px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
                             <Plus size={16} strokeWidth={3} /> Widget
                         </button>
                     )}
                     <div className="relative" ref={addMenuRef}>
                         <button
                             onClick={() => setShowAddMenu(!showAddMenu)}
-                            className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-gray-200 flex items-center gap-2"
+                            className="bg-text-primary hover:bg-black dark:hover:bg-hover text-surface px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
                         >
                             <Plus size={16} strokeWidth={3} /> Aktionen
                         </button>
 
                         {showAddMenu && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[200] animate-in fade-in slide-in-from-top-1">
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-surface rounded-2xl shadow-xl border border-default py-2 z-[200] animate-in fade-in slide-in-from-top-1">
                                 <button
                                     onClick={() => {
                                         onQuickAction('create_project');
                                         setShowAddMenu(false);
                                     }}
-                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-lg bg-accent-subtle/30 text-accent flex items-center justify-center">
                                         <BriefcaseIcon size={14} strokeWidth={2.5} />
                                     </div>
                                     Projekt hinzufügen
@@ -591,9 +591,9 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                         onQuickAction('create_client');
                                         setShowAddMenu(false);
                                     }}
-                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-green-50 text-green-500 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center">
                                         <Users size={14} strokeWidth={2.5} />
                                     </div>
                                     Kunde hinzufügen
@@ -604,7 +604,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     {/* Settings / Edit Mode Toggle */}
                     <button
                         onClick={() => setIsEditMode(!isEditMode)}
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${isEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border border-gray-100 text-gray-400 hover:text-gray-900'}`}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${isEditMode ? 'bg-accent text-accent-text shadow-lg shadow-accent/20' : 'bg-surface border border-default text-text-muted hover:text-text-primary'}`}
                     >
                         {isEditMode ? <Check size={20} strokeWidth={3} /> : <Settings2 size={20} />}
                     </button>
@@ -633,13 +633,13 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                         if (!info) return <div key={widget.id} data-grid={{ x: 0, y: 0, w: 4, h: 6 }}>Unknown Widget</div>;
 
                         return (
-                            <div key={widget.id} className="group relative flex flex-col bg-white rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-shadow">
+                            <div key={widget.id} className="group relative flex flex-col bg-surface rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-transparent dark:border-default hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] transition-shadow">
                                 {/* Header */}
                                 <div className="p-6 pb-2 flex items-center gap-3 shrink-0 drag-handle cursor-grab active:cursor-grabbing">
-                                    <div className={`w-8 h-8 rounded-xl bg-${info.color}-50 text-${info.color}-500 flex items-center justify-center`}>
+                                    <div className={`w-8 h-8 rounded-xl bg-accent-subtle/30 text-${info.color}-500 flex items-center justify-center`}>
                                         <info.icon size={16} strokeWidth={2.5} />
                                     </div>
-                                    <span className="text-base font-bold text-gray-900 tracking-tight">{info.title}</span>
+                                    <span className="text-base font-bold text-text-primary tracking-tight">{info.title}</span>
 
                                     <div className="ml-auto flex items-center gap-4">
                                         {/* Sort Selection for tasks */}
@@ -647,14 +647,14 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                             <div className="relative">
                                                 <button
                                                     onClick={() => widget.id === 'assigned_todos' ? setShowAssignedSortMenu(!showAssignedSortMenu) : setShowPersonalSortMenu(!showPersonalSortMenu)}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 hover:text-gray-900 hover:border-gray-200 transition-all font-bold text-[10px] uppercase tracking-widest"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-subtle border border-default text-text-muted hover:text-text-primary hover:border-accent transition-all font-bold text-[10px] uppercase tracking-widest"
                                                 >
                                                     <Filter size={12} />
                                                     <span>Sortieren</span>
                                                 </button>
 
                                                 {(widget.id === 'assigned_todos' ? showAssignedSortMenu : showPersonalSortMenu) && (
-                                                    <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[100] animate-in fade-in slide-in-from-top-1">
+                                                    <div className="absolute top-full right-0 mt-2 w-40 bg-surface rounded-2xl shadow-xl border border-default py-2 z-[100] animate-in fade-in slide-in-from-top-1">
                                                         {[
                                                             { id: 'deadline', label: 'Nach Datum', icon: Calendar },
                                                             { id: 'recent', label: 'Zuletzt hinzugefügt', icon: Plus },
@@ -672,8 +672,8 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                                                     }
                                                                 }}
                                                                 className={`w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-between ${(widget.id === 'assigned_todos' ? assignedSort : personalSort) === option.id
-                                                                    ? 'text-blue-600 bg-blue-50/50'
-                                                                    : 'text-gray-500 hover:bg-gray-50'
+                                                                    ? 'text-accent bg-accent-subtle/30'
+                                                                    : 'text-text-muted hover:bg-hover'
                                                                     }`}
                                                             >
                                                                 <span className="flex items-center gap-2">
@@ -689,12 +689,12 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                         )}
 
                                         {widget.id === 'assigned_todos' && (
-                                            <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-gray-200">
+                                            <span className="w-6 h-6 rounded-full bg-text-primary text-surface text-[10px] font-black flex items-center justify-center shadow-lg">
                                                 {assignedTasks.length}
                                             </span>
                                         )}
                                         {widget.id === 'private_todos' && (
-                                            <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-gray-200">
+                                            <span className="w-6 h-6 rounded-full bg-text-primary text-surface text-[10px] font-black flex items-center justify-center shadow-lg">
                                                 {userPersonalTodos.length}
                                             </span>
                                         )}
@@ -709,7 +709,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 {/* Edit Mode Controls */}
                                 {isEditMode && (
                                     <>
-                                        <div className="absolute inset-0 border-2 border-blue-500/20 rounded-[32px] pointer-events-none" />
+                                        <div className="absolute inset-0 border-2 border-accent/20 rounded-[32px] pointer-events-none" />
                                         <button
                                             onClick={() => handleRemoveWidget(widget.id)}
                                             className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer z-50"
@@ -726,28 +726,28 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
                 {/* Empty State / Add Widget Button (if no widgets) */}
                 {currentWidgets.length === 0 && (
-                    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-[32px]">
-                        <p className="text-gray-400 font-medium mb-4">Dein Dashboard ist leer.</p>
-                        <button onClick={() => setShowGallery(true)} className="bg-blue-600 text-white px-6 py-2 rounded-xl text-sm font-bold">Variablen hinzufügen</button>
+                    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-default rounded-[32px]">
+                        <p className="text-text-muted font-medium mb-4">Dein Dashboard ist leer.</p>
+                        <button onClick={() => setShowGallery(true)} className="bg-accent text-accent-text px-6 py-2 rounded-xl text-sm font-bold">Variablen hinzufügen</button>
                     </div>
                 )}
             </div>
 
             {/* Widget Gallery Modal */}
             {showGallery && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-gray-900/40 backdrop-blur-md animate-in fade-in">
-                    <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 p-12">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/40 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-surface rounded-[40px] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 p-12 border border-default">
                         <div className="flex justify-between items-center mb-10">
-                            <h2 className="text-3xl font-black text-gray-900">Widget hinzufügen</h2>
-                            <button onClick={() => setShowGallery(false)} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"><Plus size={24} className="rotate-45" /></button>
+                            <h2 className="text-3xl font-black text-text-primary">Widget hinzufügen</h2>
+                            <button onClick={() => setShowGallery(false)} className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center hover:bg-hover"><Plus size={24} className="rotate-45" /></button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {allAvailableWidgets.filter(w => !currentWidgets.find(cw => cw.id === w.id)).map(w => (
-                                <button key={w.id} onClick={() => handleAddWidget(w.id as WidgetId)} className="flex items-center gap-4 p-6 rounded-3xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group">
-                                    <div className={`w-12 h-12 rounded-2xl bg-${w.color}-50 text-${w.color}-500 flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                <button key={w.id} onClick={() => handleAddWidget(w.id as WidgetId)} className="flex items-center gap-4 p-6 rounded-3xl border-2 border-default hover:border-accent hover:bg-accent-subtle/30 transition-all text-left group">
+                                    <div className={`w-12 h-12 rounded-2xl bg-${w.color}-500/10 text-${w.color}-500 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                                         <w.icon size={24} />
                                     </div>
-                                    <span className="font-bold text-gray-900">{w.title}</span>
+                                    <span className="font-bold text-text-primary">{w.title}</span>
                                 </button>
                             ))}
                         </div>

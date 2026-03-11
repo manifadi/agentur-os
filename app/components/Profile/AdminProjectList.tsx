@@ -25,18 +25,18 @@ export default function AdminProjectList({ projects, clients }: AdminProjectList
         <div>
             <div className="flex gap-4 mb-6">
                 <div className="flex-1 relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
                         type="text"
                         placeholder="Suchen nach Titel oder Job Nr..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-xl text-sm transition"
+                        className="w-full pl-10 pr-4 py-2 bg-input text-text-primary border border-default focus:bg-surface focus:border-accent focus:ring-1 focus:ring-accent rounded-xl text-sm transition outline-none"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
                 <div className="w-48">
                     <select
-                        className="w-full px-3 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-xl text-sm transition"
+                        className="w-full px-3 py-2 bg-input text-text-primary border border-default focus:bg-surface focus:border-accent focus:ring-1 focus:ring-accent rounded-xl text-sm transition outline-none"
                         value={clientFilter}
                         onChange={e => setClientFilter(e.target.value)}
                     >

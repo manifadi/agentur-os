@@ -97,27 +97,27 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
     // If not, `rows` would need to be mapped to include `projects` for each allocation.
 
     return (
-        <div className="bg-white overflow-x-auto max-h-[calc(100vh-140px)]">
+        <div className="bg-surface overflow-x-auto max-h-[calc(100vh-140px)]">
             <table className="w-full text-left border-collapse text-xs">
-                <thead className="bg-gray-50/50 text-gray-500 sticky top-0 z-10 font-bold">
+                <thead className="bg-subtle text-text-muted sticky top-0 z-10 font-bold">
                     <tr className="h-10">
                         {/* 6 Columns */}
-                        <th className="px-3 border-b border-r border-gray-100 text-center w-32 font-bold uppercase tracking-wider text-[10px]">Kunde</th>
-                        <th className="px-3 border-b border-r border-gray-100 text-center w-24 font-bold uppercase tracking-wider text-[10px]">Job Nr.</th>
-                        <th className="px-3 border-b border-r border-gray-100 text-left w-48 font-bold uppercase tracking-wider text-[10px]">Projekt</th>
-                        <th className="px-3 border-b border-r border-gray-100 text-left w-48 font-bold uppercase tracking-wider text-[10px]">Aufgabe</th>
-                        <th className="px-3 border-b border-r border-gray-100 text-center w-24 font-bold uppercase tracking-wider text-[10px]">Status</th>
-                        <th className="px-3 border-b border-r border-gray-100 text-center w-16 font-bold uppercase tracking-wider text-[10px]">PM</th>
+                        <th className="px-3 border-b border-r border-default text-center w-32 font-bold uppercase tracking-wider text-[10px]">Kunde</th>
+                        <th className="px-3 border-b border-r border-default text-center w-24 font-bold uppercase tracking-wider text-[10px]">Job Nr.</th>
+                        <th className="px-3 border-b border-r border-default text-left w-48 font-bold uppercase tracking-wider text-[10px]">Projekt</th>
+                        <th className="px-3 border-b border-r border-default text-left w-48 font-bold uppercase tracking-wider text-[10px]">Aufgabe</th>
+                        <th className="px-3 border-b border-r border-default text-center w-24 font-bold uppercase tracking-wider text-[10px]">Status</th>
+                        <th className="px-3 border-b border-r border-default text-center w-16 font-bold uppercase tracking-wider text-[10px]">PM</th>
 
                         {/* Days */}
-                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Mo</th>
-                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Di</th>
-                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Mi</th>
-                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Do</th>
-                        <th className="px-1 border-b border-r border-gray-100 w-12 text-center bg-blue-50/30 text-blue-600">Fr</th>
+                        <th className="px-1 border-b border-r border-default w-12 text-center bg-accent-subtle/30 text-accent">Mo</th>
+                        <th className="px-1 border-b border-r border-default w-12 text-center bg-accent-subtle/30 text-accent">Di</th>
+                        <th className="px-1 border-b border-r border-default w-12 text-center bg-accent-subtle/30 text-accent">Mi</th>
+                        <th className="px-1 border-b border-r border-default w-12 text-center bg-accent-subtle/30 text-accent">Do</th>
+                        <th className="px-1 border-b border-r border-default w-12 text-center bg-accent-subtle/30 text-accent">Fr</th>
 
-                        <th className="px-2 border-b border-r border-gray-100 w-32 text-center">Kommentar</th>
-                        <th className="w-8 border-b border-gray-100 bg-gray-50/50"></th>
+                        <th className="px-2 border-b border-r border-default w-32 text-center">Kommentar</th>
+                        <th className="w-8 border-b border-default bg-subtle"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,52 +133,52 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
 
                         return (
                             <React.Fragment key={row.employee.id}>
-                                <tr className="bg-gray-50/30">
-                                    <td colSpan={14} className="px-3 py-2 border-b border-gray-100 sticky left-0 z-0">
-                                        <div className="font-bold text-sm text-gray-900 tracking-tight">{row.employee.name}</div>
-                                        {row.employee.job_title && <div className="text-[10px] text-gray-400 font-medium uppercase mt-0.5">{row.employee.job_title}</div>}
+                                <tr className="bg-subtle/50">
+                                    <td colSpan={14} className="px-3 py-2 border-b border-default sticky left-0 z-0">
+                                        <div className="font-bold text-sm text-text-primary tracking-tight">{row.employee.name}</div>
+                                        {row.employee.job_title && <div className="text-[10px] text-text-muted font-medium uppercase mt-0.5">{row.employee.job_title}</div>}
                                     </td>
                                 </tr>
 
                                 {row.allocations.map(alloc => (
-                                    <tr key={alloc.id} className="border-b border-gray-100 hover:bg-gray-50/40 h-9 group">
-                                        <td className="px-0 border-b border-r border-gray-100 h-9 p-0 relative bg-white">
-                                            <div className="px-2 text-gray-600 truncate select-none text-[11px] py-1 font-medium">{alloc.projects?.clients?.name || '-'}</div>
+                                    <tr key={alloc.id} className="border-b border-default hover:bg-hover h-9 group">
+                                        <td className="px-0 border-b border-r border-default h-9 p-0 relative bg-surface">
+                                            <div className="px-2 text-text-secondary truncate select-none text-[11px] py-1 font-medium">{alloc.projects?.clients?.name || '-'}</div>
                                         </td>
-                                        <td className="px-0 border-b border-r border-gray-100 h-9 p-0 relative bg-white group/cell">
+                                        <td className="px-0 border-b border-r border-default h-9 p-0 relative bg-surface group/cell">
                                             {alloc.projects?.job_number ? (
                                                 <div className="flex items-center px-2 h-full gap-1.5">
-                                                    <Lock size={10} className="text-gray-300 flex-shrink-0" />
-                                                    <div className="text-gray-900 font-mono text-[10px] truncate select-none">{alloc.projects.job_number}</div>
+                                                    <Lock size={10} className="text-text-placeholder flex-shrink-0" />
+                                                    <div className="text-text-primary font-mono text-[10px] truncate select-none">{alloc.projects.job_number}</div>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center px-2 h-full italic text-gray-400 text-[10px] select-none">
+                                                <div className="flex items-center px-2 h-full italic text-text-muted text-[10px] select-none">
                                                     Pitch
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="px-0 border-b border-r border-gray-100 h-full p-0 relative bg-white group/cell">
+                                        <td className="px-0 border-b border-r border-default h-full p-0 relative bg-surface group/cell">
                                             {alloc.projects?.job_number ? (
                                                 <div className="flex items-center px-2 h-full">
-                                                    <div className="text-gray-900 font-semibold text-[11px] truncate select-none">{alloc.projects.title}</div>
+                                                    <div className="text-text-primary font-semibold text-[11px] truncate select-none">{alloc.projects.title}</div>
                                                 </div>
                                             ) : (
-                                                <div className="px-2 text-gray-500 font-bold text-[11px] truncate select-none italic">
+                                                <div className="px-2 text-text-muted font-bold text-[11px] truncate select-none italic">
                                                     {alloc.projects?.title || 'Pitch'}
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="px-0 border-b border-r border-gray-100 h-auto min-h-[36px] p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-default h-auto min-h-[36px] p-0 relative bg-surface">
                                             <DebouncedInput
                                                 id={`${alloc.id}-task`}
                                                 isTextarea
-                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none text-gray-900 text-[11px] placeholder:text-gray-400 block"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-surface focus:outline-none text-text-primary text-[11px] placeholder:text-text-placeholder block"
                                                 initialValue={alloc.task_description || ''}
                                                 onSave={(val) => onUpdateAllocation(alloc.id, 'task_description', val)}
                                                 placeholder="..."
                                             />
                                         </td>
-                                        <td className="px-0 border-b border-r border-gray-100 h-9 p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-default h-9 p-0 relative bg-surface">
                                             <select
                                                 className={`appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer block font-bold ${getStatusStyle(alloc.projects?.status || '')}`}
                                                 value={alloc.projects?.status || ''}
@@ -187,9 +187,9 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
                                         </td>
-                                        <td className="px-0 border-b border-r border-gray-100 h-9 p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-default h-9 p-0 relative bg-surface">
                                             <select
-                                                className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-gray-400 text-center block hover:text-gray-700"
+                                                className="appearance-none w-full h-full px-1 bg-transparent text-[10px] focus:outline-none cursor-pointer text-text-muted text-center block hover:text-text-primary"
                                                 value={alloc.projects?.project_manager_id || ''}
                                                 onChange={(e) => { if (alloc.project_id) onUpdateProject(alloc.project_id, 'project_manager_id', e.target.value || null); }}
                                             >
@@ -202,11 +202,11 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                             ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(day => {
                                                 const field = day; // day is already the field name
                                                 return (
-                                                    <td key={day} className={`px-0 border-b border-r border-gray-100 text-center h-9 p-0 relative bg-white`}>
+                                                    <td key={day} className={`px-0 border-b border-r border-default text-center h-9 p-0 relative bg-surface`}>
                                                         <input
                                                             type="number"
                                                             step="0.25"
-                                                            className={`appearance-none w-full h-full text-center bg-transparent focus:bg-blue-50/30 focus:outline-none font-bold block ${(alloc as any)[field] > 0 ? 'text-gray-900 border-b-2 border-b-blue-600/30' : 'text-gray-200'}`}
+                                                            className={`appearance-none w-full h-full text-center bg-transparent focus:bg-accent-subtle/50 focus:outline-none font-bold block ${(alloc as any)[field] > 0 ? 'text-text-primary border-b-2 border-b-accent/30' : 'text-text-muted/50'}`}
                                                             defaultValue={(alloc as any)[field] || ''}
                                                             onBlur={(e) => {
                                                                 const val = parseFloat(e.target.value) || 0;
@@ -221,18 +221,18 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                                         }
 
 
-                                        <td className="px-0 border-b border-r border-gray-100 h-auto min-h-[36px] p-0 relative bg-white">
+                                        <td className="px-0 border-b border-r border-default h-auto min-h-[36px] p-0 relative bg-surface">
                                             <DebouncedInput
                                                 id={`${alloc.id}-comment`}
                                                 isTextarea
-                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none text-[10px] text-gray-400 placeholder:text-gray-200 block"
+                                                className="appearance-none w-full h-full px-2 bg-transparent focus:bg-surface focus:outline-none text-[10px] text-text-muted placeholder:text-text-placeholder block"
                                                 initialValue={alloc.comment || ''}
                                                 onSave={(val) => onUpdateAllocation(alloc.id, 'comment', val)}
                                                 placeholder="..."
                                             />
                                         </td>
-                                        <td className="text-center border-b border-gray-100 bg-white">
-                                            <button onClick={() => onDeleteAllocation(alloc.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1"><Trash2 size={13} /></button>
+                                        <td className="text-center border-b border-default bg-surface">
+                                            <button onClick={() => onDeleteAllocation(alloc.id)} className="text-text-muted hover:text-red-500 transition-colors p-1"><Trash2 size={13} /></button>
                                         </td>
                                     </tr >
                                 ))
@@ -258,14 +258,14 @@ export default function ResourceGrid({ rows, projects, employees, weekNumber, ye
                     })}
 
                     {/* GLOBAL TOTALS */}
-                    <tr className="bg-gray-900 text-white font-bold sticky bottom-0 z-10">
+                    <tr className="bg-text-primary text-surface font-bold sticky bottom-0 z-10">
                         <td colSpan={6} className="px-4 py-3 text-right uppercase tracking-[0.2em] text-[10px] font-black">Gesamt Stunden</td>
-                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.mo}</td>
-                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.di}</td>
-                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.mi}</td>
-                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.do}</td>
-                        <td className="text-center py-3 border-l border-gray-800 bg-gray-900">{globalTotals.fr}</td>
-                        <td colSpan={2} className="border-l border-gray-800 bg-gray-900"></td>
+                        <td className="text-center py-3 border-l border-surface/20 bg-text-primary">{globalTotals.mo}</td>
+                        <td className="text-center py-3 border-l border-surface/20 bg-text-primary">{globalTotals.di}</td>
+                        <td className="text-center py-3 border-l border-surface/20 bg-text-primary">{globalTotals.mi}</td>
+                        <td className="text-center py-3 border-l border-surface/20 bg-text-primary">{globalTotals.do}</td>
+                        <td className="text-center py-3 border-l border-surface/20 bg-text-primary">{globalTotals.fr}</td>
+                        <td colSpan={2} className="border-l border-surface/20 bg-text-primary"></td>
                     </tr>
                 </tbody >
             </table >
@@ -377,10 +377,10 @@ function GhostRow({ employeeId, projects, allClients, onCreate }: { employeeId: 
 
     return (
         <>
-            <tr className="border-b border-gray-100 hover:bg-gray-50/40 h-10 group transition-colors">
-                <td className="border-r border-gray-100 px-0 h-10 p-0 relative bg-white">
+            <tr className="border-b border-default hover:bg-hover h-10 group transition-colors">
+                <td className="border-r border-default px-0 h-10 p-0 relative bg-surface">
                     <input
-                        className="appearance-none w-full h-full px-2 bg-transparent text-[11px] placeholder:text-gray-400 text-gray-900 focus:outline-none transition-colors block"
+                        className="appearance-none w-full h-full px-2 bg-transparent text-[11px] placeholder:text-text-placeholder text-text-primary focus:outline-none transition-colors block"
                         placeholder="Kunden..."
                         value={client}
                         onChange={e => {
@@ -396,11 +396,11 @@ function GhostRow({ employeeId, projects, allClients, onCreate }: { employeeId: 
                         onBlur={() => setTimeout(() => setIsSearchingClient(false), 200)}
                     />
                     {isSearchingClient && filteredClients.length > 0 && (
-                        <div className="absolute top-full left-0 w-full bg-white shadow-xl border border-gray-100 rounded-xl mt-1 z-50 overflow-hidden">
+                        <div className="absolute top-full left-0 w-full bg-surface shadow-xl border border-default rounded-xl mt-1 z-50 overflow-hidden">
                             {filteredClients.map(c => (
                                 <button
                                     key={c.id}
-                                    className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-none text-xs text-gray-700 font-medium"
+                                    className="w-full text-left px-4 py-2 hover:bg-hover transition-colors border-b border-default last:border-none text-xs text-text-primary font-medium"
                                     onClick={() => {
                                         setClient(c.name);
                                         setIsSearchingClient(false);
@@ -412,24 +412,24 @@ function GhostRow({ employeeId, projects, allClients, onCreate }: { employeeId: 
                         </div>
                     )}
                 </td>
-                <td className="px-0 border-r border-gray-100 h-10 p-0 relative bg-white">
+                <td className="px-0 border-r border-default h-10 p-0 relative bg-surface">
                     <div className="absolute inset-0 w-full h-full">
                         <input
                             type="text"
                             placeholder="Nr..."
-                            className="appearance-none w-full h-full px-2 bg-transparent focus:outline-none text-[11px] font-mono text-gray-900 placeholder:text-gray-400 transition-colors"
+                            className="appearance-none w-full h-full px-2 bg-transparent focus:outline-none text-[11px] font-mono text-text-primary placeholder:text-text-placeholder transition-colors"
                             value={jobNr}
                             onChange={e => setJobNr(e.target.value)}
                             onBlur={handleJobNrBlur}
                             onKeyDown={handleKeyDown}
                             onFocus={() => setIsSearching(false)}
                         />
-                        {!jobNr && <Search size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />}
+                        {!jobNr && <Search size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </div>
                 </td>
-                <td className="border-r border-gray-100 px-0 h-10 p-0 relative flex items-center bg-white">
+                <td className="border-r border-default px-0 h-10 p-0 relative flex items-center bg-surface">
                     <input
-                        className="appearance-none w-full h-full px-2 bg-transparent text-[11px] font-bold placeholder:text-gray-400 text-gray-900 focus:outline-none transition-colors block italic"
+                        className="appearance-none w-full h-full px-2 bg-transparent text-[11px] font-bold placeholder:text-text-placeholder text-text-primary focus:outline-none transition-colors block italic"
                         placeholder="Projektsuche / Neuer Pitch..."
                         value={title}
                         onChange={e => {
@@ -461,30 +461,30 @@ function GhostRow({ employeeId, projects, allClients, onCreate }: { employeeId: 
 
                     {/* SEARCH RESULTS DROPDOWN */}
                     {isSearching && filteredProjects.length > 0 && (
-                        <div className="absolute top-full left-0 w-full bg-white shadow-xl border border-gray-100 rounded-b-md z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="absolute top-full left-0 w-full bg-surface shadow-xl border border-default rounded-b-md z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                             {filteredProjects.map(proj => (
                                 <button
                                     key={proj.id}
-                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-none flex flex-col"
+                                    className="w-full text-left px-3 py-2 hover:bg-hover transition-colors border-b border-default last:border-none flex flex-col"
                                     onClick={() => handleSelectProject(proj)}
                                 >
-                                    <span className="text-[10px] font-bold text-gray-900 truncate">{proj.title}</span>
+                                    <span className="text-[10px] font-bold text-text-primary truncate">{proj.title}</span>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[9px] text-gray-400 font-mono">{proj.job_number}</span>
-                                        <span className="text-[9px] text-gray-400 truncate">{proj.clients?.name}</span>
+                                        <span className="text-[9px] text-text-muted font-mono">{proj.job_number}</span>
+                                        <span className="text-[9px] text-text-muted truncate">{proj.clients?.name}</span>
                                     </div>
                                 </button>
                             ))}
                         </div>
                     )}
                 </td>
-                <td className="border-r border-gray-50"></td>
-                <td className="border-r border-gray-50"></td>
-                <td className="border-r border-gray-50"></td>
-                <td className="border-r border-gray-50"></td>
-                <td className="border-r border-gray-50"></td>
-                <td className="border-r border-gray-50"></td>
-                <td className="border-r border-gray-50"></td>
+                <td className="border-r border-default"></td>
+                <td className="border-r border-default"></td>
+                <td className="border-r border-default"></td>
+                <td className="border-r border-default"></td>
+                <td className="border-r border-default"></td>
+                <td className="border-r border-default"></td>
+                <td className="border-r border-default"></td>
                 <td></td>
             </tr>
             {showModal && (
@@ -524,16 +524,16 @@ function MissingInfoModal({ allClients, onSave, onCancel }: { allClients: Client
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm m-4 transform animate-in zoom-in-95 duration-200">
-                <h3 className="text-xl font-bold mb-2 text-gray-900">Daten vervollständigen</h3>
-                <p className="text-sm text-gray-500 mb-6 leading-relaxed">Bitte gib einen Kunden oder eine Jobnummer an, um das Projekt zu erstellen.</p>
+            <div className="bg-surface rounded-2xl shadow-2xl border border-default p-8 w-full max-w-sm m-4 transform animate-in zoom-in-95 duration-200">
+                <h3 className="text-xl font-bold mb-2 text-text-primary">Daten vervollständigen</h3>
+                <p className="text-sm text-text-secondary mb-6 leading-relaxed">Bitte gib einen Kunden oder eine Jobnummer an, um das Projekt zu erstellen.</p>
 
                 <div className="space-y-5">
                     <div className="relative">
-                        <label className="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Kunde</label>
+                        <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Kunde</label>
                         <input
                             autoFocus
-                            className="appearance-none w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all"
+                            className="appearance-none w-full border border-default rounded-xl px-4 py-2.5 text-sm text-text-primary bg-input focus:ring-2 focus:ring-accent-subtle focus:border-accent outline-none transition-all"
                             placeholder="Kunden suchen oder neu..."
                             value={localClient}
                             onChange={e => {
@@ -543,11 +543,11 @@ function MissingInfoModal({ allClients, onSave, onCancel }: { allClients: Client
                             onFocus={() => setIsSearchingClient(true)}
                         />
                         {isSearchingClient && filteredClients.length > 0 && (
-                            <div className="absolute top-full left-0 w-full bg-white shadow-xl border border-gray-100 rounded-xl mt-1 z-50 overflow-hidden">
+                            <div className="absolute top-full left-0 w-full bg-surface shadow-xl border border-default rounded-xl mt-1 z-50 overflow-hidden">
                                 {filteredClients.map(c => (
                                     <button
                                         key={c.id}
-                                        className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-none text-sm text-gray-700 font-medium"
+                                        className="w-full text-left px-4 py-2 hover:bg-hover transition-colors border-b border-default last:border-none text-sm text-text-primary font-medium"
                                         onClick={() => {
                                             setLocalClient(c.name);
                                             setIsSearchingClient(false);
@@ -561,15 +561,15 @@ function MissingInfoModal({ allClients, onSave, onCancel }: { allClients: Client
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="h-px bg-gray-100 flex-1"></div>
-                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">oder</span>
-                        <div className="h-px bg-gray-100 flex-1"></div>
+                        <div className="h-px bg-default flex-1 border-b border-default"></div>
+                        <span className="text-[10px] font-bold text-text-placeholder uppercase italic">oder</span>
+                        <div className="h-px bg-default flex-1 border-b border-default"></div>
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Job Nr. (optional)</label>
+                        <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Job Nr. (optional)</label>
                         <input
-                            className="appearance-none w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono text-gray-900 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all"
+                            className="appearance-none w-full border border-default bg-input rounded-xl px-4 py-2.5 text-sm font-mono text-text-primary focus:ring-2 focus:ring-accent-subtle focus:border-accent outline-none transition-all"
                             placeholder="z.B. 23-456"
                             value={localJobNr}
                             onChange={e => setLocalJobNr(e.target.value)}
@@ -580,14 +580,14 @@ function MissingInfoModal({ allClients, onSave, onCancel }: { allClients: Client
                 <div className="flex justify-end gap-3 mt-8">
                     <button
                         onClick={onCancel}
-                        className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-xl transition-colors"
+                        className="px-5 py-2.5 text-sm font-bold text-text-secondary hover:bg-hover rounded-xl transition-colors"
                     >
                         Abbrechen
                     </button>
                     <button
                         onClick={() => onSave(localClient, localJobNr)}
                         disabled={!localClient && !localJobNr}
-                        className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200"
+                        className="px-6 py-2.5 text-sm font-bold text-accent-text bg-accent hover:bg-accent-hover rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-default"
                     >
                         Speichern
                     </button>

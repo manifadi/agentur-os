@@ -90,15 +90,15 @@ export default function ZeiterfassungPage() {
     const totalHours = entries.reduce((sum, e) => sum + Number(e.hours), 0);
 
     return (
-        <div className="flex h-screen bg-white">
+        <div className="flex h-screen bg-surface">
             <main className="flex-1 flex flex-col h-full overflow-hidden">
                 {/* Header */}
-                <header className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white z-10">
+                <header className="px-8 py-6 border-b border-default flex justify-between items-center bg-surface z-10">
                     <h1 className="text-2xl font-bold tracking-tight">Zeiterfassung</h1>
                     <DaySwitcher currentDate={currentDate} onDateChange={setCurrentDate} />
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-8 bg-gray-50/30">
+                <div className="flex-1 overflow-y-auto p-8 bg-subtle/30">
                     <div className="max-w-3xl mx-auto space-y-8">
                         {/* Summary & Stats */}
                         <div className="flex flex-col md:flex-row gap-6">

@@ -18,8 +18,8 @@ const WIDGET_COMPONENTS: Record<WidgetId, React.ComponentType<any>> = {
     projects: ProjectListWidget,
     time_tracking: TimeTrackingWidget,
     calendar: CalendarWidget,
-    todos: () => <div className="p-6 bg-white rounded-3xl border border-gray-100 text-gray-400 text-xs italic">Aufgaben Widget (In Arbeit)</div>,
-    resource_planning: () => <div className="p-6 bg-white rounded-3xl border border-gray-100 text-gray-400 text-xs italic">Resource Planner Widget (In Arbeit)</div>,
+    todos: () => <div className="p-6 bg-card rounded-3xl border border-default text-text-muted text-xs italic">Aufgaben Widget (In Arbeit)</div>,
+    resource_planning: () => <div className="p-6 bg-card rounded-3xl border border-default text-text-muted text-xs italic">Resource Planner Widget (In Arbeit)</div>,
 };
 
 export default function DashboardGrid({ config, ...props }: DashboardGridProps) {

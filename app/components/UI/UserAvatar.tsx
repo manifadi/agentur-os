@@ -22,7 +22,7 @@ export default function UserAvatar({ src, name = '', initials = '', size = 'md',
 
     if (src) {
         return (
-            <div className={`${sizeClasses} rounded-full overflow-hidden border border-gray-100 flex-shrink-0 bg-gray-50 ${className}`}>
+            <div className={`${sizeClasses} rounded-full overflow-hidden border border-default flex-shrink-0 bg-subtle ${className}`}>
                 <img
                     src={src}
                     alt={name}
@@ -34,7 +34,7 @@ export default function UserAvatar({ src, name = '', initials = '', size = 'md',
     }
 
     return (
-        <div className={`${sizeClasses} rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center font-bold text-gray-500 flex-shrink-0 ${className}`}>
+        <div className={`${sizeClasses} rounded-full bg-subtle border border-default flex items-center justify-center font-bold text-text-muted flex-shrink-0 ${className}`}>
             {derivedInitials.toUpperCase() || '?'}
         </div>
     );

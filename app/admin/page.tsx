@@ -26,7 +26,7 @@ export default function AdminPage() {
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold mb-2">Kein Zugriff</h1>
-                    <p className="text-gray-500">Du hast keine Berechtigung für diesen Bereich.</p>
+                    <p className="text-text-muted">Du hast keine Berechtigung für diesen Bereich.</p>
                 </div>
             </div>
         );

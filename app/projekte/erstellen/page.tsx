@@ -595,13 +595,13 @@ export default function CreateProjectWizard() {
     // Step 1: Basic Info
     const renderStep1 = () => (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className="text-2xl font-bold text-gray-900">Grunddaten</h2>
+            <h2 className="text-2xl font-bold text-text-primary">Grunddaten</h2>
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
                     <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-1">Kunde *</label>
+                        <label className="text-sm font-semibold text-text-secondary block mb-1">Kunde *</label>
                         <select
-                            className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition"
+                            className="w-full rounded-xl border-default px-4 py-3 bg-subtle focus:bg-surface focus:ring-2 focus:ring-accent transition"
                             value={basicInfo.clientId}
                             onChange={e => setBasicInfo({ ...basicInfo, clientId: e.target.value })}
                         >
@@ -610,10 +610,10 @@ export default function CreateProjectWizard() {
                         </select>
                     </div>
                     <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-1">Projekt Titel *</label>
+                        <label className="text-sm font-semibold text-text-secondary block mb-1">Projekt Titel *</label>
                         <input
                             type="text"
-                            className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition"
+                            className="w-full rounded-xl border-default px-4 py-3 bg-subtle focus:bg-surface focus:ring-2 focus:ring-accent transition"
                             value={basicInfo.title}
                             onChange={e => setBasicInfo({ ...basicInfo, title: e.target.value })}
                             placeholder="z.B. Website Relaunch 2025"
@@ -622,24 +622,24 @@ export default function CreateProjectWizard() {
                 </div>
                 <div className="space-y-4">
                     <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-1">Job Nummer *</label>
+                        <label className="text-sm font-semibold text-text-secondary block mb-1">Job Nummer *</label>
                         <input
                             type="text"
                             disabled
-                            className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-100 text-gray-500 cursor-not-allowed focus:ring-0"
+                            className="w-full rounded-xl border-default px-4 py-3 bg-hover text-text-muted cursor-not-allowed focus:ring-0"
                             value={basicInfo.jobNr}
                             onChange={e => setBasicInfo({ ...basicInfo, jobNr: e.target.value })}
                             placeholder="Wird automatisch generiert..."
                         />
-                        <p className="text-xs text-gray-400 mt-1">Automatisch generiert & einzigartig.</p>
+                        <p className="text-xs text-text-placeholder mt-1">Automatisch generiert & einzigartig.</p>
                     </div>
                     <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-1">Projektmanager</label>
+                        <label className="text-sm font-semibold text-text-secondary block mb-1">Projektmanager</label>
                         <div className="relative" ref={pmDropdownRef}>
                             <button
                                 type="button"
                                 onClick={() => setIsPmDropdownOpen(!isPmDropdownOpen)}
-                                className="w-full rounded-xl border border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between hover:bg-white focus:ring-2 focus:ring-blue-500 transition"
+                                className="w-full rounded-xl border border-default px-4 py-3 bg-subtle flex items-center justify-between hover:bg-surface focus:ring-2 focus:ring-accent transition"
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     {basicInfo.pmId ? (
@@ -650,29 +650,29 @@ export default function CreateProjectWizard() {
                                                 initials={employees.find(e => e.id === basicInfo.pmId)?.initials || ''}
                                                 size="xs"
                                             />
-                                            <span className="truncate text-gray-900">{employees.find(e => e.id === basicInfo.pmId)?.name}</span>
+                                            <span className="truncate text-text-primary">{employees.find(e => e.id === basicInfo.pmId)?.name}</span>
                                         </>
                                     ) : (
-                                        <span className="text-gray-500">Kein PM</span>
+                                        <span className="text-text-muted">Kein PM</span>
                                     )}
                                 </div>
-                                <ChevronDown size={18} className={`text-gray-400 transition-transform ${isPmDropdownOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown size={18} className={`text-text-placeholder transition-transform ${isPmDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
 
                             {isPmDropdownOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-surface rounded-2xl shadow-xl border border-default py-2 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
                                     <button
                                         type="button"
                                         onClick={() => {
                                             setBasicInfo({ ...basicInfo, pmId: '' });
                                             setIsPmDropdownOpen(false);
                                         }}
-                                        className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition ${!basicInfo.pmId ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-500'}`}
+                                        className={`w-full flex items-center justify-between px-4 py-2 hover:bg-subtle transition ${!basicInfo.pmId ? 'bg-accent-subtle text-blue-700 font-bold' : 'text-text-muted'}`}
                                     >
                                         <span>Kein PM</span>
                                         {!basicInfo.pmId && <Check size={16} />}
                                     </button>
-                                    <div className="h-px bg-gray-50 my-1 mx-2" />
+                                    <div className="h-px bg-subtle my-1 mx-2" />
                                     {employees.map(emp => (
                                         <button
                                             key={emp.id}
@@ -681,7 +681,7 @@ export default function CreateProjectWizard() {
                                                 setBasicInfo({ ...basicInfo, pmId: emp.id });
                                                 setIsPmDropdownOpen(false);
                                             }}
-                                            className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition ${basicInfo.pmId === emp.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700'}`}
+                                            className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-subtle transition ${basicInfo.pmId === emp.id ? 'bg-accent-subtle text-blue-700 font-bold' : 'text-text-secondary'}`}
                                         >
                                             <UserAvatar src={emp.avatar_url} name={emp.name} initials={emp.initials} size="xs" />
                                             <span className="flex-1 text-left truncate">{emp.name}</span>
@@ -697,18 +697,18 @@ export default function CreateProjectWizard() {
 
             <div className="grid grid-cols-2 gap-6 pt-4">
                 <div>
-                    <label className="text-sm font-semibold text-gray-700 block mb-1">Interne Beschreibung</label>
+                    <label className="text-sm font-semibold text-text-secondary block mb-1">Interne Beschreibung</label>
                     <textarea
-                        className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition h-32"
+                        className="w-full rounded-xl border-default px-4 py-3 bg-subtle focus:bg-surface focus:ring-2 focus:ring-accent transition h-32"
                         value={basicInfo.descriptionInternal}
                         onChange={e => setBasicInfo({ ...basicInfo, descriptionInternal: e.target.value })}
                         placeholder="Notizen für das Team..."
                     />
                 </div>
                 <div>
-                    <label className="text-sm font-semibold text-gray-700 block mb-1">Externe Beschreibung (Angebot)</label>
+                    <label className="text-sm font-semibold text-text-secondary block mb-1">Externe Beschreibung (Angebot)</label>
                     <textarea
-                        className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition h-32"
+                        className="w-full rounded-xl border-default px-4 py-3 bg-subtle focus:bg-surface focus:ring-2 focus:ring-accent transition h-32"
                         value={basicInfo.descriptionExternal}
                         onChange={e => setBasicInfo({ ...basicInfo, descriptionExternal: e.target.value })}
                         placeholder="Textbausteine für das Angebot..."
@@ -717,28 +717,28 @@ export default function CreateProjectWizard() {
             </div>
 
             {/* NEW: Settings (Deadline & Google Doc) */}
-            <div className="grid grid-cols-2 gap-6 pt-4 border-t border-gray-100 mt-4">
+            <div className="grid grid-cols-2 gap-6 pt-4 border-t border-default mt-4">
                 <div>
-                    <label className="text-sm font-semibold text-gray-700 block mb-1">Deadline</label>
+                    <label className="text-sm font-semibold text-text-secondary block mb-1">Deadline</label>
                     <input
                         type="date"
-                        className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition"
+                        className="w-full rounded-xl border-default px-4 py-3 bg-subtle focus:bg-surface focus:ring-2 focus:ring-accent transition"
                         value={basicInfo.deadline}
                         onChange={e => setBasicInfo({ ...basicInfo, deadline: e.target.value })}
                     />
                 </div>
                 {isAdmin && (
                     <div>
-                        <label className="text-sm font-semibold text-gray-700 block mb-1">Google Docs Link (Admin)</label>
+                        <label className="text-sm font-semibold text-text-secondary block mb-1">Google Docs Link (Admin)</label>
                         <div className="relative">
                             <input
                                 type="url"
-                                className="w-full rounded-xl border-gray-200 px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition pl-10"
+                                className="w-full rounded-xl border-default px-4 py-3 bg-subtle focus:bg-surface focus:ring-2 focus:ring-accent transition pl-10"
                                 value={basicInfo.googleDocUrl}
                                 onChange={e => setBasicInfo({ ...basicInfo, googleDocUrl: e.target.value })}
                                 placeholder="https://docs.google.com/..."
                             />
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder">
                                 <Briefcase size={16} />
                             </div>
                         </div>
@@ -751,38 +751,38 @@ export default function CreateProjectWizard() {
     // Step 2: Calculation
     const renderStep2 = () => (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="flex justify-between items-end border-b border-gray-200 pb-4">
+            <div className="flex justify-between items-end border-b border-default pb-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Kalkulation</h2>
-                    <p className="text-gray-500 text-sm mt-1">Erstelle die Struktur und das Angebot für das Projekt.</p>
+                    <h2 className="text-2xl font-bold text-text-primary">Kalkulation</h2>
+                    <p className="text-text-muted text-sm mt-1">Erstelle die Struktur und das Angebot für das Projekt.</p>
                     <button
                         onClick={() => setIsImportModalOpen(true)}
-                        className="mt-3 flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm border border-blue-100"
+                        className="mt-3 flex items-center gap-2 px-4 py-2 bg-accent-subtle text-accent rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm border border-accent-subtle"
                     >
                         <Download size={14} strokeWidth={2.5} /> Kalkulation aus Projekt importieren
                     </button>
                 </div>
                 <div className="text-right">
-                    <div className="text-sm text-gray-500 uppercase font-bold tracking-wider">Gesamtsumme</div>
-                    <div className="text-3xl font-bold text-gray-900">{calculateTotal().toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
+                    <div className="text-sm text-text-muted uppercase font-bold tracking-wider">Gesamtsumme</div>
+                    <div className="text-3xl font-bold text-text-primary">{calculateTotal().toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
                 </div>
             </div>
 
             <div className="space-y-6">
                 {sections.map((section, sIdx) => (
-                    <div key={section.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition">
+                    <div key={section.id} className="bg-surface rounded-2xl border border-default overflow-hidden shadow-sm hover:shadow-md transition">
                         {/* Section Header */}
-                        <div className="bg-gray-50/50 p-4 border-b border-gray-100 flex gap-4 items-start group">
+                        <div className="bg-subtle/50 p-4 border-b border-default flex gap-4 items-start group">
                             <div className="flex-1 space-y-2">
                                 <input
                                     type="text"
-                                    className="w-full bg-transparent border-none p-0 text-lg font-bold text-gray-900 placeholder-gray-400 focus:ring-0"
+                                    className="w-full bg-transparent border-none p-0 text-lg font-bold text-text-primary placeholder-gray-400 focus:ring-0"
                                     placeholder="Sektion Titel (z.B. Konzeption)"
                                     value={section.title}
                                     onChange={(e) => updateSection(sIdx, 'title', e.target.value)}
                                 />
                                 <textarea
-                                    className="w-full bg-transparent border-none p-0 text-sm text-gray-600 placeholder-gray-400 focus:ring-0 resize-none"
+                                    className="w-full bg-transparent border-none p-0 text-sm text-text-secondary placeholder-gray-400 focus:ring-0 resize-none"
                                     placeholder="Beschreibung / Vertragstext für diesen Abschnitt..."
                                     rows={1}
                                     value={section.description}
@@ -792,14 +792,14 @@ export default function CreateProjectWizard() {
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                                 <button
                                     onClick={() => duplicateSection(sIdx)}
-                                    className="p-2 text-gray-400 hover:text-blue-500 transition"
+                                    className="p-2 text-text-placeholder hover:text-accent transition"
                                     title="Sektion duplizieren"
                                 >
                                     <Copy size={16} />
                                 </button>
                                 <button
                                     onClick={() => removeSection(sIdx)}
-                                    className="p-2 text-gray-400 hover:text-red-500 transition"
+                                    className="p-2 text-text-placeholder hover:text-red-500 transition"
                                     title="Sektion löschen"
                                 >
                                     <X size={16} />
@@ -810,7 +810,7 @@ export default function CreateProjectWizard() {
                         {/* Positions Table */}
                         <div className="p-4">
                             <table className="w-full text-sm">
-                                <thead className="text-xs text-gray-500 uppercase font-semibold border-b border-gray-100">
+                                <thead className="text-xs text-text-muted uppercase font-semibold border-b border-default">
                                     <tr>
                                         <th className="text-left py-2 pl-2 w-12">Pos.</th>
                                         <th className="text-left py-2 w-1/3">Leistung</th>
@@ -824,12 +824,12 @@ export default function CreateProjectWizard() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {section.positions.map((pos, pIdx) => (
-                                        <tr key={pos.id} className="group hover:bg-gray-50/50">
-                                            <td className="py-2 pl-2 text-gray-400 font-mono text-xs">{sIdx + 1}.{pIdx + 1}</td>
+                                        <tr key={pos.id} className="group hover:bg-subtle/50">
+                                            <td className="py-2 pl-2 text-text-placeholder font-mono text-xs">{sIdx + 1}.{pIdx + 1}</td>
                                             <td className="py-2">
                                                 <input
                                                     type="text"
-                                                    className="w-full bg-transparent border-none p-1 focus:bg-white focus:ring-1 focus:ring-blue-500 rounded font-medium"
+                                                    className="w-full bg-transparent border-none p-1 focus:bg-surface focus:ring-1 focus:ring-accent rounded font-medium"
                                                     placeholder="Leistung..."
                                                     value={pos.title}
                                                     onChange={(e) => updatePosition(sIdx, pIdx, 'title', e.target.value)}
@@ -838,7 +838,7 @@ export default function CreateProjectWizard() {
                                             <td className="py-2">
                                                 <input
                                                     type="text"
-                                                    className="w-full bg-transparent border-none p-1 focus:bg-white focus:ring-1 focus:ring-blue-500 rounded text-gray-500"
+                                                    className="w-full bg-transparent border-none p-1 focus:bg-surface focus:ring-1 focus:ring-accent rounded text-text-muted"
                                                     placeholder="Details..."
                                                     value={pos.description}
                                                     onChange={(e) => updatePosition(sIdx, pIdx, 'description', e.target.value)}
@@ -847,14 +847,14 @@ export default function CreateProjectWizard() {
                                             <td className="py-2 text-right">
                                                 <input
                                                     type="number"
-                                                    className="w-full bg-transparent border-none p-1 focus:bg-white focus:ring-1 focus:ring-blue-500 rounded text-right font-mono"
+                                                    className="w-full bg-transparent border-none p-1 focus:bg-surface focus:ring-1 focus:ring-accent rounded text-right font-mono"
                                                     value={pos.quantity}
                                                     onChange={(e) => updatePosition(sIdx, pIdx, 'quantity', parseFloat(e.target.value) || 0)}
                                                 />
                                             </td>
                                             <td className="py-2 pl-2">
                                                 <select
-                                                    className="w-full bg-transparent border-none p-1 focus:bg-white focus:ring-1 focus:ring-blue-500 rounded text-xs"
+                                                    className="w-full bg-transparent border-none p-1 focus:bg-surface focus:ring-1 focus:ring-accent rounded text-xs"
                                                     value={pos.unit}
                                                     onChange={(e) => updatePosition(sIdx, pIdx, 'unit', e.target.value)}
                                                 >
@@ -867,12 +867,12 @@ export default function CreateProjectWizard() {
                                             <td className="py-2 text-right">
                                                 <input
                                                     type="number"
-                                                    className="w-full bg-transparent border-none p-1 focus:bg-white focus:ring-1 focus:ring-blue-500 rounded text-right font-mono"
+                                                    className="w-full bg-transparent border-none p-1 focus:bg-surface focus:ring-1 focus:ring-accent rounded text-right font-mono"
                                                     value={pos.unitPrice}
                                                     onChange={(e) => updatePosition(sIdx, pIdx, 'unitPrice', parseFloat(e.target.value) || 0)}
                                                 />
                                             </td>
-                                            <td className="py-2 text-right font-medium text-gray-900">
+                                            <td className="py-2 text-right font-medium text-text-primary">
                                                 {(pos.quantity * pos.unitPrice).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                             </td>
                                             <td className="py-2 px-1 text-center opacity-0 group-hover:opacity-100 transition">
@@ -882,21 +882,21 @@ export default function CreateProjectWizard() {
                                                             setEditingPosition({ sIdx: sIdx, pIdx: pIdx, data: pos });
                                                             setIsPositionModalOpen(true);
                                                         }}
-                                                        className="text-gray-300 hover:text-blue-500"
+                                                        className="text-text-placeholder hover:text-accent"
                                                         title="Position bearbeiten"
                                                     >
                                                         <Edit2 size={13} />
                                                     </button>
                                                     <button
                                                         onClick={() => duplicatePosition(sIdx, pIdx)}
-                                                        className="text-gray-300 hover:text-blue-500"
+                                                        className="text-text-placeholder hover:text-accent"
                                                         title="Position duplizieren"
                                                     >
                                                         <Copy size={13} />
                                                     </button>
                                                     <button
                                                         onClick={() => removePosition(sIdx, pIdx)}
-                                                        className="text-gray-300 hover:text-red-500"
+                                                        className="text-text-placeholder hover:text-red-500"
                                                         title="Position löschen"
                                                     >
                                                         <X size={14} />
@@ -907,14 +907,14 @@ export default function CreateProjectWizard() {
                                     ))}
                                 </tbody>
                             </table>
-                            <button onClick={() => addPosition(sIdx)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 py-1 px-2 hover:bg-blue-50 rounded transition">
+                            <button onClick={() => addPosition(sIdx)} className="mt-2 text-xs font-bold text-accent hover:text-blue-700 flex items-center gap-1 py-1 px-2 hover:bg-accent-subtle rounded transition">
                                 <Plus size={12} /> Position hinzufügen
                             </button>
                         </div>
                     </div>
                 ))}
 
-                <button onClick={addSection} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-bold hover:border-gray-300 hover:text-gray-600 transition flex items-center justify-center gap-2">
+                <button onClick={addSection} className="w-full py-4 border-2 border-dashed border-default rounded-2xl text-text-placeholder font-bold hover:border-default hover:text-text-secondary transition flex items-center justify-center gap-2">
                     <Plus size={20} /> Neue Sektion hinzufügen
                 </button>
             </div>
@@ -962,19 +962,19 @@ export default function CreateProjectWizard() {
 
         return (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="border-b border-gray-200 pb-4">
-                    <h2 className="text-2xl font-bold text-gray-900">Reporting & Marge</h2>
-                    <p className="text-gray-500 text-sm mt-1">Echtzeit-Auswertung von geplantem Umsatz und tatsächlichen Kosten.</p>
+                <div className="border-b border-default pb-4">
+                    <h2 className="text-2xl font-bold text-text-primary">Reporting & Marge</h2>
+                    <p className="text-text-muted text-sm mt-1">Echtzeit-Auswertung von geplantem Umsatz und tatsächlichen Kosten.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col justify-center items-center text-center">
-                        <span className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Umsatz (Geplant)</span>
-                        <div className="text-3xl font-bold text-gray-900">{totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
+                    <div className="bg-subtle rounded-2xl p-6 border border-default flex flex-col justify-center items-center text-center">
+                        <span className="text-xs text-text-muted uppercase tracking-wider font-bold mb-2">Umsatz (Geplant)</span>
+                        <div className="text-3xl font-bold text-text-primary">{totalRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
                     </div>
-                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col justify-center items-center text-center">
-                        <span className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Kosten (Ist)</span>
-                        <div className="text-3xl font-bold text-gray-900">{totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
+                    <div className="bg-subtle rounded-2xl p-6 border border-default flex flex-col justify-center items-center text-center">
+                        <span className="text-xs text-text-muted uppercase tracking-wider font-bold mb-2">Kosten (Ist)</span>
+                        <div className="text-3xl font-bold text-text-primary">{totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
                     </div>
                     <div className={`rounded-2xl p-6 border flex flex-col justify-center items-center text-center ${margin >= 0 ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
                         <span className="text-xs opacity-70 uppercase tracking-wider font-bold mb-2">Marge / Gewinn</span>
@@ -985,30 +985,30 @@ export default function CreateProjectWizard() {
                 {/* Detailed List by Position */}
                 <div className="space-y-8">
                     {positionGroups.length === 0 ? (
-                        <div className="text-center text-gray-400 py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                        <div className="text-center text-text-placeholder py-10 bg-subtle rounded-2xl border border-dashed border-default">
                             Noch keine Zeiten erfasst.
                         </div>
                     ) : (
                         positionGroups.map((group: any) => (
-                            <div key={group.title} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="bg-gray-50/50 p-4 border-b border-gray-100 flex justify-between items-center">
+                            <div key={group.title} className="bg-surface rounded-2xl border border-default overflow-hidden shadow-sm">
+                                <div className="bg-subtle/50 p-4 border-b border-default flex justify-between items-center">
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-1 bg-gray-900 rounded-full"></div>
                                         <div>
-                                            <h3 className="font-bold text-gray-900">{group.title}</h3>
-                                            <div className="text-xs text-gray-500">
+                                            <h3 className="font-bold text-text-primary">{group.title}</h3>
+                                            <div className="text-xs text-text-muted">
                                                 {group.entries?.[0]?.rate ? `${Number(group.entries[0].rate).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/h` : 'Kein Satz'} ({group.entries.length} Einträge)
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="font-mono font-bold text-gray-900">{group.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
-                                        <div className="text-xs text-gray-500">{group.totalHours.toFixed(2)} Std. gesamt</div>
+                                        <div className="font-mono font-bold text-text-primary">{group.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</div>
+                                        <div className="text-xs text-text-muted">{group.totalHours.toFixed(2)} Std. gesamt</div>
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-white text-xs text-gray-400 uppercase font-medium border-b border-gray-50">
+                                        <thead className="bg-surface text-xs text-text-placeholder uppercase font-medium border-b border-default">
                                             <tr>
                                                 <th className="px-6 py-3 font-normal w-32">Datum</th>
                                                 <th className="px-6 py-3 font-normal">Mitarbeiter</th>
@@ -1019,25 +1019,25 @@ export default function CreateProjectWizard() {
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
                                             {group.entries.map((entry: any) => (
-                                                <tr key={entry.id} className="hover:bg-gray-50/30 transition">
-                                                    <td className="px-6 py-3 whitespace-nowrap text-gray-500 font-mono text-xs">
+                                                <tr key={entry.id} className="hover:bg-subtle/30 transition">
+                                                    <td className="px-6 py-3 whitespace-nowrap text-text-muted font-mono text-xs">
                                                         {new Date(entry.date).toLocaleDateString('de-DE')}
                                                     </td>
                                                     <td className="px-6 py-3">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-5 h-5 rounded-full bg-gray-100 text-[9px] font-bold flex items-center justify-center text-gray-600">
+                                                            <div className="w-5 h-5 rounded-full bg-hover text-[9px] font-bold flex items-center justify-center text-text-secondary">
                                                                 {entry.employees?.initials}
                                                             </div>
-                                                            <span className="text-gray-900 text-xs font-medium">{entry.employees?.name}</span>
+                                                            <span className="text-text-primary text-xs font-medium">{entry.employees?.name}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-3 text-gray-600 max-w-[300px] truncate" title={entry.description}>
+                                                    <td className="px-6 py-3 text-text-secondary max-w-[300px] truncate" title={entry.description}>
                                                         {entry.description || '-'}
                                                     </td>
-                                                    <td className="px-6 py-3 text-right font-mono text-gray-700">
+                                                    <td className="px-6 py-3 text-right font-mono text-text-secondary">
                                                         {Number(entry.hours).toFixed(2)} h
                                                     </td>
-                                                    <td className="px-6 py-3 text-right font-mono text-gray-400 text-xs">
+                                                    <td className="px-6 py-3 text-right font-mono text-text-placeholder text-xs">
                                                         {entry.cost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                                                     </td>
                                                 </tr>
@@ -1054,18 +1054,18 @@ export default function CreateProjectWizard() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50/50 flex flex-col">
+        <div className="min-h-screen bg-subtle/50 flex flex-col">
             {/* Header */}
-            <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-50">
+            <div className="bg-surface/80 backdrop-blur-xl border-b border-default sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition">
+                        <button onClick={() => router.back()} className="p-2 hover:bg-hover rounded-full text-text-muted transition">
                             <ArrowLeft size={20} />
                         </button>
-                        <h1 className="text-xl font-bold text-gray-900">{isEditMode ? 'Projekt bearbeiten' : 'Neues Projekt anlegen'}</h1>
+                        <h1 className="text-xl font-bold text-text-primary">{isEditMode ? 'Projekt bearbeiten' : 'Neues Projekt anlegen'}</h1>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={handleCancel} className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 transition">Abbrechen</button>
+                        <button onClick={handleCancel} className="text-sm text-text-muted hover:text-text-primary px-3 py-1.5 transition">Abbrechen</button>
                         <button onClick={handleSave} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-gray-800 transition shadow-lg shadow-gray-900/10 disabled:opacity-50">
                             {loading ? 'Speichere...' : <><Save size={16} /> Projekt speichern</>}
                         </button>
@@ -1075,16 +1075,16 @@ export default function CreateProjectWizard() {
                 {/* Stepper */}
                 <div className="max-w-3xl mx-auto px-4 translate-y-[1px]">
                     <div className="flex grid grid-cols-4">
-                        <button onClick={() => setStep(1)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 1 ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
+                        <button onClick={() => setStep(1)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 1 ? 'border-gray-900 text-text-primary' : 'border-transparent text-text-placeholder'}`}>
                             <Briefcase size={16} /> <span className="font-medium text-sm">Grunddaten</span>
                         </button>
-                        <button onClick={() => setStep(2)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 2 ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
+                        <button onClick={() => setStep(2)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 2 ? 'border-gray-900 text-text-primary' : 'border-transparent text-text-placeholder'}`}>
                             <Calculator size={16} /> <span className="font-medium text-sm">Kalkulation</span>
                         </button>
-                        <button onClick={() => setStep(3)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 3 ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
+                        <button onClick={() => setStep(3)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 3 ? 'border-gray-900 text-text-primary' : 'border-transparent text-text-placeholder'}`}>
                             <Users size={16} /> <span className="font-medium text-sm">Stundensätze</span>
                         </button>
-                        <button onClick={() => setStep(4)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 4 ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
+                        <button onClick={() => setStep(4)} className={`pb-3 flex items-center justify-center gap-2 border-b-2 transition ${step === 4 ? 'border-gray-900 text-text-primary' : 'border-transparent text-text-placeholder'}`}>
                             <BarChart3 size={16} /> <span className="font-medium text-sm">Reporting</span>
                         </button>
                     </div>
@@ -1093,19 +1093,19 @@ export default function CreateProjectWizard() {
 
             {/* Content */}
             <div className="flex-1 max-w-5xl w-full mx-auto p-8">
-                <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8 min-h-[600px]">
+                <div className="bg-surface rounded-[32px] shadow-sm border border-default p-8 min-h-[600px]">
                     {step === 1 && renderStep1()}
                     {step === 2 && renderStep2()}
                     {step === 3 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="border-b border-gray-200 pb-4">
-                                <h2 className="text-2xl font-bold text-gray-900">Stundensätze</h2>
-                                <p className="text-gray-500 text-sm mt-1">Übersicht der internen Stundensätze pro Position.</p>
+                            <div className="border-b border-default pb-4">
+                                <h2 className="text-2xl font-bold text-text-primary">Stundensätze</h2>
+                                <p className="text-text-muted text-sm mt-1">Übersicht der internen Stundensätze pro Position.</p>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                            <div className="bg-surface rounded-2xl border border-default overflow-hidden">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-semibold border-b border-gray-100">
+                                    <thead className="bg-subtle text-xs text-text-muted uppercase font-semibold border-b border-default">
                                         <tr>
                                             <th className="px-6 py-3">Position</th>
                                             <th className="px-6 py-3">Kategorie</th>
@@ -1114,17 +1114,17 @@ export default function CreateProjectWizard() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {agencyPositions.map((p: any) => (
-                                            <tr key={p.id} className="hover:bg-gray-50/50 transition">
-                                                <td className="px-6 py-4 font-bold text-gray-900">{p.title}</td>
-                                                <td className="px-6 py-4 text-gray-500">{p.category || '-'}</td>
-                                                <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">
+                                            <tr key={p.id} className="hover:bg-subtle/50 transition">
+                                                <td className="px-6 py-4 font-bold text-text-primary">{p.title}</td>
+                                                <td className="px-6 py-4 text-text-muted">{p.category || '-'}</td>
+                                                <td className="px-6 py-4 text-right font-mono font-bold text-text-primary">
                                                     {p.hourly_rate.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                                                    <span className="text-xs text-gray-400 font-normal ml-1">/ h</span>
+                                                    <span className="text-xs text-text-placeholder font-normal ml-1">/ h</span>
                                                 </td>
                                             </tr>
                                         ))}
                                         {agencyPositions.length === 0 && (
-                                            <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-400">Keine Positionen gefunden. (Bitte Administrator kontaktieren)</td></tr>
+                                            <tr><td colSpan={3} className="px-6 py-8 text-center text-text-placeholder">Keine Positionen gefunden. (Bitte Administrator kontaktieren)</td></tr>
                                         )}
                                     </tbody>
                                 </table>

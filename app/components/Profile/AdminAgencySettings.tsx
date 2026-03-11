@@ -226,11 +226,11 @@ export default function AdminAgencySettings() {
 
     // Check for explicit error message OR missing settings
     if (errorMsg || (!settings && !loading)) return (
-        <div className="p-6 text-center max-w-lg mx-auto mt-10 border border-red-200 bg-red-50 rounded-xl">
-            <h3 className="text-red-700 font-bold text-lg mb-2">Einstellungen konnten nicht geladen werden</h3>
-            <p className="text-sm text-red-600 mb-4">{errorMsg || "Unbekannter Fehler: Daten sind leer."}</p>
-            <p className="text-xs text-gray-500 mb-6">Bitte überprüfe deine Internetverbindung oder kontaktiere den Support.</p>
-            <button onClick={fetchSettings} className="bg-red-100 text-red-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-200 transition">
+        <div className="p-6 text-center max-w-lg mx-auto mt-10 border border-red-500/20 bg-red-500/10 rounded-xl">
+            <h3 className="text-red-500 font-bold text-lg mb-2">Einstellungen konnten nicht geladen werden</h3>
+            <p className="text-sm text-red-400 mb-4">{errorMsg || "Unbekannter Fehler: Daten sind leer."}</p>
+            <p className="text-xs text-text-muted mb-6">Bitte überprüfe deine Internetverbindung oder kontaktiere den Support.</p>
+            <button onClick={fetchSettings} className="bg-red-500/20 text-red-500 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition">
                 Erneut versuchen
             </button>
         </div>
@@ -239,82 +239,82 @@ export default function AdminAgencySettings() {
     return (
         <div className="space-y-8">
             {/* AGENCY DATA */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Building2 size={20} className="text-gray-400" /> Unternehmensdaten (für Verträge/Rechnungen)</h2>
+            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Building2 size={20} className="text-text-muted" /> Unternehmensdaten (für Verträge/Rechnungen)</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="company_name">Firmenname</label>
-                        <input id="company_name" name="company_name" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.company_name || ''} onChange={e => safeUpdate('company_name', e.target.value)} placeholder="z.B. Muster Agentur GmbH" />
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="company_name">Firmenname</label>
+                        <input id="company_name" name="company_name" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.company_name || ''} onChange={e => safeUpdate('company_name', e.target.value)} placeholder="z.B. Muster Agentur GmbH" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="address">Adresse (Straße, PLZ, Ort)</label>
-                        <textarea id="address" name="address" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white h-[42px] resize-none" value={settings?.address || ''} onChange={e => safeUpdate('address', e.target.value)} placeholder="Musterstraße 1, 1010 Wien" />
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="address">Adresse (Straße, PLZ, Ort)</label>
+                        <textarea id="address" name="address" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition h-[42px] resize-none" value={settings?.address || ''} onChange={e => safeUpdate('address', e.target.value)} placeholder="Musterstraße 1, 1010 Wien" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="tax_id">UID-Nummer / Steuernummer</label>
-                        <input id="tax_id" name="tax_id" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.tax_id || ''} onChange={e => safeUpdate('tax_id', e.target.value)} placeholder="ATU12345678" />
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="tax_id">UID-Nummer / Steuernummer</label>
+                        <input id="tax_id" name="tax_id" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.tax_id || ''} onChange={e => safeUpdate('tax_id', e.target.value)} placeholder="ATU12345678" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="commercial_register">Firmenbuchnummer</label>
-                        <input id="commercial_register" name="commercial_register" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.commercial_register || ''} onChange={e => safeUpdate('commercial_register', e.target.value)} placeholder="FN 123456 x" />
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="commercial_register">Firmenbuchnummer</label>
+                        <input id="commercial_register" name="commercial_register" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.commercial_register || ''} onChange={e => safeUpdate('commercial_register', e.target.value)} placeholder="FN 123456 x" />
                     </div>
                 </div>
 
-                <div className="mt-6 border-t border-gray-100 pt-4">
-                    <h3 className="text-sm font-bold text-gray-900 mb-4">Kontakt & Web</h3>
+                <div className="mt-6 border-t border-default pt-4">
+                    <h3 className="text-sm font-bold text-text-primary mb-4">Kontakt & Web</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="general_email">Email (Allgemein)</label>
-                            <input id="general_email" name="general_email" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.general_email || ''} onChange={e => safeUpdate('general_email', e.target.value)} placeholder="office@agentur.com" />
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="general_email">Email (Allgemein)</label>
+                            <input id="general_email" name="general_email" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.general_email || ''} onChange={e => safeUpdate('general_email', e.target.value)} placeholder="office@agentur.com" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="general_phone">Telefon (Allgemein)</label>
-                            <input id="general_phone" name="general_phone" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.general_phone || ''} onChange={e => safeUpdate('general_phone', e.target.value)} placeholder="+43 1 234 56 78" />
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="general_phone">Telefon (Allgemein)</label>
+                            <input id="general_phone" name="general_phone" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.general_phone || ''} onChange={e => safeUpdate('general_phone', e.target.value)} placeholder="+43 1 234 56 78" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="website">Webseite</label>
-                            <input id="website" name="website" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.website || ''} onChange={e => safeUpdate('website', e.target.value)} placeholder="www.agentur.com" />
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="website">Webseite</label>
+                            <input id="website" name="website" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.website || ''} onChange={e => safeUpdate('website', e.target.value)} placeholder="www.agentur.com" />
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-6 border-t border-gray-100 pt-4">
-                    <h3 className="text-sm font-bold text-gray-900 mb-4">Bankverbindung</h3>
+                <div className="mt-6 border-t border-default pt-4">
+                    <h3 className="text-sm font-bold text-text-primary mb-4">Bankverbindung</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="bank_name">Bank Name</label>
-                            <input id="bank_name" name="bank_name" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.bank_name || ''} onChange={e => safeUpdate('bank_name', e.target.value)} />
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="bank_name">Bank Name</label>
+                            <input id="bank_name" name="bank_name" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.bank_name || ''} onChange={e => safeUpdate('bank_name', e.target.value)} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="iban">IBAN</label>
-                            <input id="iban" name="iban" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.iban || ''} onChange={e => safeUpdate('iban', e.target.value)} />
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="iban">IBAN</label>
+                            <input id="iban" name="iban" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.iban || ''} onChange={e => safeUpdate('iban', e.target.value)} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="bic">BIC</label>
-                            <input id="bic" name="bic" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white" value={settings?.bic || ''} onChange={e => safeUpdate('bic', e.target.value)} />
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="bic">BIC</label>
+                            <input id="bic" name="bic" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.bic || ''} onChange={e => safeUpdate('bic', e.target.value)} />
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-6 border-t border-gray-100 pt-4">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2" htmlFor="footer_text">Footer Text (für alle Dokumente)</label>
-                    <textarea id="footer_text" name="footer_text" className="w-full p-2 border rounded-xl bg-gray-50 focus:bg-white h-20" value={settings?.footer_text || ''} onChange={e => safeUpdate('footer_text', e.target.value)} placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
+                <div className="mt-6 border-t border-default pt-4">
+                    <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="footer_text">Footer Text (für alle Dokumente)</label>
+                    <textarea id="footer_text" name="footer_text" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition h-20" value={settings?.footer_text || ''} onChange={e => safeUpdate('footer_text', e.target.value)} placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
+                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-text-primary text-surface px-5 py-2 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition shadow-lg">
                         <Save size={16} /> Speichern
                     </button>
                 </div>
             </div>
 
             {/* RESOURCE PLANNER SETTINGS */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Building2 size={20} className="text-gray-400" /> Ressourcenplan Filter-Einstellungen
+                    <Building2 size={20} className="text-text-muted" /> Ressourcenplan Filter-Einstellungen
                 </h2>
-                <p className="text-sm text-gray-500 mb-6">Wähle die Abteilungen aus, die im Ressourcenplan als Filter angezeigt werden sollen.</p>
+                <p className="text-sm text-text-secondary mb-6">Wähle die Abteilungen aus, die im Ressourcenplan als Filter angezeigt werden sollen.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {allDepartments.map(dept => {
@@ -333,12 +333,12 @@ export default function AdminAgencySettings() {
                                     }
                                 }}
                                 className={`p-4 rounded-xl border text-left transition ${isSelected
-                                    ? 'border-gray-900 bg-gray-900 text-white shadow-md'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                                    ? 'border-text-primary bg-text-primary text-surface shadow-md'
+                                    : 'border-default bg-surface text-text-secondary hover:border-accent hover:bg-hover'
                                     }`}
                             >
                                 <div className="font-bold text-sm">{dept.name}</div>
-                                <div className={`text-[10px] uppercase mt-1 ${isSelected ? 'text-gray-400' : 'text-gray-400'}`}>
+                                <div className={`text-[10px] uppercase mt-1 ${isSelected ? 'text-surface/70' : 'text-text-muted'}`}>
                                     {isSelected ? 'Ausgewählt' : 'Verfügbar'}
                                 </div>
                             </button>
@@ -347,35 +347,35 @@ export default function AdminAgencySettings() {
                 </div>
 
                 {allDepartments.length === 0 && (
-                    <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">
+                    <div className="text-center py-8 text-text-muted border border-default border-dashed rounded-xl">
                         Keine Abteilungen gefunden. Bitte erst Abteilungen anlegen.
                     </div>
                 )}
 
                 <div className="mt-6 flex justify-end">
-                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 transition shadow-lg shadow-gray-900/10">
+                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-text-primary text-surface px-5 py-2 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition shadow-lg">
                         <Save size={16} /> Speichern
                     </button>
                 </div>
             </div>
 
             {/* BRANDING */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <h2 className="text-lg font-bold mb-6 flex items-center gap-2"><File size={20} className="text-gray-400" /> Branding & Design</h2>
+            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
+                <h2 className="text-lg font-bold mb-6 flex items-center gap-2"><File size={20} className="text-text-muted" /> Branding & Design</h2>
 
                 <div className="space-y-8">
                     {/* 1. APP LOGO */}
                     <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 items-start">
-                        <div className="w-40 h-40 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden relative">
+                        <div className="w-40 h-40 bg-subtle border border-default rounded-2xl flex items-center justify-center overflow-hidden relative">
                             {settings?.logo_url ? (
                                 <img src={settings.logo_url} className="w-full h-full object-contain p-4" alt="App Logo" />
                             ) : (
-                                <span className="text-xs text-center text-gray-400 font-bold uppercase p-4">Kein Logo<br />(Quadratisch)</span>
+                                <span className="text-xs text-center text-text-muted font-bold uppercase p-4">Kein Logo<br />(Quadratisch)</span>
                             )}
                         </div>
                         <div>
-                            <h3 className="font-bold text-gray-900 mb-1">App Logo (Quadratisch)</h3>
-                            <p className="text-sm text-gray-500 mb-4">Dieses Logo wird in der Seitenleiste der App angezeigt.</p>
+                            <h3 className="font-bold text-text-primary mb-1">App Logo (Quadratisch)</h3>
+                            <p className="text-sm text-text-secondary mb-4">Dieses Logo wird in der Seitenleiste der App angezeigt.</p>
                             <div className="relative inline-block">
                                 <input
                                     type="file"
@@ -408,29 +408,29 @@ export default function AdminAgencySettings() {
                                         setLoading(false);
                                     }}
                                 />
-                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
+                                <button className="flex items-center gap-2 bg-surface border border-default text-text-secondary px-4 py-2 rounded-xl text-sm font-bold hover:bg-hover transition">
                                     <Upload size={16} /> Logo hochladen
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div className="h-px bg-gray-100 w-full"></div>
+                    <div className="h-px bg-default w-full"></div>
 
                     {/* 2. DOCUMENT BANNER */}
                     <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 items-start">
-                        <div className="w-full md:w-[400px] h-[60px] bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative col-span-2 md:col-span-1 md:col-start-2">
+                        <div className="w-full md:w-[400px] h-[60px] bg-subtle border border-default rounded-xl flex items-center justify-center overflow-hidden relative col-span-2 md:col-span-1 md:col-start-2">
                             {/* Preview box mostly for verifying presence, actual preview might need to be wider */}
                             {settings?.document_header_url ? (
                                 <img src={settings.document_header_url} className="w-full h-full object-cover" alt="Banner" />
                             ) : (
-                                <span className="text-xs text-gray-400 font-bold uppercase">Kein Banner</span>
+                                <span className="text-xs text-text-muted font-bold uppercase">Kein Banner</span>
                             )}
                         </div>
 
                         <div className="md:col-start-2">
-                            <h3 className="font-bold text-gray-900 mb-1">Dokumenten Header (1050x150px)</h3>
-                            <p className="text-sm text-gray-500 mb-4">Dieser Banner erscheint im Kopfbereich aller PDF-Dokumente (Angebote, Verträge).</p>
+                            <h3 className="font-bold text-text-primary mb-1">Dokumenten Header (1050x150px)</h3>
+                            <p className="text-sm text-text-secondary mb-4">Dieser Banner erscheint im Kopfbereich aller PDF-Dokumente (Angebote, Verträge).</p>
                             <div className="relative inline-block">
                                 <input
                                     type="file"
@@ -463,7 +463,7 @@ export default function AdminAgencySettings() {
                                         setLoading(false);
                                     }}
                                 />
-                                <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
+                                <button className="flex items-center gap-2 bg-surface border border-default text-text-secondary px-4 py-2 rounded-xl text-sm font-bold hover:bg-hover transition">
                                     <Upload size={16} /> Banner hochladen
                                 </button>
                             </div>
@@ -473,46 +473,46 @@ export default function AdminAgencySettings() {
             </div>
 
             {/* TEMPLATES */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400" /> Vertragsvorlagen</h2>
-                <p className="text-sm text-gray-500 mb-6">Erstelle Textbausteine für Einleitung und Schluss von Verträgen.</p>
+            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText size={20} className="text-text-muted" /> Vertragsvorlagen</h2>
+                <p className="text-sm text-text-secondary mb-6">Erstelle Textbausteine für Einleitung und Schluss von Verträgen.</p>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* List */}
                     <div className="space-y-3">
-                        {templates.length === 0 && <div className="text-center text-gray-400 py-4 border border-dashed rounded-xl">Keine Vorlagen.</div>}
+                        {templates.length === 0 && <div className="text-center text-text-muted py-4 border border-default border-dashed rounded-xl">Keine Vorlagen.</div>}
                         {templates.map(t => (
-                            <div key={t.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 flex justify-between items-start group hover:bg-white hover:shadow-sm transition">
+                            <div key={t.id} className="p-4 rounded-xl border border-default bg-subtle flex justify-between items-start group hover:bg-surface hover:shadow-sm transition">
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${t.type === 'intro' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{t.type}</span>
-                                        <span className="font-bold text-sm text-gray-900">{t.name}</span>
+                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${t.type === 'intro' ? 'bg-accent-subtle/30 text-accent' : 'bg-orange-500/10 text-orange-500'}`}>{t.type}</span>
+                                        <span className="font-bold text-sm text-text-primary">{t.name}</span>
                                     </div>
-                                    <p className="text-xs text-gray-500 line-clamp-2">{t.content}</p>
+                                    <p className="text-xs text-text-secondary line-clamp-2">{t.content}</p>
                                 </div>
-                                <button onClick={() => handleDeleteTemplate(t.id)} className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16} /></button>
+                                <button onClick={() => handleDeleteTemplate(t.id)} className="text-text-placeholder hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16} /></button>
                             </div>
                         ))}
                     </div>
 
                     {/* Add New */}
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                        <h3 className="text-sm font-bold text-gray-900 mb-3">Neue Vorlage erstellen</h3>
+                    <div className="bg-subtle p-4 rounded-xl border border-default">
+                        <h3 className="text-sm font-bold text-text-primary mb-3">Neue Vorlage erstellen</h3>
                         <div className="space-y-3">
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Typ</label>
+                                <label className="text-xs font-bold text-text-muted uppercase">Typ</label>
                                 <div className="flex gap-2 mt-1">
-                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'intro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'intro' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>Einleitung</button>
-                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'outro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'outro' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>Schluss / AGB</button>
+                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'intro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'intro' ? 'bg-accent-subtle/30 border-accent/20 text-accent' : 'bg-surface border-default text-text-secondary hover:bg-hover'}`}>Einleitung</button>
+                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'outro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'outro' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' : 'bg-surface border-default text-text-secondary hover:bg-hover'}`}>Schluss / AGB</button>
                                 </div>
                             </div>
                             <div>
-                                <input className="w-full p-2 border rounded-xl text-sm" placeholder="Bezeichnung (z.B. Standard Einleitung)" value={newTemplate.name} onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })} />
+                                <input className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-accent focus:ring-2 rounded-xl text-sm" placeholder="Bezeichnung (z.B. Standard Einleitung)" value={newTemplate.name} onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })} />
                             </div>
                             <div>
-                                <textarea className="w-full p-2 border rounded-xl text-sm h-32 resize-none" placeholder="Textinhalt..." value={newTemplate.content} onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })} />
+                                <textarea className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-accent focus:ring-2 rounded-xl text-sm h-32 resize-none" placeholder="Textinhalt..." value={newTemplate.content} onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })} />
                             </div>
-                            <button onClick={handleAddTemplate} disabled={tLoading} className="w-full py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-black transition flex justify-center items-center gap-2">
+                            <button onClick={handleAddTemplate} disabled={tLoading} className="w-full py-2 bg-text-primary text-surface rounded-xl text-sm font-bold hover:opacity-90 transition flex justify-center items-center gap-2">
                                 <Plus size={16} /> Hinzufügen
                             </button>
                         </div>

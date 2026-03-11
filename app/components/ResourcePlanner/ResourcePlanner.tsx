@@ -205,33 +205,33 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
         <div className="flex flex-col h-full overflow-hidden">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 px-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight mb-1 flex items-center gap-2"><Calendar size={24} /> Ressourcenplanung</h1>
-                    <p className="text-gray-500 text-sm">Kapazitäten verwalten</p>
+                    <h1 className="text-2xl font-bold tracking-tight mb-1 flex items-center gap-2 text-text-primary"><Calendar size={24} /> Ressourcenplanung</h1>
+                    <p className="text-text-secondary text-sm">Kapazitäten verwalten</p>
                 </div>
 
-                <div className="flex items-center gap-4 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
-                    <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors"><ChevronLeft size={18} /></button>
-                    <div className="text-sm font-bold w-32 text-center select-none text-gray-900 leading-none">KW {currentWeek} <span className="text-gray-400 font-normal ml-1">| {currentYear}</span></div>
-                    <button onClick={() => changeWeek(1)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors"><ChevronRight size={18} /></button>
+                <div className="flex items-center gap-4 bg-surface p-1 rounded-xl border border-default shadow-sm">
+                    <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronLeft size={18} /></button>
+                    <div className="text-sm font-bold w-32 text-center select-none text-text-primary leading-none">KW {currentWeek} <span className="text-text-muted font-normal ml-1">| {currentYear}</span></div>
+                    <button onClick={() => changeWeek(1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronRight size={18} /></button>
                 </div>
 
                 <div className="relative group">
                     <select
-                        className="appearance-none bg-white border border-gray-200 text-sm font-bold rounded-xl pl-4 pr-10 py-2.5 min-w-[160px] focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none shadow-sm cursor-pointer transition-all hover:border-gray-300"
+                        className="appearance-none bg-surface border border-default text-text-primary text-sm font-bold rounded-xl pl-4 pr-10 py-2.5 min-w-[160px] focus:ring-2 focus:ring-accent focus:border-accent outline-none shadow-sm cursor-pointer transition-all hover:border-default"
                         value={selectedDeptId}
                         onChange={(e) => setSelectedDeptId(e.target.value)}
                     >
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-gray-600 transition-colors">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted group-hover:text-text-secondary transition-colors">
                         <ChevronRight size={14} className="rotate-90" />
                     </div>
                 </div>
             </header>
 
-            <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="flex-1 overflow-auto bg-surface rounded-lg shadow-sm border border-default">
                 {loading && allocations.length === 0 ? (
-                    <div className="flex h-64 items-center justify-center text-gray-400">Lade Plan...</div>
+                    <div className="flex h-64 items-center justify-center text-text-muted">Lade Plan...</div>
                 ) : (
                     <ResourceGrid
                         rows={gridData}
@@ -251,22 +251,22 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
 
             {deleteConfirm.open && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 w-full max-w-sm m-4 transform animate-in zoom-in-95 duration-200">
-                        <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                            <Trash2 size={28} className="text-red-600" />
+                    <div className="bg-surface rounded-2xl shadow-2xl border border-default p-8 w-full max-w-sm m-4 transform animate-in zoom-in-95 duration-200">
+                        <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-6 mx-auto">
+                            <Trash2 size={28} className="text-red-500" />
                         </div>
-                        <h3 className="text-xl font-bold text-center text-gray-900 mb-2">Eintrag löschen?</h3>
-                        <p className="text-gray-500 text-center text-sm mb-8 leading-relaxed">Dieser Vorgang kann nicht rückgängig gemacht werden. Möchtest du diesen Ressourceneintrag wirklich entfernen?</p>
+                        <h3 className="text-xl font-bold text-center text-text-primary mb-2">Eintrag löschen?</h3>
+                        <p className="text-text-secondary text-center text-sm mb-8 leading-relaxed">Dieser Vorgang kann nicht rückgängig gemacht werden. Möchtest du diesen Ressourceneintrag wirklich entfernen?</p>
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => setDeleteConfirm({ id: null, open: false })}
-                                className="px-5 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+                                className="px-5 py-3 text-sm font-bold text-text-secondary hover:bg-hover rounded-xl transition-colors"
                             >
                                 Abbrechen
                             </button>
                             <button
                                 onClick={handleDeleteAllocation}
-                                className="px-5 py-3 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-lg shadow-red-200"
+                                className="px-5 py-3 text-sm font-bold text-surface bg-red-500 hover:opacity-90 rounded-xl transition-all shadow-lg shadow-red-500/20"
                             >
                                 Ja, löschen
                             </button>

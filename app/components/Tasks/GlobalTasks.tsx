@@ -128,14 +128,14 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
             <div className="max-w-5xl mx-auto py-8 px-4 space-y-12 animate-in fade-in duration-500">
                 <header className="mb-0 flex justify-between items-end">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight text-nowrap">Meine To-Do Liste</h1>
-                        <p className="text-gray-500 mt-2 truncate">Alle offenen Aufgaben, die mir zugewiesen sind.</p>
+                        <h1 className="text-3xl font-bold text-text-primary tracking-tight text-nowrap">Meine To-Do Liste</h1>
+                        <p className="text-text-muted mt-2 truncate">Alle offenen Aufgaben, die mir zugewiesen sind.</p>
                     </div>
                     <button
                         onClick={() => setShowHistory(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-gray-200 text-sm font-bold text-gray-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 shadow-sm transition group"
+                        className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-surface border border-default text-sm font-bold text-text-secondary hover:text-accent hover:border-accent hover:bg-accent-subtle/50 shadow-sm transition group"
                     >
-                        <History size={18} className="text-gray-400 group-hover:text-blue-500 transition" />
+                        <History size={18} className="text-text-placeholder group-hover:text-accent transition" />
                         Historie
                     </button>
                 </header>
@@ -143,11 +143,11 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
                     {/* LEFT COLUMN: Project Tasks */}
                     <div className="space-y-8">
-                        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest px-1">Zugewiesene To-Do's in Projekten</h2>
+                        <h2 className="text-sm font-bold text-text-placeholder uppercase tracking-widest px-1">Zugewiesene To-Do's in Projekten</h2>
 
                         {getTasksByProject.length === 0 ? (
-                            <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-                                <p className="text-gray-400 text-sm">Keine offenen Projektaufgaben.</p>
+                            <div className="text-center py-16 bg-subtle rounded-3xl border border-dashed border-default">
+                                <p className="text-text-placeholder text-sm">Keine offenen Projektaufgaben.</p>
                             </div>
                         ) : (
                             <div className="space-y-8">
@@ -156,25 +156,25 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                     const projectTodos = item.visibleTodos;
 
                                     return (
-                                        <section key={project.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <section key={project.id} className="bg-surface rounded-2xl shadow-sm border border-default overflow-hidden">
                                             {/* Project Header */}
                                             <div
                                                 onClick={() => { onSelectProject(project); }}
-                                                className="bg-gray-50/50 px-5 py-3.5 flex items-center justify-between border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition"
+                                                className="bg-subtle/50 px-5 py-3.5 flex items-center justify-between border-b border-default cursor-pointer hover:bg-hover transition"
                                             >
                                                 <div className="flex items-center gap-3">
                                                     {project.clients?.logo_url ? (
-                                                        <div className="w-8 h-8 bg-white rounded-lg border border-gray-100 p-1 flex items-center justify-center shrink-0">
+                                                        <div className="w-8 h-8 bg-surface rounded-lg border border-default p-1 flex items-center justify-center shrink-0">
                                                             <img src={project.clients.logo_url} className="max-w-full max-h-full object-contain" />
                                                         </div>
                                                     ) : (
-                                                        <div className="w-8 h-8 bg-white rounded-lg border border-gray-100 flex items-center justify-center shrink-0 text-[10px] font-bold text-gray-400">
+                                                        <div className="w-8 h-8 bg-surface rounded-lg border border-default flex items-center justify-center shrink-0 text-[10px] font-bold text-text-placeholder">
                                                             {project.clients?.name?.substring(0, 2).toUpperCase() || 'NA'}
                                                         </div>
                                                     )}
                                                     <div>
-                                                        <h2 className="text-sm font-bold text-gray-900 leading-tight">{project.title}</h2>
-                                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                                                        <h2 className="text-sm font-bold text-text-primary leading-tight">{project.title}</h2>
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-0.5">
                                                             <span className="font-mono">{project.job_number}</span>
                                                             <span>•</span>
                                                             <span>{project.clients?.name}</span>
@@ -182,10 +182,10 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="text-[10px] font-bold px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-500">
+                                                    <div className="text-[10px] font-bold px-2 py-0.5 bg-surface border border-default rounded-full text-text-muted">
                                                         {projectTodos.length}
                                                     </div>
-                                                    <ChevronRight size={16} className="text-gray-300" />
+                                                    <ChevronRight size={16} className="text-text-placeholder" />
                                                 </div>
                                             </div>
 
@@ -194,14 +194,14 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                 {projectTodos.map(todo => (
                                                     <div
                                                         key={todo.id}
-                                                        className="group flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                                                        className="group flex items-start gap-4 p-4 hover:bg-subtle transition-colors duration-200 cursor-pointer"
                                                         onClick={() => onTaskClick?.(todo)}
                                                     >
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
                                                             className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingIds.has(todo.id)
-                                                                ? 'bg-blue-500 border-blue-500'
-                                                                : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'
+                                                                ? 'bg-accent border-accent'
+                                                                : 'border-default hover:border-accent hover:bg-accent-subtle/10'
                                                                 }`}
                                                         >
                                                             <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingIds.has(todo.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
@@ -209,17 +209,17 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
 
                                                         <div className="flex flex-col flex-1">
                                                             <div className="flex items-center gap-2">
-                                                                <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingIds.has(todo.id)) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                                <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingIds.has(todo.id)) ? 'text-text-placeholder line-through' : 'text-text-primary group-hover:text-accent'}`}>
                                                                     {todo.title}
                                                                 </p>
                                                                 {item.allProjectTodos.some(t => t.parent_id === todo.id) && (
-                                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-400 min-w-[18px] text-center">
+                                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-hover text-[10px] font-bold text-text-placeholder min-w-[18px] text-center">
                                                                         {item.allProjectTodos.filter(t => t.parent_id === todo.id).length}
                                                                     </span>
                                                                 )}
                                                             </div>
                                                             {todo.deadline && (
-                                                                <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-gray-400'}`}>
+                                                                <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-text-placeholder'}`}>
                                                                     Fällig: {new Date(todo.deadline).toLocaleDateString()}
                                                                 </span>
                                                             )}
@@ -229,14 +229,14 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                                                             <div className="relative group/select">
                                                                 <select
-                                                                    className="appearance-none pl-7 pr-2 py-1 bg-white border border-gray-100 rounded-full text-[11px] font-medium text-gray-500 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-all w-28 truncate"
+                                                                    className="appearance-none pl-7 pr-2 py-1 bg-surface border border-default rounded-full text-[11px] font-medium text-text-muted hover:border-default focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent cursor-pointer transition-all w-28 truncate"
                                                                     value={todo.assigned_to || ''}
                                                                     onChange={(e) => handleAssigneeUpdateGlobal(todo.id, e.target.value)}
                                                                 >
                                                                     <option value="">Offen</option>
                                                                     {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                                                                 </select>
-                                                                <User size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                                <User size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-placeholder pointer-events-none" />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -252,24 +252,24 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                     {/* RIGHT COLUMN: Personal To-Dos */}
                     <div className="space-y-8">
                         <div className="flex justify-between items-center px-1">
-                            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Persönliche To-Do's</h2>
+                            <h2 className="text-sm font-bold text-text-placeholder uppercase tracking-widest">Persönliche To-Do's</h2>
                             <div className="relative">
                                 <button
                                     onClick={() => setPersonalSort(personalSort === 'created' ? 'deadline' : 'created')}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs font-medium text-gray-600 hover:border-gray-300 shadow-sm transition"
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-default text-xs font-medium text-text-secondary hover:border-default shadow-sm transition"
                                 >
-                                    <Filter size={14} className="text-gray-400" />
+                                    <Filter size={14} className="text-text-placeholder" />
                                     {personalSort === 'created' ? 'Nach Datum' : 'Nach Fälligkeit'}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col min-h-[400px]">
+                        <div className="bg-surface rounded-2xl shadow-sm border border-default overflow-hidden flex flex-col min-h-[400px]">
 
                             <div className="divide-y divide-gray-100 flex-1">
                                 {sortedPersonalTodos.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-24 text-gray-400 px-6 text-center">
-                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                    <div className="flex flex-col items-center justify-center py-24 text-text-placeholder px-6 text-center">
+                                        <div className="w-16 h-16 bg-subtle rounded-full flex items-center justify-center mb-4">
                                             <CheckCircle2 size={32} strokeWidth={1.5} />
                                         </div>
                                         <p className="text-sm font-medium">Deine private Liste ist leer.</p>
@@ -279,14 +279,14 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                     sortedPersonalTodos.map(todo => (
                                         <div
                                             key={todo.id}
-                                            className="group flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                                            className="group flex items-start gap-4 p-4 hover:bg-subtle transition-colors duration-200 cursor-pointer"
                                             onClick={() => onTaskClick?.(todo)}
                                         >
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
                                                 className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingIds.has(todo.id)
-                                                    ? 'bg-blue-500 border-blue-500'
-                                                    : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50/10'
+                                                    ? 'bg-accent border-accent'
+                                                    : 'border-default hover:border-accent hover:bg-accent-subtle/10'
                                                     }`}
                                             >
                                                 <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingIds.has(todo.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
@@ -297,7 +297,7 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                     {editingPersonalId === todo.id ? (
                                                         <input
                                                             type="text"
-                                                            className="flex-1 text-sm font-medium bg-white border border-blue-200 rounded px-2 py-0.5 focus:ring-1 focus:ring-blue-500"
+                                                            className="flex-1 text-sm font-medium bg-surface border border-accent rounded px-2 py-0.5 focus:ring-1 focus:ring-accent"
                                                             value={editingTitle}
                                                             autoFocus
                                                             onClick={(e) => e.stopPropagation()}
@@ -320,24 +320,24 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                                             }}
                                                         />
                                                     ) : (
-                                                        <p className={`text-sm font-medium leading-relaxed ${todo.is_done || pendingIds.has(todo.id) ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                        <p className={`text-sm font-medium leading-relaxed ${todo.is_done || pendingIds.has(todo.id) ? 'text-text-placeholder line-through' : 'text-text-primary group-hover:text-accent'}`}>
                                                             {todo.title}
                                                         </p>
                                                     )}
                                                     {personalTodos.some(t => t.parent_id === todo.id) && (
-                                                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-400 min-w-[18px] text-center">
+                                                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-hover text-[10px] font-bold text-text-placeholder min-w-[18px] text-center">
                                                             {personalTodos.filter(t => t.parent_id === todo.id).length}
                                                         </span>
                                                     )}
                                                 </div>
                                                 {todo.deadline && (
-                                                    <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-gray-400'}`}>
+                                                    <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-text-placeholder'}`}>
                                                         Fällig: {new Date(todo.deadline).toLocaleDateString()}
                                                     </span>
                                                 )}
                                             </div>
 
-                                            <div className="text-[10px] text-gray-400 font-medium px-2 py-0.5 bg-gray-50 rounded-full">
+                                            <div className="text-[10px] text-text-placeholder font-medium px-2 py-0.5 bg-subtle rounded-full">
                                                 Privat
                                             </div>
                                         </div>
@@ -361,7 +361,7 @@ export default function GlobalTasks({ projects, personalTodos, employees, onSele
                                         setEditingTitle('Neue Aufgabe');
                                     }
                                 }}
-                                className="flex items-center gap-2 px-4 py-3 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition border-t border-gray-100"
+                                className="flex items-center gap-2 px-4 py-3 text-sm text-text-placeholder hover:text-text-secondary hover:bg-subtle transition border-t border-default"
                             >
                                 <Plus size={16} />
                                 Neue Aufgabe

@@ -30,18 +30,18 @@ export default function ConfirmModal({
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="bg-surface rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-default">
                 <div className="flex items-start gap-4 mb-4">
-                    <div className={`p-3 rounded-full shrink-0 ${type === 'danger' ? 'bg-red-50 text-red-600' :
-                        type === 'info' ? 'bg-blue-50 text-blue-600' :
-                            type === 'warning' ? 'bg-amber-50 text-amber-600' :
-                                'bg-green-50 text-green-600'
+                    <div className={`p-3 rounded-full shrink-0 ${type === 'danger' ? 'bg-red-500/10 text-red-500' :
+                        type === 'info' ? 'bg-blue-500/10 text-blue-500' :
+                            type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                'bg-green-500/10 text-green-500'
                         }`}>
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1">{title}</h3>
-                        <p className="text-sm text-gray-500 leading-relaxed">
+                        <h3 className="text-lg font-bold text-text-primary leading-tight mb-1">{title}</h3>
+                        <p className="text-sm text-text-secondary leading-relaxed">
                             {message}
                         </p>
                     </div>
@@ -51,7 +51,7 @@ export default function ConfirmModal({
                     {showCancel && (
                         <button
                             onClick={onCancel}
-                            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition"
+                            className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-hover rounded-xl transition"
                             disabled={isLoading}
                         >
                             {cancelText}

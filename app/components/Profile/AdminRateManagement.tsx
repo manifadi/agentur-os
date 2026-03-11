@@ -119,31 +119,31 @@ export default function AdminRateManagement() {
     }, {} as Record<string, AgencyPosition[]>);
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm animate-in fade-in duration-300">
             <h2 className="text-xl font-bold mb-6 flex items-center justify-between">
-                <span>Stundensätze & Positionen</span>
-                <span className="text-xs font-normal text-gray-400 bg-gray-50 px-2 py-1 rounded">Global für die Agentur</span>
+                <span className="text-text-primary">Stundensätze & Positionen</span>
+                <span className="text-xs font-normal text-text-muted bg-subtle px-2 py-1 rounded">Global für die Agentur</span>
             </h2>
 
             {/* CREATE NEW */}
-            <div className="bg-gray-50 p-4 rounded-xl mb-8 border border-gray-100">
-                <h3 className="text-sm font-bold text-gray-700 uppercase mb-3">Neue Position anlegen</h3>
+            <div className="bg-subtle p-4 rounded-xl mb-8 border border-default">
+                <h3 className="text-sm font-bold text-text-primary uppercase mb-3">Neue Position anlegen</h3>
                 <div className="flex gap-4 items-end">
                     <div className="flex-1">
-                        <label className="block text-xs text-gray-500 mb-1">Titel</label>
+                        <label className="block text-xs text-text-secondary font-bold mb-1">Titel</label>
                         <input
                             type="text"
-                            className="w-full p-2 rounded-lg border border-gray-200 text-sm"
+                            className="w-full p-2 rounded-lg border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
                             placeholder="z.B. Senior Developer"
                             value={newPos.title}
                             onChange={e => setNewPos({ ...newPos, title: e.target.value })}
                         />
                     </div>
                     <div className="w-32">
-                        <label className="block text-xs text-gray-500 mb-1">Kategorie</label>
+                        <label className="block text-xs text-text-secondary font-bold mb-1">Kategorie</label>
                         <input
                             type="text"
-                            className="w-full p-2 rounded-lg border border-gray-200 text-sm"
+                            className="w-full p-2 rounded-lg border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
                             placeholder="z.B. Digital"
                             list="categoriesList"
                             value={newPos.category}
@@ -154,10 +154,10 @@ export default function AdminRateManagement() {
                         </datalist>
                     </div>
                     <div className="w-24">
-                        <label className="block text-xs text-gray-500 mb-1">Rate (€)</label>
+                        <label className="block text-xs text-text-secondary font-bold mb-1">Rate (€)</label>
                         <input
                             type="number"
-                            className="w-full p-2 rounded-lg border border-gray-200 text-sm"
+                            className="w-full p-2 rounded-lg border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
                             placeholder="0.00"
                             value={newPos.hourly_rate}
                             onChange={e => setNewPos({ ...newPos, hourly_rate: parseFloat(e.target.value) })}
@@ -166,7 +166,7 @@ export default function AdminRateManagement() {
                     <button
                         onClick={handleSaveNew}
                         disabled={!newPos.title || !newPos.hourly_rate}
-                        className="bg-gray-900 text-white p-2 rounded-xl hover:bg-black transition disabled:opacity-50"
+                        className="bg-text-primary text-surface p-2 rounded-xl hover:opacity-90 transition disabled:opacity-50"
                     >
                         <Plus size={20} />
                     </button>
@@ -176,23 +176,23 @@ export default function AdminRateManagement() {
             {/* LIST */}
             <div className="space-y-6">
                 {Object.entries(groupedPositions).map(([category, items]) => (
-                    <div key={category} className="border border-gray-100 rounded-xl overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 font-bold text-sm text-gray-600 flex justify-between items-center">
+                    <div key={category} className="border border-default rounded-xl overflow-hidden">
+                        <div className="bg-subtle px-4 py-2 border-b border-default font-bold text-sm text-text-secondary flex justify-between items-center">
                             {category}
-                            <span className="bg-white text-gray-400 text-xs px-2 py-0.5 rounded-full border">{items.length} Positionen</span>
+                            <span className="bg-surface text-text-muted text-xs px-2 py-0.5 rounded-full border border-default">{items.length} Positionen</span>
                         </div>
-                        <div className="divide-y divide-gray-50">
+                        <div className="divide-y divide-default">
                             {items.map(pos => (
-                                <div key={pos.id} className="p-3 flex items-center justify-between hover:bg-gray-50 transition group">
+                                <div key={pos.id} className="p-3 flex items-center justify-between hover:bg-hover transition group">
                                     {editId === pos.id ? (
                                         <div className="flex gap-2 w-full items-center">
                                             <input
-                                                className="flex-1 p-1 border rounded-xl text-sm font-bold"
+                                                className="flex-1 p-1 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl text-sm font-bold"
                                                 defaultValue={pos.title}
                                                 id={`edit-title-${pos.id}`}
                                             />
                                             <input
-                                                className="w-24 p-1 border rounded-xl text-sm text-right"
+                                                className="w-24 p-1 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl text-sm text-right"
                                                 defaultValue={pos.hourly_rate}
                                                 type="number"
                                                 id={`edit-rate-${pos.id}`}
@@ -203,19 +203,19 @@ export default function AdminRateManagement() {
                                                     const r = (document.getElementById(`edit-rate-${pos.id}`) as HTMLInputElement).value;
                                                     handleUpdate(pos.id, { title: t, hourly_rate: parseFloat(r) });
                                                 }}
-                                                className="text-green-600 hover:bg-green-50 p-1 rounded-xl"
+                                                className="text-green-500 hover:bg-green-500/10 hover:text-green-500 p-1 rounded-xl"
                                             >
                                                 <Save size={16} />
                                             </button>
-                                            <button onClick={() => setEditId(null)} className="text-gray-400 hover:bg-gray-100 p-1 rounded"><X size={16} /></button>
+                                            <button onClick={() => setEditId(null)} className="text-text-muted hover:bg-hover p-1 rounded"><X size={16} /></button>
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="font-medium text-gray-900 text-sm flex-1">{pos.title}</div>
-                                            <div className="font-mono text-gray-600 w-24 text-right">{pos.hourly_rate.toFixed(2)} €</div>
+                                            <div className="font-medium text-text-primary text-sm flex-1">{pos.title}</div>
+                                            <div className="font-mono text-text-secondary w-24 text-right">{pos.hourly_rate.toFixed(2)} €</div>
                                             <div className="flex gap-1 ml-4 opacity-0 group-hover:opacity-100 transition">
-                                                <button onClick={() => setEditId(pos.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded-xl"><Edit2 size={14} /></button>
-                                                <button onClick={() => handleDelete(pos.id)} className="p-1 text-gray-400 hover:text-red-500 rounded-xl"><Trash2 size={14} /></button>
+                                                <button onClick={() => setEditId(pos.id)} className="p-1 text-text-muted hover:text-accent rounded-xl"><Edit2 size={14} /></button>
+                                                <button onClick={() => handleDelete(pos.id)} className="p-1 text-text-muted hover:text-red-500 rounded-xl"><Trash2 size={14} /></button>
                                             </div>
                                         </>
                                     )}
@@ -226,7 +226,7 @@ export default function AdminRateManagement() {
                 ))}
 
                 {positions.length === 0 && !loading && (
-                    <div className="text-center py-10 text-gray-400">Keine Positionen gefunden.</div>
+                    <div className="text-center py-10 text-text-muted">Keine Positionen gefunden.</div>
                 )}
             </div>
             <ConfirmModal

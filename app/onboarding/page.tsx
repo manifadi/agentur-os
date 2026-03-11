@@ -162,22 +162,22 @@ export default function OnboardingPage() {
     };
 
     if (status === 'checking') {
-        return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Lade Status...</div>;
+        return <div className="min-h-screen flex items-center justify-center bg-subtle text-text-muted">Lade Status...</div>;
     }
 
     if (status === 'rejected') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-xl text-center">
+            <div className="min-h-screen flex items-center justify-center bg-subtle p-4">
+                <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl text-center">
                     <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Anfrage abgelehnt</h1>
-                    <p className="text-gray-500 mb-8">
+                    <h1 className="text-2xl font-bold text-text-primary mb-2">Anfrage abgelehnt</h1>
+                    <p className="text-text-muted mb-8">
                         Deine Beitrittsanfrage wurde leider abgelehnt. Bitte wende dich an einen Administrator oder versuche es erneut.
                     </p>
                     <div className="flex gap-4 justify-center">
-                        <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 font-medium">
+                        <button onClick={handleLogout} className="text-sm text-text-placeholder hover:text-text-primary font-medium">
                             Abmelden
                         </button>
                         <button onClick={() => setStatus('idle')} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
@@ -191,20 +191,20 @@ export default function OnboardingPage() {
 
     if (status === 'submitted') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-xl text-center">
-                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="min-h-screen flex items-center justify-center bg-subtle p-4">
+                <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl text-center">
+                    <div className="w-16 h-16 bg-accent-subtle text-accent rounded-full flex items-center justify-center mx-auto mb-6">
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Anfrage gesendet</h1>
-                    <p className="text-gray-500 mb-8">
+                    <h1 className="text-2xl font-bold text-text-primary mb-2">Anfrage gesendet</h1>
+                    <p className="text-text-muted mb-8">
                         Deine Beitrittsanfrage wird geprüft. Sobald dein Admin dich freischaltet, erhältst du Zugriff auf das Dashboard.
                     </p>
-                    <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-900 font-medium">
+                    <button onClick={handleLogout} className="text-sm text-text-placeholder hover:text-text-primary font-medium">
                         Abmelden
                     </button>
                     {/* Poll/Refresh button just in case? Or rely on reload */}
-                    <button onClick={() => window.location.reload()} className="block mx-auto mt-4 text-xs text-blue-600 hover:underline">
+                    <button onClick={() => window.location.reload()} className="block mx-auto mt-4 text-xs text-accent hover:underline">
                         Status prüfen
                     </button>
                 </div>
@@ -213,19 +213,19 @@ export default function OnboardingPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-xl">
+        <div className="min-h-screen flex items-center justify-center bg-subtle p-4">
+            <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl">
                 <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Profil einrichten</h1>
-                    <p className="text-gray-500">Bitte wähle deine Organisation und gib deinen Namen ein.</p>
+                    <h1 className="text-2xl font-bold text-text-primary mb-2">Profil einrichten</h1>
+                    <p className="text-text-muted">Bitte wähle deine Organisation und gib deinen Namen ein.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Organisation / Firma</label>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Organisation / Firma</label>
                         <select
                             required
-                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition bg-white"
+                            className="w-full p-3 border border-default rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition bg-surface"
                             value={orgId}
                             onChange={e => setOrgId(e.target.value)}
                         >
@@ -234,29 +234,29 @@ export default function OnboardingPage() {
                                 <option key={org.id} value={org.id}>{org.name}</option>
                             ))}
                         </select>
-                        <p className="text-[10px] text-gray-400 mt-1">Du musst einer bestehenden Organisation beitreten.</p>
+                        <p className="text-[10px] text-text-placeholder mt-1">Du musst einer bestehenden Organisation beitreten.</p>
                     </div>
 
                     {orgId && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Vorname</label>
+                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Vorname</label>
                                     <input
                                         type="text"
                                         required
-                                        className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
+                                        className="w-full p-3 border border-default rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
                                         placeholder="Max"
                                         value={firstName}
                                         onChange={e => setFirstName(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Nachname</label>
+                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Nachname</label>
                                     <input
                                         type="text"
                                         required
-                                        className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
+                                        className="w-full p-3 border border-default rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
                                         placeholder="Mustermann"
                                         value={lastName}
                                         onChange={e => setLastName(e.target.value)}
@@ -276,7 +276,7 @@ export default function OnboardingPage() {
                 </form>
 
                 <div className="mt-6 text-center">
-                    <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600">
+                    <button onClick={handleLogout} className="text-xs text-text-placeholder hover:text-text-secondary">
                         Abmelden
                     </button>
                 </div>

@@ -77,54 +77,54 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
 
     return (
         <div className="space-y-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Building2 size={20} className="text-gray-400" /> Kunden Verwaltung
+            <h2 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+                <Building2 size={20} className="text-text-muted" /> Kunden Verwaltung
             </h2>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-surface rounded-xl shadow-sm border border-default overflow-hidden">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-bold">
+                    <thead className="bg-subtle text-xs uppercase text-text-secondary font-bold">
                         <tr>
                             <th className="p-4">Logo</th>
                             <th className="p-4">Name</th>
                             <th className="p-4 w-24 text-right">Aktion</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-default">
                         {clients.length === 0 ? (
-                            <tr><td colSpan={3} className="p-8 text-center text-gray-400">Keine Kunden gefunden.</td></tr>
+                            <tr><td colSpan={3} className="p-8 text-center text-text-muted">Keine Kunden gefunden.</td></tr>
                         ) : clients.map(client => (
-                            <tr key={client.id} className="hover:bg-gray-50/50 transition">
+                            <tr key={client.id} className="hover:bg-hover transition">
                                 <td className="p-4 w-16">
                                     {client.logo_url ? (
-                                        <div className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center p-0.5">
+                                        <div className="w-8 h-8 rounded-xl bg-surface border border-default flex items-center justify-center p-0.5">
                                             <img src={client.logo_url} className="w-full h-full object-contain" />
                                         </div>
                                     ) : (
-                                        <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                        <div className="w-8 h-8 rounded-xl bg-subtle flex items-center justify-center text-[10px] font-bold text-text-muted">
                                             {client.name.substring(0, 2).toUpperCase()}
                                         </div>
                                     )}
                                 </td>
-                                <td className="p-4 font-medium text-gray-900">{client.name}</td>
+                                <td className="p-4 font-medium text-text-primary">{client.name}</td>
                                 <td className="p-4 text-right flex justify-end gap-2">
                                     <button
                                         onClick={() => window.location.href = `/clients/${client.id}`}
-                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition"
+                                        className="p-2 text-text-muted hover:text-accent hover:bg-surface border border-transparent hover:border-default shadow-none hover:shadow-sm rounded-xl transition"
                                         title="Details öffnen"
                                     >
                                         <ArrowRight size={16} />
                                     </button>
                                     <button
                                         onClick={() => openEdit(client)}
-                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition"
+                                        className="p-2 text-text-muted hover:text-green-500 hover:bg-surface border border-transparent hover:border-default shadow-none hover:shadow-sm rounded-xl transition"
                                         title="Kunde bearbeiten"
                                     >
                                         <Building2 size={16} />
                                     </button>
                                     <button
                                         onClick={() => initiateDelete(client.id)}
-                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                                        className="p-2 text-text-muted hover:text-red-500 hover:bg-surface border border-transparent hover:border-default shadow-none hover:shadow-sm rounded-xl transition"
                                         title="Kunde löschen"
                                     >
                                         <Trash2 size={16} />

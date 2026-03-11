@@ -119,70 +119,86 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
     // This component just renders what it gets.
 
     return (
-        <div className="flex flex-col h-[500px] lg:h-full bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden order-2 lg:order-1">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Clock size={20} className="text-gray-400" /> Logbuch</h2>
+        <div className="flex flex-col h-[500px] lg:h-full bg-surface rounded-2xl p-4 md:p-6 shadow-sm border border-default overflow-hidden order-2 lg:order-1">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Clock size={20} className="text-text-muted" /> Logbuch</h2>
 
             {isAdding && (
-                <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    <input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-                    <input type="text" placeholder="Titel" className="w-full bg-transparent border-none text-sm font-semibold mb-2 focus:ring-0 p-0" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-                    <textarea placeholder="Text..." className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-24" value={newContent} onChange={(e) => setNewContent(e.target.value)} onPaste={handlePaste} />
+                <div className="mb-4 bg-subtle p-3 rounded-xl border border-default">
+                    <input type="date" className="w-full bg-transparent border-none text-xs text-text-secondary font-bold mb-2 focus:ring-0 p-0" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+                    <input type="text" placeholder="Titel" className="w-full bg-transparent border-none text-sm font-semibold mb-2 focus:ring-0 p-0 text-text-primary outline-none" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                    <textarea placeholder="Text..." className="w-full bg-transparent border-none text-sm text-text-secondary resize-none focus:ring-0 p-0 h-24 outline-none" value={newContent} onChange={(e) => setNewContent(e.target.value)} onPaste={handlePaste} />
 
                     <div className="flex items-center gap-2 mb-2">
                         <button
                             onClick={() => setNewIsPublic(!newIsPublic)}
-                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-xl border transition ${newIsPublic ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
+                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-xl border transition ${newIsPublic ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-subtle border-default text-text-secondary'}`}
                         >
                             {newIsPublic ? <Globe size={10} /> : <Lock size={10} />}
                             {newIsPublic ? 'Für alle sichtbar' : 'Nur für mich'}
                         </button>
                     </div>
 
-                    {uploading && <div className="text-xs text-blue-500 mb-2">Lade Bilder hoch...</div>}
+                    {uploading && <div className="text-xs text-accent mb-2">Lade Bilder hoch...</div>}
                     {newImages.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-2">
                             {newImages.map((url, i) => (
                                 <div key={i} className="relative w-16 h-16 group">
-                                    <img src={url} className="w-full h-full object-cover rounded-xl border border-gray-200" />
-                                    <button onClick={() => setNewImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-xl p-0.5 shadow-sm hover:bg-red-600 transition">
+                                    <img src={url} className="w-full h-full object-cover rounded-xl border border-default" />
+                                    <button onClick={() => setNewImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-surface rounded-xl p-0.5 shadow-sm hover:opacity-90 transition">
                                         <X size={10} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
-                    <div className="flex justify-between items-center mt-2 border-t border-gray-200 pt-2">
-                        <button onClick={() => logImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
+                    <div className="flex justify-between items-center mt-2 border-t border-default pt-2">
+                        <button onClick={() => logImageRef.current?.click()} className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-hover transition"><ImageIcon size={16} /></button>
                         <input type="file" accept="image/*" multiple ref={logImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, false)} />
                         <div className="flex gap-2">
-                            <button onClick={() => setIsAdding(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-200 rounded-xl">Abbrechen</button>
-                            <button onClick={handleSaveNew} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-xl shadow-sm disabled:opacity-50">Speichern</button>
+                            <button onClick={() => setIsAdding(false)} className="text-xs text-text-secondary px-3 py-1 hover:bg-hover rounded-xl">Abbrechen</button>
+                            <button onClick={handleSaveNew} disabled={uploading} className="text-xs bg-text-primary text-surface px-3 py-1 rounded-xl shadow-sm disabled:opacity-50">Speichern</button>
                         </div>
                     </div>
                 </div>
             )}
 
             <div className="overflow-y-auto pr-2 space-y-6 flex-1 relative">
-                <div className="absolute left-[7px] top-2 bottom-0 w-[1px] bg-gray-100"></div>
-                {!isAdding && <button onClick={() => { setIsAdding(true); setNewDate(new Date().toISOString().split('T')[0]); }} className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition"><Plus size={14} /> Eintrag hinzufügen</button>}
+                <div className="absolute left-[7px] top-2 bottom-0 w-[1px] bg-default"></div>
+                {!isAdding && <button onClick={() => { setIsAdding(true); setNewDate(new Date().toISOString().split('T')[0]); }} className="relative ml-6 mb-4 flex items-center gap-2 text-xs text-text-muted hover:text-text-primary transition"><Plus size={14} /> Eintrag hinzufügen</button>}
+
+                {!isAdding && logs.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-subtle border border-default flex items-center justify-center mb-3 shadow-sm">
+                            <Clock size={22} className="text-text-placeholder" />
+                        </div>
+                        <p className="text-sm font-semibold text-text-primary mb-1">Noch keine Einträge</p>
+                        <p className="text-xs text-text-secondary mb-4">Halte Fortschritte, Ergebnisse und Notizen im Logbuch fest.</p>
+                        <button
+                            onClick={() => { setIsAdding(true); setNewDate(new Date().toISOString().split('T')[0]); }}
+                            className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 bg-subtle border border-default hover:border-accent hover:text-accent rounded-xl transition-all"
+                        >
+                            <Plus size={13} /> Ersten Eintrag erstellen
+                        </button>
+                    </div>
+                )}
 
                 {logs.map((log) => {
                     const isOwner = log.employee_id === currentEmployeeId || (!log.employee_id && currentEmployeeId);
                     return (
                         <div key={log.id} className="relative pl-6 pb-2 group">
-                            <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white ${log.is_public ? 'bg-green-100' : 'bg-gray-200'}`}>
-                                {log.is_public && <div className="absolute inset-0 flex items-center justify-center"><Globe size={7} className="text-green-600" /></div>}
+                            <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-surface ${log.is_public ? 'bg-green-500/20' : 'bg-subtle'}`}>
+                                {log.is_public && <div className="absolute inset-0 flex items-center justify-center"><Globe size={7} className="text-green-500" /></div>}
                             </div>
                             {editingId === log.id ? (
-                                <div className="bg-gray-50 p-3 rounded-xl border border-blue-200 -ml-2">
-                                    <input type="date" className="w-full bg-transparent border-none text-xs text-gray-500 font-bold mb-2 focus:ring-0 p-0" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-                                    <input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-                                    <textarea className="w-full bg-transparent border-none text-sm text-gray-600 resize-none focus:ring-0 p-0 h-16" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+                                <div className="bg-subtle p-3 rounded-xl border border-accent/20 -ml-2">
+                                    <input type="date" className="w-full bg-transparent border-none text-xs text-text-secondary font-bold mb-2 focus:ring-0 p-0" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                                    <input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0 text-text-primary outline-none" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                                    <textarea className="w-full bg-transparent border-none text-sm text-text-secondary resize-none focus:ring-0 p-0 h-16 outline-none" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
 
                                     <div className="flex items-center gap-2 mb-2">
                                         <button
                                             onClick={() => setEditIsPublic(!editIsPublic)}
-                                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-xl border transition ${editIsPublic ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
+                                            className={`text-xs flex items-center gap-1 px-2 py-1 rounded-xl border transition ${editIsPublic ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-subtle border-default text-text-secondary'}`}
                                         >
                                             {editIsPublic ? <Globe size={10} /> : <Lock size={10} />}
                                             {editIsPublic ? 'Für alle sichtbar' : 'Nur für mich'}
@@ -193,20 +209,20 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                                         <div className="flex flex-wrap gap-2 mb-2">
                                             {editImages.map((url, i) => (
                                                 <div key={i} className="relative w-16 h-16 group">
-                                                    <img src={url} className="w-full h-full object-cover rounded-xl border border-gray-200" />
-                                                    <button onClick={() => setEditImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-xl p-0.5 shadow-sm hover:bg-red-600 transition">
+                                                    <img src={url} className="w-full h-full object-cover rounded-xl border border-default" />
+                                                    <button onClick={() => setEditImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-surface rounded-xl p-0.5 shadow-sm hover:opacity-90 transition">
                                                         <X size={10} />
                                                     </button>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
-                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
-                                        <button onClick={() => editImageRef.current?.click()} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-200 transition"><ImageIcon size={16} /></button>
+                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-default">
+                                        <button onClick={() => editImageRef.current?.click()} className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-hover transition"><ImageIcon size={16} /></button>
                                         <input type="file" accept="image/*" multiple ref={editImageRef} className="hidden" onChange={(e) => e.target.files && handleUpload(e.target.files, editingId !== null)} />
                                         <div className="flex gap-2">
-                                            <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 hover:text-gray-700">Abbrechen</button>
-                                            <button onClick={() => handleSaveEdit(log.id)} disabled={uploading} className="text-xs bg-gray-900 text-white px-3 py-1 rounded-xl shadow-sm disabled:opacity-50">Update</button>
+                                            <button onClick={() => setEditingId(null)} className="text-xs text-text-secondary hover:text-text-primary">Abbrechen</button>
+                                            <button onClick={() => handleSaveEdit(log.id)} disabled={uploading} className="text-xs bg-text-primary text-surface px-3 py-1 rounded-xl shadow-sm disabled:opacity-50">Update</button>
                                         </div>
                                     </div>
                                 </div>
@@ -222,26 +238,26 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                                                     size="xs"
                                                 />
                                             )}
-                                            <div className="text-xs font-bold text-gray-500">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
+                                            <div className="text-xs font-bold text-text-secondary">{new Date(log.entry_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}</div>
                                         </div>
-                                        {!log.is_public && <Lock size={12} className="text-gray-300" />}
+                                        {!log.is_public && <Lock size={12} className="text-text-muted" />}
                                     </div>
-                                    <div className="text-sm font-medium text-gray-900">{log.title}</div>
-                                    <div className="text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
+                                    <div className="text-sm font-medium text-text-primary">{log.title}</div>
+                                    <div className="text-sm text-text-secondary mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
 
                                     {((log.image_urls && log.image_urls.length > 0) || log.image_url) && (
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             {(log.image_urls && log.image_urls.length > 0 ? log.image_urls : [log.image_url!]).map((url, i) => (
                                                 <a key={i} href={url} target="_blank" rel="noreferrer">
-                                                    <img src={url} className="w-20 h-20 object-cover rounded-xl border border-gray-200 hover:opacity-80 transition cursor-zoom-in" />
+                                                    <img src={url} className="w-20 h-20 object-cover rounded-xl border border-default hover:opacity-80 transition cursor-zoom-in" />
                                                 </a>
                                             ))}
                                         </div>
                                     )}
                                     {isOwner && (
-                                        <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white pl-2">
-                                            <button onClick={() => startEditing(log)} className="text-gray-400 hover:text-blue-600 focus:outline-none"><Pencil size={12} /></button>
-                                            <button onClick={() => onDelete(log.id)} className="text-gray-400 hover:text-red-500 focus:outline-none"><Trash2 size={12} /></button>
+                                        <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-surface pl-2">
+                                            <button onClick={() => startEditing(log)} className="text-text-muted hover:text-accent focus:outline-none"><Pencil size={12} /></button>
+                                            <button onClick={() => onDelete(log.id)} className="text-text-muted hover:text-red-500 focus:outline-none"><Trash2 size={12} /></button>
                                         </div>
                                     )}
                                 </div>

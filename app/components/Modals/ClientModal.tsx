@@ -140,10 +140,10 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-surface border border-default rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold flex items-center gap-2"><Building2 size={24} /> {client ? 'Kunde bearbeiten' : 'Neuer Kunde'}</h2>
-                    <button onClick={onClose}><X size={24} className="text-gray-400 hover:text-gray-900" /></button>
+                    <h2 className="text-xl font-bold flex items-center gap-2 text-text-primary"><Building2 size={24} /> {client ? 'Kunde bearbeiten' : 'Neuer Kunde'}</h2>
+                    <button onClick={onClose}><X size={24} className="text-text-muted hover:text-text-primary" /></button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,13 +156,13 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
                             onChange={handleImageUpload}
                         />
                         <div
-                            className="w-16 h-16 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-gray-400 transition relative overflow-hidden group"
+                            className="w-16 h-16 bg-subtle border-2 border-dashed border-default rounded-xl flex items-center justify-center cursor-pointer hover:border-text-muted transition relative overflow-hidden group"
                             onClick={() => fileInputRef.current?.click()}
                         >
                             {logoUrl ? (
                                 <img src={logoUrl} className="w-full h-full object-contain" />
                             ) : (
-                                <Building2 size={24} className="text-gray-300" />
+                                <Building2 size={24} className="text-text-muted" />
                             )}
 
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -174,42 +174,42 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
                             </div>
                         </div>
                         <div className="flex-1">
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kurzname (Anzeige)*</label>
-                            <input required className="w-full p-2 border rounded-xl" value={name} onChange={e => setName(e.target.value)} placeholder="z.B. ACME" />
+                            <label className="block text-xs font-bold text-text-secondary uppercase mb-1">Kurzname (Anzeige)*</label>
+                            <input required className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none" value={name} onChange={e => setName(e.target.value)} placeholder="z.B. ACME" />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Vollständiger Name (Vertrag)</label>
-                        <input className="w-full p-2 border rounded-xl" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="z.B. ACME GmbH & Co KG" />
+                        <label className="block text-xs font-bold text-text-secondary uppercase mb-1">Vollständiger Name (Vertrag)</label>
+                        <input className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="z.B. ACME GmbH & Co KG" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Anschrift</label>
-                        <textarea className="w-full p-2 border rounded-xl resize-none h-20" value={address} onChange={e => setAddress(e.target.value)} placeholder="Straße, PLZ, Ort" />
+                        <label className="block text-xs font-bold text-text-secondary uppercase mb-1">Anschrift</label>
+                        <textarea className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none resize-none h-20" value={address} onChange={e => setAddress(e.target.value)} placeholder="Straße, PLZ, Ort" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">UID-Nummer</label>
-                            <input className="w-full p-2 border rounded-xl" value={uid} onChange={e => setUid(e.target.value)} placeholder="ATU..." />
+                            <label className="block text-xs font-bold text-text-secondary uppercase mb-1">UID-Nummer</label>
+                            <input className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none" value={uid} onChange={e => setUid(e.target.value)} placeholder="ATU..." />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email (Allgemein)</label>
-                            <input className="w-full p-2 border rounded-xl" value={email} onChange={e => setEmail(e.target.value)} placeholder="info@..." />
+                            <label className="block text-xs font-bold text-text-secondary uppercase mb-1">Email (Allgemein)</label>
+                            <input className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none" value={email} onChange={e => setEmail(e.target.value)} placeholder="info@..." />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefon (Allgemein)</label>
-                            <input className="w-full p-2 border rounded-xl" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+43..." />
+                            <label className="block text-xs font-bold text-text-secondary uppercase mb-1">Telefon (Allgemein)</label>
+                            <input className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+43..." />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Webseite</label>
-                            <input className="w-full p-2 border rounded-xl" value={website} onChange={e => setWebsite(e.target.value)} placeholder="www..." />
+                            <label className="block text-xs font-bold text-text-secondary uppercase mb-1">Webseite</label>
+                            <input className="w-full p-2 border border-default rounded-xl bg-subtle text-text-primary focus:border-accent outline-none" value={website} onChange={e => setWebsite(e.target.value)} placeholder="www..." />
                         </div>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl">Abbrechen</button>
-                        <button type="submit" disabled={loading} className="bg-gray-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-text-primary hover:bg-hover rounded-xl">Abbrechen</button>
+                        <button type="submit" disabled={loading} className="bg-accent text-accent-text px-6 py-2 rounded-xl font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-2">
                             <Save size={16} /> Speichern
                         </button>
                     </div>

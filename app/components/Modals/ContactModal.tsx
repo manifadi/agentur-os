@@ -33,25 +33,25 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <User size={20} className="text-gray-400" />
+            <div className="bg-surface border border-default rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center p-6 border-b border-default">
+                    <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                        <User size={20} className="text-text-muted" />
                         {contact?.id ? 'Kontakt bearbeiten' : 'Neuer Kontakt'}
                     </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition">
+                    <button onClick={onClose} className="text-text-muted hover:text-text-primary transition">
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className="p-6 space-y-4">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name *</label>
+                        <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Name *</label>
                         <div className="relative">
-                            <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                             <input
                                 autoFocus
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-black transition font-medium"
+                                className="w-full bg-subtle border border-default text-text-primary rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition font-medium"
                                 placeholder="Vorname Nachname"
                                 value={formData.name || ''}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -60,11 +60,11 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rolle / Position</label>
+                        <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Rolle / Position</label>
                         <div className="relative">
-                            <Briefcase size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <Briefcase size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                             <input
-                                className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-black transition"
+                                className="w-full bg-subtle border border-default text-text-primary rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition"
                                 placeholder="z.B. Projektleiter"
                                 value={formData.role || ''}
                                 onChange={e => setFormData({ ...formData, role: e.target.value })}
@@ -74,11 +74,11 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email</label>
+                            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Email</label>
                             <div className="relative">
-                                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                                 <input
-                                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-black transition text-sm"
+                                    className="w-full bg-subtle border border-default text-text-primary rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition text-sm"
                                     placeholder="mail@..."
                                     value={formData.email || ''}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -86,11 +86,11 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Telefon</label>
+                            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Telefon</label>
                             <div className="relative">
-                                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                                 <input
-                                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-black transition text-sm"
+                                    className="w-full bg-subtle border border-default text-text-primary rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition text-sm"
                                     placeholder="+43..."
                                     value={formData.phone || ''}
                                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
@@ -100,14 +100,14 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
                     </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition">
+                <div className="p-6 bg-subtle/50 border-t border-default flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-text-primary hover:bg-hover rounded-xl transition">
                         Abbrechen
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={loading || !formData.name}
-                        className="px-6 py-2 bg-black text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2 bg-accent text-accent-text rounded-xl text-sm font-bold hover:brightness-110 transition shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Save size={16} /> Speichern
                     </button>

@@ -16,13 +16,13 @@ export default function Error({
     }, [error]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-            <div className="bg-white rounded-3xl shadow-xl p-12 max-w-md text-center">
+        <div className="min-h-screen flex items-center justify-center bg-subtle p-6">
+            <div className="bg-surface rounded-3xl shadow-xl p-12 max-w-md text-center">
                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <AlertCircle size={32} strokeWidth={2.5} />
                 </div>
-                <h2 className="text-2xl font-black text-gray-900 mb-2">Etwas ist schiefgelaufen!</h2>
-                <p className="text-gray-500 font-medium mb-8">
+                <h2 className="text-2xl font-black text-text-primary mb-2">Etwas ist schiefgelaufen!</h2>
+                <p className="text-text-muted font-medium mb-8">
                     Ein unerwarteter Fehler ist aufgetreten. Wir wurden benachrichtigt.
                 </p>
                 <div className="flex flex-col gap-3">
@@ -35,7 +35,7 @@ export default function Error({
                     </button>
                     <button
                         onClick={() => window.location.href = '/dashboard'}
-                        className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-xl font-bold transition-all"
+                        className="w-full bg-surface border border-default hover:bg-subtle text-text-secondary px-6 py-3 rounded-xl font-bold transition-all"
                     >
                         Zurück zum Dashboard
                     </button>

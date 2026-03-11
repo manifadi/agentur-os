@@ -52,20 +52,20 @@ export default function FilterMenu({
         <div className="relative" ref={menuRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all shadow-sm hover:shadow-md ${isOpen || activeCount > 0 ? 'border-gray-900 bg-gray-50 text-gray-900' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all shadow-sm hover:shadow-md ${isOpen || activeCount > 0 ? 'border-accent hidden bg-subtle text-text-primary' : 'border-default bg-surface text-text-secondary hover:bg-hover'}`}
             >
                 <Filter size={18} strokeWidth={2.5} />
                 <span>Filter</span>
                 {activeCount > 0 && (
-                    <span className="bg-gray-900 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full ml-1">{activeCount}</span>
+                    <span className="bg-text-primary text-surface text-[10px] w-5 h-5 flex items-center justify-center rounded-full ml-1">{activeCount}</span>
                 )}
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
-                        <h3 className="font-bold text-gray-900 text-sm">Ansicht anpassen</h3>
-                        <button onClick={() => { setActiveStatus([]); setActivePmId(null); setSortOrder('created_desc'); }} className="text-xs text-gray-400 hover:text-red-500 font-medium">
+                <div className="absolute right-0 top-full mt-2 w-72 bg-surface rounded-2xl shadow-xl border border-default p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex justify-between items-center mb-4 pb-3 border-b border-default">
+                        <h3 className="font-bold text-text-primary text-sm">Ansicht anpassen</h3>
+                        <button onClick={() => { setActiveStatus([]); setActivePmId(null); setSortOrder('created_desc'); }} className="text-xs text-text-muted hover:text-red-500 font-medium transition-colors">
                             Reset
                         </button>
                     </div>
@@ -73,11 +73,11 @@ export default function FilterMenu({
                     <div className="space-y-6">
                         {/* SORTIERUNG */}
                         <div>
-                            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
+                            <label className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase mb-2">
                                 <ArrowUpDown size={12} /> Sortierung
                             </label>
                             <select
-                                className="w-full text-sm border-gray-200 rounded-lg p-2 bg-gray-50 focus:bg-white transition-colors"
+                                className="w-full text-sm border-default rounded-lg p-2 bg-input focus:bg-surface focus:outline-none focus:ring-2 focus:ring-accent-subtle transition-all text-text-primary"
                                 value={sortOrder}
                                 onChange={(e) => setSortOrder(e.target.value as any)}
                             >
@@ -90,7 +90,7 @@ export default function FilterMenu({
 
                         {/* STATUS */}
                         <div>
-                            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
+                            <label className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase mb-2">
                                 <Tag size={12} /> Status
                             </label>
                             <div className="space-y-1">
@@ -98,10 +98,10 @@ export default function FilterMenu({
                                     <button
                                         key={status}
                                         onClick={() => toggleStatus(status)}
-                                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-sm transition-colors ${activeStatus.includes(status) ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-sm transition-colors ${activeStatus.includes(status) ? 'bg-hover text-text-primary font-medium' : 'text-text-secondary hover:bg-hover'}`}
                                     >
                                         <span>{status}</span>
-                                        {activeStatus.includes(status) && <Check size={14} className="text-green-600" />}
+                                        {activeStatus.includes(status) && <Check size={14} className="text-accent" />}
                                     </button>
                                 ))}
                             </div>
@@ -109,26 +109,26 @@ export default function FilterMenu({
 
                         {/* PROJEKTMANAGER */}
                         <div>
-                            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
+                            <label className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase mb-2">
                                 <User size={12} /> Projektmanager
                             </label>
                             <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-none pr-1">
                                 <button
                                     onClick={() => setActivePmId(null)}
-                                    className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-colors ${!activePmId ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-colors ${!activePmId ? 'bg-hover text-text-primary font-medium' : 'text-text-secondary hover:bg-hover'}`}
                                 >
                                     <span>Alle Manager</span>
-                                    {!activePmId && <Check size={14} className="text-blue-600" />}
+                                    {!activePmId && <Check size={14} className="text-accent" />}
                                 </button>
                                 {employees.map(emp => (
                                     <button
                                         key={emp.id}
                                         onClick={() => setActivePmId(emp.id)}
-                                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors ${activePmId === emp.id ? 'bg-blue-50 text-blue-700 font-medium border border-blue-100' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors ${activePmId === emp.id ? 'bg-accent-subtle/30 text-accent font-medium border border-accent/20' : 'text-text-secondary hover:bg-hover'}`}
                                     >
                                         <UserAvatar src={emp.avatar_url} name={emp.name} initials={emp.initials} size="xs" />
                                         <span className="flex-1 text-left truncate">{emp.name}</span>
-                                        {activePmId === emp.id && <Check size={14} className="text-blue-600 shrink-0" />}
+                                        {activePmId === emp.id && <Check size={14} className="text-accent shrink-0" />}
                                     </button>
                                 ))}
                             </div>

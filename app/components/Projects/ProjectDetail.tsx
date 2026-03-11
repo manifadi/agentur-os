@@ -13,6 +13,8 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import ContractPDF from '../Contracts/ContractPDF';
 import ProjectContractTab from './ProjectContractTab';
 import ProjectInvoiceTab from './ProjectInvoiceTab';
+import ProjectDocumentsTab from './ProjectDocumentsTab';
+import CalculationImportModal from '../Modals/CalculationImportModal';
 import { Receipt } from 'lucide-react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
@@ -60,7 +62,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
     // Contract & Invoice Logic
-    const [activeTab, setActiveTab] = useState<'details' | 'contract' | 'invoice'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'contract' | 'invoice' | 'documents'>('details');
     const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
     const [contractIntro, setContractIntro] = useState('');
@@ -90,12 +92,12 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     // Sync Tab with URL
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab === 'contract' || tab === 'details' || tab === 'invoice') {
+        if (tab === 'contract' || tab === 'details' || tab === 'invoice' || tab === 'documents') {
             setActiveTab(tab as any);
         }
     }, [searchParams]);
 
-    const handleTabChange = (tab: 'details' | 'contract' | 'invoice') => {
+    const handleTabChange = (tab: 'details' | 'contract' | 'invoice' | 'documents') => {
         setActiveTab(tab);
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
@@ -570,85 +572,83 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
     return (
         <>
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-                <button onClick={onClose} className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"><ArrowLeft size={16} className="mr-1" /> Zurück zur Übersicht</button>
-                <div className="flex gap-2 self-end items-center">
+            {/* ── Top navigation bar ───────────────────────────────────────────── */}
+            <div className="flex items-center justify-between mb-6 gap-4">
+                <button
+                    onClick={onClose}
+                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors group"
+                >
+                    <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+                    Zurück zur Übersicht
+                </button>
+
+                <div className="flex gap-2 items-center">
                     <button
                         onClick={() => setShowTimeModal(true)}
-                        className="bg-gray-50 text-gray-700 p-2.5 rounded-xl border border-gray-100 hover:bg-white hover:border-blue-100 transition-all shadow-sm group relative"
+                        className="flex items-center gap-2 bg-accent text-surface px-3 py-2 rounded-xl hover:brightness-110 transition-all shadow-sm text-sm font-bold"
                         title="Zeiterfassung"
                     >
-                        <div className="relative">
-                            <Clock size={20} className="group-hover:text-blue-500 transition-colors" />
-                            <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center border-2 border-white">
-                                <Plus size={8} strokeWidth={4} />
-                            </div>
+                        <div className="relative flex items-center justify-center">
+                            <Clock size={15} />
                         </div>
+                        <span className="hidden sm:inline">Zeit erfassen</span>
                     </button>
 
                     <div className="relative" ref={actionsMenuRef}>
                         <button
                             onClick={() => setShowActionsMenu(!showActionsMenu)}
-                            className={`p-2.5 rounded-xl border transition-all shadow-sm ${showActionsMenu ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-100 text-gray-700 hover:bg-gray-50'}`}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all shadow-sm text-sm font-bold ${showActionsMenu ? 'bg-accent border-accent text-surface' : 'bg-surface border-default text-text-primary hover:bg-hover'}`}
                         >
-                            <Settings size={20} />
+                            <Settings size={16} />
+                            <span className="hidden sm:inline">Optionen</span>
                         </button>
 
                         {showActionsMenu && (
-                            <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[100] animate-in fade-in slide-in-from-top-1">
+                            <div className="absolute top-full right-0 mt-2 w-60 bg-surface rounded-2xl shadow-xl border border-default py-2 z-[100] animate-in fade-in slide-in-from-top-1">
                                 <button
-                                    onClick={() => {
-                                        router.push(`/projekte/erstellen?edit=${project.id}&step=1`);
-                                        setShowActionsMenu(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                    onClick={() => { router.push(`/projekte/erstellen?edit=${project.id}&step=1`); setShowActionsMenu(false); }}
+                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
-                                        <Edit3 size={14} strokeWidth={2.5} />
+                                    <div className="w-7 h-7 rounded-lg bg-accent-subtle text-accent flex items-center justify-center shrink-0">
+                                        <Edit3 size={13} />
                                     </div>
                                     Grunddaten bearbeiten
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        router.push(`/projekte/erstellen?edit=${project.id}&step=2`);
-                                        setShowActionsMenu(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                    onClick={() => { router.push(`/projekte/erstellen?edit=${project.id}&step=2`); setShowActionsMenu(false); }}
+                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center">
-                                        <Calculator size={14} strokeWidth={2.5} />
+                                    <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                                        <Calculator size={13} />
                                     </div>
                                     Kalkulation
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        router.push(`/projekte/erstellen?edit=${project.id}&step=4`);
-                                        setShowActionsMenu(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                    onClick={() => { router.push(`/projekte/erstellen?edit=${project.id}&step=4`); setShowActionsMenu(false); }}
+                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center">
-                                        <BarChart3 size={14} strokeWidth={2.5} />
+                                    <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+                                        <BarChart3 size={13} />
                                     </div>
                                     Reporting
                                 </button>
-                                <div className="h-px bg-gray-50 my-1 mx-4" />
+                                <div className="h-px bg-default my-1 mx-4" />
                                 <button
-                                    onClick={() => {
-                                        setShowDuplicateModal(true);
-                                        setShowActionsMenu(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                                    onClick={() => { setShowDuplicateModal(true); setShowActionsMenu(false); }}
+                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-green-50 text-green-500 flex items-center justify-center">
-                                        <Copy size={14} strokeWidth={2.5} />
+                                    <div className="w-7 h-7 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center shrink-0">
+                                        <Copy size={13} />
                                     </div>
                                     Projekt kopieren
                                 </button>
-                                <div className="h-px bg-gray-50 my-1 mx-4" />
-                                <button onClick={() => { onDeleteProject(); setShowActionsMenu(false); }} className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-red-500 hover:bg-red-50 transition-colors flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
-                                        <Trash2 size={14} strokeWidth={2.5} />
+                                <div className="h-px bg-default my-1 mx-4" />
+                                <button
+                                    onClick={() => { onDeleteProject(); setShowActionsMenu(false); }}
+                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-7 h-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+                                        <Trash2 size={13} />
                                     </div>
                                     Projekt löschen
                                 </button>
@@ -658,122 +658,180 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 </div>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
-                <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        {/* Client Logo or Initials */}
-                        {project.clients?.logo_url ? (
-                            <img
-                                src={project.clients.logo_url}
-                                alt={project.clients.name}
-                                className="h-7 w-auto max-w-[120px] object-contain"
-                            />
-                        ) : (
-                            <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 border border-gray-200">
-                                {project.clients?.name?.substring(0, 2).toUpperCase() || '??'}
-                            </div>
-                        )}
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            {project.clients?.name || 'Kein Kunde'} <span className="text-gray-300 mx-1">|</span> {project.job_number}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight break-words">{project.title}</h1>
-                        <button
-                            onClick={handleToggleFavorite}
-                            className={`p - 1.5 rounded - lg transition - all ${isFavorite ? 'text-yellow-400 fill-yellow-400 bg-yellow-50' : 'text-gray-300 hover:text-gray-400 bg-gray-50'} `}
-                            title={isFavorite ? 'Von Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                        >
-                            <Star size={20} strokeWidth={isFavorite ? 2.5 : 2} />
-                        </button>
-                    </div>
+            {/* ── Hero Header ──────────────────────────────────────────────────── */}
+            <div className="mb-6">
+                {/* Client + Job Number breadcrumb */}
+                <div className="flex items-center gap-2 mb-2">
+                    {project.clients?.logo_url ? (
+                        <img src={project.clients.logo_url} alt={project.clients.name} className="h-4 w-auto max-w-[60px] object-contain opacity-70" />
+                    ) : (
+                        <span className="text-xs font-bold uppercase tracking-widest text-text-muted">{project.clients?.name || 'Kein Kunde'}</span>
+                    )}
+                    <span className="text-text-muted/40 text-xs">·</span>
+                    <span className="text-xs font-mono text-text-muted">{project.job_number}</span>
+                </div>
+
+                {/* Title Row */}
+                <div className="flex items-start gap-3 mb-4">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-primary leading-tight flex-1 break-words">{project.title}</h1>
+                    <button
+                        onClick={handleToggleFavorite}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 mt-1 ${isFavorite ? 'text-yellow-400 fill-yellow-400 bg-yellow-400/10' : 'text-text-placeholder hover:text-yellow-400 hover:bg-yellow-400/10'}`}
+                        title={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                    >
+                        <Star size={19} strokeWidth={2} />
+                    </button>
+                </div>
+
+                {/* Meta badges row */}
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* Status pill (clickable) */}
                     <div className="relative" ref={statusDropdownRef}>
                         <button
                             onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                            className={`px - 3 py - 1 rounded - full text - xs font - medium border transition - all hover: brightness - 95 flex items - center gap - 1 ${getStatusStyle(project.status)} `}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all hover:brightness-95 flex items-center gap-1.5 ${getStatusStyle(project.status)}`}
                         >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
                             {project.status}
                         </button>
-
                         {isStatusDropdownOpen && (
-                            <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="absolute top-full left-0 mt-1 w-52 bg-surface rounded-xl shadow-xl border border-default py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                                 {STATUS_OPTIONS.map((status) => (
                                     <button
                                         key={status}
                                         onClick={() => handleStatusUpdate(status)}
-                                        className={`w - full text - left px - 4 py - 2 text - sm hover: bg - gray - 50 flex items - center justify - between group transition - colors ${project.status === status ? 'text-blue-600 font-semibold' : 'text-gray-700'} `}
+                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-hover flex items-center justify-between group transition-colors ${project.status === status ? 'text-accent font-semibold' : 'text-text-primary'}`}
                                     >
                                         <span className="flex items-center gap-2">
-                                            <div className={`w - 2 h - 2 rounded - full ${getStatusStyle(status).split(' ')[0]} `}></div>
+                                            <div className={`w-2 h-2 rounded-full ${getStatusStyle(status).split(' ')[0]}`} />
                                             {status}
                                         </span>
-                                        {project.status === status && <div className="w-1 h-1 bg-blue-600 rounded-full" />}
+                                        {project.status === status && <div className="w-1.5 h-1.5 bg-accent rounded-full" />}
                                     </button>
                                 ))}
                             </div>
                         )}
                     </div>
-                </div>
-                <div className="text-left md:text-right w-full md:w-auto">
-                    <div className="text-sm text-gray-500 mb-1">Projektmanager</div>
-                    <div className="flex items-center justify-start md:justify-end gap-2">
-                        <span className="text-sm font-medium">{project.employees?.name || 'Nicht zugewiesen'}</span>
+
+                    {/* PM badge */}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-subtle border border-default rounded-full">
                         <UserAvatar
                             src={project.employees?.avatar_url}
                             name={project.employees?.name}
                             initials={project.employees?.initials}
-                            size="sm"
-                            className="shadow-sm"
+                            size="xs"
                         />
+                        <span className="text-xs font-medium text-text-secondary">{project.employees?.name || 'Kein PM'}</span>
                     </div>
-                    <div className={`mt - 2 text - xs font - medium ${getDeadlineColorClass(project.deadline)} `}>Deadline: {project.deadline || '-'}</div>
+
+                    {/* Deadline badge */}
+                    {project.deadline && (
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-full text-xs font-semibold ${getDeadlineColorClass(project.deadline)}`}>
+                            <Clock size={11} />
+                            {new Date(project.deadline).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                    )}
+
+                    {/* Task progress badge */}
+                    {todos.length > 0 && (() => {
+                        const done = todos.filter(t => t.is_done).length;
+                        const pct = Math.round((done / todos.length) * 100);
+                        return (
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-subtle border border-default rounded-full">
+                                <div className="w-16 h-1.5 bg-hover rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-accent rounded-full transition-all duration-500"
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                                <span className="text-[10px] font-bold text-text-muted">{done}/{todos.length}</span>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 
-            {/* TABS HEADER */}
-            <div className="flex gap-6 border-b border-gray-100 mb-6">
-                <button
-                    onClick={() => handleTabChange('details')}
-                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'details' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
-                >
-                    <Layout size={16} /> Projekt Details
-                </button>
-                <button
-                    onClick={() => handleTabChange('contract')}
-                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'contract' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
-                >
-                    <FileText size={16} /> Vertrag & Angebot
-                </button>
-                <button
-                    onClick={() => handleTabChange('invoice')}
-                    className={`pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === 'invoice' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-700'}`}
-                >
-                    <Receipt size={16} /> Rechnung
-                </button>
+            {/* ── Tabs ─────────────────────────────────────────────────────────── */}
+            <div className="flex gap-1 border-b border-default mb-6">
+                {([
+                    { id: 'details', label: 'Übersicht', icon: Layout },
+                    { id: 'contract', label: 'Vertrag & Angebot', icon: FileText },
+                    { id: 'invoice', label: 'Rechnung', icon: Receipt },
+                    { id: 'documents', label: 'Dokumente', icon: Upload },
+                ] as const).map(({ id, label, icon: Icon }) => (
+                    <button
+                        key={id}
+                        onClick={() => handleTabChange(id)}
+                        className={`flex items-center gap-1.5 px-3 pb-3 text-sm font-semibold transition-all border-b-2 -mb-px ${activeTab === id
+                            ? 'text-accent border-accent'
+                            : 'text-text-muted hover:text-text-primary border-transparent'
+                            }`}
+                    >
+                        <Icon size={15} />
+                        <span>{label}</span>
+                    </button>
+                ))}
             </div>
 
+            {/* ── Details Tab ──────────────────────────────────────────────────── */}
             {activeTab === 'details' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[calc(100vh-200px)]">
-                    {/* LEFT COLUMN: Logbook & Details */}
-                    <div className="flex flex-col gap-6 h-full overflow-y-auto">
-                        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-[200px]">
-                            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText size={20} className="text-gray-400" /> Projektdetails</h2>
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 relative overflow-hidden group">
-                                {uploadingPdf ? <div className="animate-pulse text-sm">Lade Datei hoch...</div> : project.offer_pdf_url ? (
-                                    <div className="flex items-center gap-4 w-full justify-center">
-                                        <a href={project.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 hover:bg-gray-100 transition"><FileText size={16} /> Angebot ansehen</a>
-                                        <button onClick={() => pdfInputRef.current?.click()} className="text-xs text-gray-400 hover:text-gray-600">Ändern</button>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* LEFT COLUMN: Resources + Logbook (1/3) */}
+                    <div className="col-span-1 flex flex-col gap-4">
+                        {/* Resources card */}
+                        <div className="bg-surface rounded-2xl border border-default shadow-sm p-4">
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-1.5">
+                                <FileText size={13} /> Ressourcen
+                            </h2>
+                            <div className="space-y-2">
+                                {project.offer_pdf_url ? (
+                                    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-subtle border border-default group hover:border-accent/30 transition-colors">
+                                        <a href={project.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs font-semibold text-text-primary hover:text-accent transition truncate flex-1">
+                                            <div className="w-6 h-6 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 text-[9px] font-black">PDF</div>
+                                            Angebot.pdf
+                                        </a>
+                                        <button onClick={() => pdfInputRef.current?.click()} className="text-text-muted hover:text-accent opacity-0 group-hover:opacity-100 transition p-1 rounded" title="Ersetzen">
+                                            <Edit3 size={12} />
+                                        </button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => pdfInputRef.current?.click()} className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><Upload size={16} /> PDF hochladen</button>
+                                    <button
+                                        onClick={() => pdfInputRef.current?.click()}
+                                        className="w-full border-2 border-dashed border-default hover:border-accent hover:bg-accent/5 rounded-xl p-4 flex items-center justify-center gap-2 transition-all group"
+                                    >
+                                        {uploadingPdf ? (
+                                            <span className="text-xs text-text-muted animate-pulse">Lädt hoch...</span>
+                                        ) : (
+                                            <>
+                                                <Upload size={14} className="text-text-placeholder group-hover:text-accent transition-colors" />
+                                                <span className="text-xs font-medium text-text-muted group-hover:text-accent transition-colors">PDF Angebot hochladen</span>
+                                            </>
+                                        )}
+                                    </button>
                                 )}
                                 <input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} />
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                {project.google_doc_url ? (<a href={project.google_doc_url} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full text-blue-600 bg-blue-50 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition">Google Doc öffnen ↗</a>) : (<div className="text-center text-sm text-gray-400">Kein Google Doc verknüpft</div>)}
+
+                                {project.google_doc_url ? (
+                                    <a href={project.google_doc_url} target="_blank" rel="noreferrer"
+                                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-subtle border border-default hover:border-accent/30 hover:text-accent text-xs font-semibold text-text-primary transition truncate">
+                                        <div className="w-6 h-6 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
+                                            <FileText size={11} />
+                                        </div>
+                                        Google Doc Concept
+                                    </a>
+                                ) : (
+                                    <button
+                                        onClick={() => router.push(`/projekte/erstellen?edit=${project.id}&step=1`)}
+                                        className="w-full border-2 border-dashed border-default hover:border-blue-400 hover:bg-blue-400/5 rounded-xl p-3 flex items-center justify-center gap-2 transition-all group"
+                                    >
+                                        <Plus size={13} className="text-text-placeholder group-hover:text-blue-500 transition-colors" />
+                                        <span className="text-xs font-medium text-text-muted group-hover:text-blue-500 transition-colors">Google Doc verknüpfen</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 
+                        {/* Logbook */}
                         <Logbook
                             logs={logs}
                             onAdd={handleAddLog}
@@ -784,8 +842,32 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         />
                     </div>
 
-                    {/* RIGHT COLUMN: Tasks */}
-                    <div className="flex flex-col gap-6 h-full overflow-y-auto">
+                    {/* RIGHT COLUMN: Tasks (2/3) */}
+                    <div className="col-span-2 flex flex-col gap-4">
+                        {/* Progress bar above tasks */}
+                        {todos.length > 0 && (() => {
+                            const done = todos.filter(t => t.is_done).length;
+                            const pct = Math.round((done / todos.length) * 100);
+                            return (
+                                <div className="bg-surface rounded-2xl border border-default shadow-sm p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-text-primary">Aufgaben-Fortschritt</span>
+                                        <span className="text-xs font-bold text-accent">{pct}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-subtle rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                                            style={{ width: `${pct}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between mt-1.5">
+                                        <span className="text-[10px] text-text-muted">{done} von {todos.length} erledigt</span>
+                                        <span className="text-[10px] text-text-muted">{todos.length - done} offen</span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         <TodoList
                             todos={todos}
                             employees={employees}
@@ -803,6 +885,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
 
 
+            {activeTab === 'documents' && (
+                <ProjectDocumentsTab
+                    project={project}
+                    onUpdateProject={async (projectId, updates) => {
+                        await onUpdateProject(projectId, updates);
+                    }}
+                />
+            )}
+            
             {activeTab === 'contract' && (
                 <ProjectContractTab
                     project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
@@ -823,15 +914,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
 
             {isEditing && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">Einstellungen</h2><button onClick={() => setIsEditing(false)}><ArrowLeft size={20} className="text-gray-400 rotate-180" /></button></div>
+                    <div className="bg-surface rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 border border-default">
+                        <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-text-primary">Einstellungen</h2><button onClick={() => setIsEditing(false)}><ArrowLeft size={20} className="text-text-secondary rotate-180" /></button></div>
                         <div className="space-y-4">
-                            <div><label className="text-xs font-semibold text-gray-500 uppercase">Kunde</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.clientId} onChange={(e) => setEditData({ ...editData, clientId: e.target.value })}>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                            <div><label className="text-xs font-semibold text-gray-500 uppercase">Status</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.status} onChange={(e) => setEditData({ ...editData, status: e.target.value })}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                            <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-gray-500 uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.jobNr} onChange={(e) => setEditData({ ...editData, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-gray-500 uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.title} onChange={(e) => setEditData({ ...editData, title: e.target.value })} /></div></div>
-                            <div><label className="text-xs font-semibold text-gray-500 uppercase">Google Doc Link</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.google_doc_url} onChange={(e) => setEditData({ ...editData, google_doc_url: e.target.value })} /></div>
-                            <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-semibold text-gray-500 uppercase">Deadline</label><input type="date" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.deadline} onChange={(e) => setEditData({ ...editData, deadline: e.target.value })} /></div><div><label className="text-xs font-semibold text-gray-500 uppercase">PM</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={editData.pmId} onChange={(e) => setEditData({ ...editData, pmId: e.target.value })}><option value="">Kein PM</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div></div>
-                            <div className="pt-4 flex gap-3"><button onClick={() => setIsEditing(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Abbrechen</button><button onClick={saveProjectSettings} className="flex-1 py-2.5 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800">Speichern</button></div>
+                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Kunde</label><select className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.clientId} onChange={(e) => setEditData({ ...editData, clientId: e.target.value })}>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Status</label><select className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.status} onChange={(e) => setEditData({ ...editData, status: e.target.value })}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                            <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-text-secondary uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.jobNr} onChange={(e) => setEditData({ ...editData, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-text-secondary uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.title} onChange={(e) => setEditData({ ...editData, title: e.target.value })} /></div></div>
+                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Google Doc Link</label><input type="text" className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.google_doc_url} onChange={(e) => setEditData({ ...editData, google_doc_url: e.target.value })} /></div>
+                            <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-semibold text-text-secondary uppercase">Deadline</label><input type="date" className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.deadline} onChange={(e) => setEditData({ ...editData, deadline: e.target.value })} /></div><div><label className="text-xs font-semibold text-text-secondary uppercase">PM</label><select className="w-full rounded-lg border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent" value={editData.pmId} onChange={(e) => setEditData({ ...editData, pmId: e.target.value })}><option value="">Kein PM</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div></div>
+                            <div className="pt-4 flex gap-3"><button onClick={() => setIsEditing(false)} className="flex-1 py-2.5 rounded-lg border border-default text-sm text-text-primary hover:bg-hover transition">Abbrechen</button><button onClick={saveProjectSettings} className="flex-1 py-2.5 rounded-lg bg-text-primary text-surface text-sm transition">Speichern</button></div>
                         </div>
                     </div>
                 </div>

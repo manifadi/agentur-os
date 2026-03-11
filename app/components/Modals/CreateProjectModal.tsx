@@ -59,23 +59,23 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div className="bg-surface border border-default rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-4 border-b border-default flex justify-between items-center bg-subtle/50">
                     <div className="flex gap-4">
                         <button
                             onClick={() => setActiveTab('existing')}
-                            className={`pb-2 text-sm font-bold transition relative ${activeTab === 'existing' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`pb-2 text-sm font-bold transition relative ${activeTab === 'existing' ? 'text-text-primary border-b-2 border-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                         >
                             Bestehendes Projekt
                         </button>
                         <button
                             onClick={() => setActiveTab('new')}
-                            className={`pb-2 text-sm font-bold transition relative ${activeTab === 'new' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`pb-2 text-sm font-bold transition relative ${activeTab === 'new' ? 'text-text-primary border-b-2 border-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                         >
                             Neues Projekt erstellen
                         </button>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition"><X size={24} className="text-gray-400" /></button>
+                    <button onClick={onClose} className="p-1 hover:bg-hover rounded-full transition"><X size={24} className="text-text-muted hover:text-text-primary" /></button>
                 </div>
 
                 <div className="p-6 flex-1 overflow-y-auto">
@@ -83,11 +83,11 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                         <div className="space-y-4">
                             <div className="flex gap-4">
                                 <div className="flex-1 relative">
-                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                                     <input
                                         type="text"
                                         placeholder="Suchen nach Titel oder Job Nr..."
-                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-xl text-sm transition"
+                                        className="w-full pl-10 pr-4 py-2 bg-subtle focus:bg-surface border border-transparent focus:border-default text-text-primary rounded-xl text-sm transition focus:outline-none"
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         autoFocus
@@ -95,7 +95,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                 </div>
                                 <div className="w-48">
                                     <select
-                                        className="w-full px-3 py-2 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 rounded-xl text-sm transition"
+                                        className="w-full px-3 py-2 bg-subtle focus:bg-surface border border-transparent focus:border-default text-text-primary rounded-xl text-sm transition focus:outline-none"
                                         value={clientFilter}
                                         onChange={e => setClientFilter(e.target.value)}
                                     >
@@ -105,26 +105,26 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                 </div>
                             </div>
                             {/* List */}
-                            <div className="border border-gray-100 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto">
+                            <div className="border border-default rounded-xl overflow-hidden max-h-[400px] overflow-y-auto">
                                 <table className="w-full text-left text-sm">
-                                    <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-semibold sticky top-0">
+                                    <thead className="bg-subtle text-xs uppercase text-text-secondary font-semibold sticky top-0">
                                         <tr>
                                             <th className="px-4 py-3">Projekt</th>
                                             <th className="px-4 py-3 w-32">Status</th>
                                             <th className="px-4 py-3 w-24 text-right">Aktion</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100">
+                                    <tbody className="divide-y divide-border-subtle">
                                         {filteredProjects.map(p => {
                                             const joined = isJoined(p);
                                             return (
-                                                <tr key={p.id} className="hover:bg-gray-50 transition group">
+                                                <tr key={p.id} className="hover:bg-hover transition group">
                                                     <td className="px-4 py-3">
-                                                        <div className="font-bold text-gray-900">{p.title}</div>
-                                                        <div className="text-xs text-gray-500">{p.job_number} • {p.clients?.name}</div>
+                                                        <div className="font-bold text-text-primary">{p.title}</div>
+                                                        <div className="text-xs text-text-secondary">{p.job_number} • {p.clients?.name}</div>
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600">{p.status}</span>
+                                                        <span className="px-2 py-0.5 bg-subtle border border-default rounded text-xs text-text-secondary">{p.status}</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <button
@@ -132,8 +132,8 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                                             disabled={joined}
                                                             title={joined ? "Bereits hinzugefügt" : "Hinzufügen"}
                                                             className={`p-1.5 rounded-xl transition inline-flex items-center justify-center ${joined
-                                                                ? 'bg-green-100 text-green-700 cursor-default'
-                                                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                                                                ? 'bg-green-500/10 text-green-600 dark:text-green-400 cursor-default'
+                                                                : 'bg-accent text-accent-text hover:brightness-110'
                                                                 }`}
                                                         >
                                                             {joined ? <Check size={16} /> : <Plus size={16} />}
@@ -144,7 +144,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                         })}
                                         {filteredProjects.length === 0 && (
                                             <tr>
-                                                <td colSpan={3} className="px-4 py-8 text-center text-gray-500">Keine Projekte gefunden.</td>
+                                                <td colSpan={3} className="px-4 py-8 text-center text-text-muted">Keine Projekte gefunden.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -154,14 +154,14 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                     ) : (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {/* Advanced Option */}
-                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between mb-4">
+                            <div className="bg-accent-subtle/50 p-4 rounded-xl border border-accent/20 flex items-center justify-between mb-4">
                                 <div>
-                                    <h3 className="text-sm font-bold text-gray-900">Detailliertes Projekt anlegen</h3>
-                                    <p className="text-xs text-gray-500 mt-1">Mit Kalkulation, Positionen und Vertragstexten.</p>
+                                    <h3 className="text-sm font-bold text-text-primary">Detailliertes Projekt anlegen</h3>
+                                    <p className="text-xs text-text-secondary mt-1">Mit Kalkulation, Positionen und Vertragstexten.</p>
                                 </div>
                                 <button
                                     onClick={() => window.location.href = '/projekte/erstellen'}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition shadow-sm"
+                                    className="px-4 py-2 bg-accent hover:brightness-110 text-accent-text text-sm font-medium rounded-xl transition shadow-sm"
                                 >
                                     Zum Wizard
                                 </button>
@@ -169,17 +169,17 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
 
                             <div className="relative">
                                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                    <div className="w-full border-t border-gray-200" />
+                                    <div className="w-full border-t border-default" />
                                 </div>
                                 <div className="relative flex justify-center">
-                                    <span className="bg-white px-2 text-xs text-gray-400 uppercase tracking-wider">Oder Schnellstart</span>
+                                    <span className="bg-surface px-2 text-xs text-text-muted uppercase tracking-wider">Oder Schnellstart</span>
                                 </div>
                             </div>
 
-                            <div><label className="text-xs font-semibold text-gray-500 uppercase">Kunde</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.clientId} onChange={(e) => setData({ ...data, clientId: e.target.value })}><option value="">Bitte wählen...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                            <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-gray-500 uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.jobNr} onChange={(e) => setData({ ...data, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-gray-500 uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })} /></div></div>
-                            <div><label className="text-xs font-semibold text-gray-500 uppercase">Projektmanager</label><select className="w-full rounded-lg border-gray-200 text-sm py-2 px-3 bg-gray-50" value={data.pmId} onChange={(e) => setData({ ...data, pmId: e.target.value })}><option value="">Kein PM zugewiesen</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                            <div className="pt-4 flex gap-3"><button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600">Abbrechen</button><button onClick={() => onCreate(data)} className="flex-1 py-2.5 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800">Projekt erstellen</button></div>
+                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Kunde</label><select className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.clientId} onChange={(e) => setData({ ...data, clientId: e.target.value })}><option value="">Bitte wählen...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                            <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-text-secondary uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.jobNr} onChange={(e) => setData({ ...data, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-text-secondary uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })} /></div></div>
+                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Projektmanager</label><select className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.pmId} onChange={(e) => setData({ ...data, pmId: e.target.value })}><option value="">Kein PM zugewiesen</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                            <div className="pt-4 flex gap-3"><button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-default text-sm text-text-secondary hover:bg-hover">Abbrechen</button><button onClick={() => onCreate(data)} className="flex-1 py-2.5 rounded-lg bg-accent text-accent-text text-sm hover:brightness-110">Projekt erstellen</button></div>
                         </div>
                     )}
                 </div>

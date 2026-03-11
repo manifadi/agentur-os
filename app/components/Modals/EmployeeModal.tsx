@@ -23,11 +23,11 @@ export default function EmployeeModal({ isOpen, employee, onClose, onSave, onDel
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">{employee ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter'}</h2><button onClick={onClose}><X size={20} className="text-gray-400" /></button></div>
+            <div className="bg-surface border border-default rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-text-primary">{employee ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter'}</h2><button onClick={onClose}><X size={20} className="text-text-muted hover:text-text-primary" /></button></div>
                 <div className="space-y-4">
-                    <div><label className="text-xs font-semibold text-gray-500 uppercase">Name</label><input autoFocus type="text" className="w-full rounded-xl border-gray-200 text-sm py-2 px-3 bg-gray-50 mt-1" value={name} onChange={(e) => setName(e.target.value)} /></div>
-                    <div className="pt-2 flex gap-3">{employee && <button onClick={() => onDelete(employee.id)} className="p-2.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50"><Trash2 size={16} /></button>}<button onClick={() => onSave(name)} className="flex-1 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 shadow-lg">Speichern</button></div>
+                    <div><label className="text-xs font-semibold text-text-secondary uppercase">Name</label><input autoFocus type="text" className="w-full rounded-xl border border-default text-sm py-2 px-3 bg-subtle text-text-primary mt-1 focus:border-accent outline-none" value={name} onChange={(e) => setName(e.target.value)} /></div>
+                    <div className="pt-2 flex gap-3">{employee && <button onClick={() => onDelete(employee.id)} className="p-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10"><Trash2 size={16} /></button>}<button onClick={() => onSave(name)} className="flex-1 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-medium hover:brightness-110 shadow-lg">Speichern</button></div>
                 </div>
             </div>
         </div>

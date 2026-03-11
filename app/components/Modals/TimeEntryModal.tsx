@@ -166,11 +166,11 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="bg-surface border border-default rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-xl text-gray-900">{entryToEdit ? 'Eintrag bearbeiten' : 'Stunden erfassen'}</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition text-gray-400 hover:text-gray-900">
+                <div className="p-5 border-b border-default flex justify-between items-center bg-subtle/50">
+                    <h3 className="font-bold text-xl text-text-primary">{entryToEdit ? 'Eintrag bearbeiten' : 'Stunden erfassen'}</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-hover rounded-xl transition text-text-muted hover:text-text-primary">
                         <X size={20} />
                     </button>
                 </div>
@@ -178,11 +178,11 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                 <div className="p-6 space-y-5 overflow-y-auto">
                     {/* Project Search */}
                     <div className="relative">
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Projekt</label>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Projekt</label>
                         <div className="relative">
                             <input
                                 type="text"
-                                className="w-full p-3 pl-10 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                                className="w-full p-3 pl-10 bg-subtle border border-default text-text-primary rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition"
                                 placeholder="Projekt suchen (Nr oder Name)..."
                                 value={searchTerm}
                                 onChange={(e) => {
@@ -192,12 +192,12 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                                 }}
                                 onFocus={() => setIsDropdownOpen(true)}
                             />
-                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                         </div>
 
                         {/* Dropdown Results */}
                         {isDropdownOpen && searchTerm && !projectId && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto z-50 divide-y divide-gray-50">
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-surface rounded-xl shadow-xl border border-default max-h-60 overflow-y-auto z-50 divide-y divide-border-subtle">
                                 {filteredProjects.length > 0 ? (
                                     filteredProjects.map(p => (
                                         <button
@@ -207,14 +207,14 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                                                 setSearchTerm(`${p.job_number} • ${p.title}`);
                                                 setIsDropdownOpen(false);
                                             }}
-                                            className="w-full text-left p-3 hover:bg-blue-50 transition flex flex-col"
+                                            className="w-full text-left p-3 hover:bg-hover transition flex flex-col"
                                         >
-                                            <span className="font-bold text-sm text-gray-900">{p.title}</span>
-                                            <span className="text-xs text-gray-500">{p.job_number} | {p.clients?.name}</span>
+                                            <span className="font-bold text-sm text-text-primary">{p.title}</span>
+                                            <span className="text-xs text-text-secondary">{p.job_number} | {p.clients?.name}</span>
                                         </button>
                                     ))
                                 ) : (
-                                    <div className="p-4 text-center text-sm text-gray-400">Kein Projekt gefunden</div>
+                                    <div className="p-4 text-center text-sm text-text-muted">Kein Projekt gefunden</div>
                                 )}
                             </div>
                         )}
@@ -222,7 +222,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
                     {/* Show Current User Position (Agency Position) - and Match Status */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Meine Position (Intern)</label>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Meine Position (Intern)</label>
                         <div className={`p-3 border rounded-xl text-sm font-bold flex justify-between items-center ${agencyPositionId ? 'bg-green-50 border-green-200 text-green-900' : 'bg-orange-50 border-orange-200 text-orange-900'}`}>
                             <div className="flex flex-col">
                                 <span>{currentUser.job_title || 'Keine Job-Bezeichnung im Profil'}</span>
@@ -251,23 +251,23 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                     {/* Date & Hours */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Datum</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2">Datum</label>
                             <div className="relative">
                                 <input
                                     type="date"
-                                    className="w-full p-3 pl-10 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                                    className="w-full p-3 pl-10 bg-subtle border border-default text-text-primary rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                 />
-                                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Stunden</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2">Stunden</label>
                             <input
                                 type="number"
                                 step="0.25"
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                                className="w-full p-3 bg-subtle border border-default text-text-primary rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition"
                                 placeholder="0.00"
                                 value={hours}
                                 onChange={(e) => setHours(e.target.value)}
@@ -277,9 +277,9 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
                     {/* Description */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Beschreibung</label>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Beschreibung</label>
                         <textarea
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition min-h-[100px] resize-none"
+                            className="w-full p-3 bg-subtle border border-default text-text-primary rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition min-h-[100px] resize-none"
                             placeholder="Was hast du gemacht?"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
@@ -289,7 +289,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                     <button
                         onClick={handleSave}
                         disabled={isSubmitting || !projectId || !hours}
-                        className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform active:scale-[0.99] flex items-center justify-center gap-2"
+                        className="w-full py-3.5 bg-accent text-accent-text rounded-xl font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform active:scale-[0.99] flex items-center justify-center gap-2"
                     >
                         {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={20} />}
                         {isSubmitting ? 'Speichert...' : 'Eintrag speichern'}

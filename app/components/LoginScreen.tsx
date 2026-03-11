@@ -42,25 +42,25 @@ export default function LoginScreen() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm border border-gray-100">
+        <div className="min-h-screen flex items-center justify-center bg-subtle font-sans p-4">
+            <div className="bg-surface p-8 rounded-2xl shadow-xl w-full max-w-sm border border-default">
                 <div className="flex justify-center mb-6">
-                    <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center text-white">
+                    <div className="w-12 h-12 bg-text-primary rounded-xl flex items-center justify-center text-surface">
                         <Lock size={24} />
                     </div>
                 </div>
-                <h1 className="text-2xl font-bold text-center mb-1 text-gray-900">Agentur OS</h1>
-                <p className="text-center text-gray-500 text-sm mb-8">
+                <h1 className="text-2xl font-bold text-center mb-1 text-text-primary">Agentur OS</h1>
+                <p className="text-center text-text-secondary text-sm mb-8">
                     {isForgotPassword ? 'Passwort zurücksetzen' : 'Bitte melde dich an'}
                 </p>
 
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-1">Email</label>
                         <input
                             type="email"
                             required
-                            className="w-full rounded-xl border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
+                            className="w-full rounded-xl border-default text-sm py-2.5 px-3 bg-subtle text-text-primary outline-none focus:ring-2 focus:ring-accent transition"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
@@ -69,12 +69,12 @@ export default function LoginScreen() {
                     {!isForgotPassword && (
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 px-1">Passwort</label>
+                                <label className="block text-xs font-bold text-text-muted uppercase mb-1 px-1">Passwort</label>
                                 <input
                                     type="password"
                                     required
                                     minLength={6}
-                                    className="w-full rounded-xl border-gray-200 text-sm py-2.5 px-3 bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition"
+                                    className="w-full rounded-xl border-default text-sm py-2.5 px-3 bg-subtle text-text-primary outline-none focus:ring-2 focus:ring-accent transition"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
@@ -85,7 +85,7 @@ export default function LoginScreen() {
                                             setIsForgotPassword(true);
                                             setMsg('');
                                         }}
-                                        className="text-[10px] text-gray-400 hover:text-blue-600 transition-colors font-semibold"
+                                        className="text-[10px] text-text-muted hover:text-accent transition-colors font-semibold"
                                     >
                                         Passwort vergessen?
                                     </button>
@@ -95,7 +95,7 @@ export default function LoginScreen() {
                     )}
 
                     {msg && (
-                        <div className={`text-xs text-center px-2 py-1.5 rounded-xl ${msgType === 'success' ? 'bg-green-50 text-green-600' : 'text-red-500'}`}>
+                        <div className={`text-xs text-center px-2 py-1.5 rounded-xl ${msgType === 'success' ? 'bg-green-500/10 text-green-500' : 'text-red-500'}`}>
                             {msg}
                         </div>
                     )}
@@ -103,7 +103,7 @@ export default function LoginScreen() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-black shadow-lg disabled:opacity-50 transition"
+                        className="w-full py-2.5 rounded-xl bg-text-primary text-surface text-sm font-medium hover:opacity-90 shadow-lg disabled:opacity-50 transition"
                     >
                         {loading ? 'Lade...' : isForgotPassword ? 'Link senden' : isSignUp ? 'Account erstellen' : 'Anmelden'}
                     </button>
@@ -119,7 +119,7 @@ export default function LoginScreen() {
                             }
                             setMsg('');
                         }}
-                        className="text-xs text-gray-400 hover:text-gray-900 transition"
+                        className="text-xs text-text-muted hover:text-text-primary transition"
                     >
                         {isForgotPassword ? 'Zurück zum Login' : isSignUp ? 'Zurück zum Login' : 'Noch keinen Account? Registrieren'}
                     </button>

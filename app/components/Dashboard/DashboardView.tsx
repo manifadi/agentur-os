@@ -105,10 +105,10 @@ export default function DashboardView({
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 relative">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-100 pb-8">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-default pb-8">
                 <div className="relative" ref={dropdownRef}>
                     <div
-                        className="flex items-center gap-3 hover:bg-gray-50 p-2 -m-2 rounded-2xl transition-all cursor-pointer group"
+                        className="flex items-center gap-3 hover:bg-hover p-2 -m-2 rounded-2xl transition-all cursor-pointer group"
                         onClick={() => setDropdownOpen(!dropdownOpen)}
                     >
                         {selectedClient && (
@@ -116,7 +116,7 @@ export default function DashboardView({
                                 {selectedClient.logo_url ? (
                                     <img src={selectedClient.logo_url} className="w-full h-full object-contain" />
                                 ) : (
-                                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                                    <div className="w-10 h-10 rounded-xl bg-subtle flex items-center justify-center text-text-muted">
                                         <LayoutGrid size={20} />
                                     </div>
                                 )}
@@ -124,12 +124,12 @@ export default function DashboardView({
                         )}
                         <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                                <h1 className="text-2xl font-black text-text-primary tracking-tight">
                                     {selectedClient ? selectedClient.name : 'Alle Projekte'}
                                 </h1>
-                                <ChevronsUpDown size={20} className={`text-gray-300 group-hover:text-blue-500 transition-all ${dropdownOpen ? 'rotate-180 text-blue-500' : ''}`} />
+                                <ChevronsUpDown size={20} className={`text-text-muted group-hover:text-accent transition-all ${dropdownOpen ? 'rotate-180 text-accent' : ''}`} />
                             </div>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-0.5">
+                            <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em] mt-0.5">
                                 {selectedClient ? 'Fokussierte Ansicht' : 'Gesamtübersicht'}
                             </p>
                         </div>
@@ -137,24 +137,24 @@ export default function DashboardView({
 
                     {/* DROP-DOWN MENU */}
                     {dropdownOpen && (
-                        <div className="absolute top-full left-0 mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute top-full left-0 mt-4 w-72 bg-surface rounded-3xl shadow-2xl border border-default z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="p-2 space-y-1">
                                 <button
                                     onClick={() => { onSelectClient(null as any); setDropdownOpen(false); }}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${!selectedClient ? 'bg-gray-900 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${!selectedClient ? 'bg-accent text-accent-text' : 'hover:bg-hover text-text-secondary'}`}
                                 >
                                     <LayoutGrid size={18} />
                                     <span className="text-sm font-bold">Alle Projekte</span>
                                 </button>
-                                <div className="h-px bg-gray-50 my-1 mx-2" />
+                                <div className="h-px bg-border-subtle my-1 mx-2" />
                                 <div className="max-h-[70vh] overflow-y-auto scrollbar-none space-y-1">
                                     {clients.map(c => (
                                         <button
                                             key={c.id}
                                             onClick={() => { onSelectClient(c); setDropdownOpen(false); }}
-                                            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${selectedClient?.id === c.id ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+                                            className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${selectedClient?.id === c.id ? 'bg-accent text-accent-text' : 'hover:bg-hover text-text-secondary'}`}
                                         >
-                                            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center border border-gray-100 shrink-0 overflow-hidden">
+                                            <div className="w-6 h-6 rounded-full bg-surface flex items-center justify-center border border-default shrink-0 overflow-hidden">
                                                 {c.logo_url ? <img src={c.logo_url} className="w-full h-full object-contain" /> : c.name[0]}
                                             </div>
                                             <span className="text-sm font-semibold truncate">{c.name}</span>
@@ -172,7 +172,7 @@ export default function DashboardView({
                         onClick={() => {
                             window.dispatchEvent(new CustomEvent('agentur-os-open-search'));
                         }}
-                        className="p-2.5 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all border border-gray-100 shadow-sm"
+                        className="p-2.5 rounded-xl bg-surface text-text-muted hover:text-text-primary hover:bg-hover transition-all border border-default shadow-sm"
                         title="Suche öffnen (⌘K)"
                     >
                         <Search size={22} />
@@ -180,7 +180,7 @@ export default function DashboardView({
 
                     <button
                         onClick={onOpenCreateModal}
-                        className="flex items-center gap-2 bg-gray-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-black transition shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transform whitespace-nowrap"
+                        className="flex items-center gap-2 bg-accent text-accent-text px-6 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transform whitespace-nowrap"
                     >
                         <Plus size={18} strokeWidth={3} /> Projekt hinzufügen
                     </button>
@@ -205,9 +205,9 @@ export default function DashboardView({
                 {/* For cleaner UI, let's keep it clean. But maybe show active filters? */}
                 {(activeStatus.length > 0 || activePmId) && (
                     <div className="flex gap-2">
-                        {activeStatus.map(s => <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md border border-gray-200">{s}</span>)}
+                        {activeStatus.map(s => <span key={s} className="text-xs bg-subtle text-text-secondary px-2 py-1 rounded-md border border-default">{s}</span>)}
                         {activePmId && (
-                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-2 py-1 rounded-md border border-blue-100">
+                            <div className="flex items-center gap-1.5 bg-accent-subtle text-accent px-2 py-1 rounded-md border border-accent-subtle">
                                 {employees.find(e => e.id === activePmId) && (
                                     <UserAvatar
                                         src={employees.find(e => e.id === activePmId)?.avatar_url}

@@ -221,7 +221,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                                 className="relative w-9 h-5 rounded-full transition-colors"
                                 style={{ background: allDay ? 'var(--accent)' : 'var(--border-strong)' }}
                             >
-                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${allDay ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-surface shadow transition-transform ${allDay ? 'translate-x-4' : 'translate-x-0.5'}`} />
                             </button>
                         </div>
 

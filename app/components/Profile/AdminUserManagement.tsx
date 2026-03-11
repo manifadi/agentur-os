@@ -35,11 +35,11 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="bg-surface rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200 border border-default">
                 {/* ... header ... */}
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-900">{mode === 'create' ? 'Neuen Mitarbeiter anlegen' : 'Mitarbeiter bearbeiten'}</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><X size={20} /></button>
+                    <h3 className="text-xl font-bold text-text-primary">{mode === 'create' ? 'Neuen Mitarbeiter anlegen' : 'Mitarbeiter bearbeiten'}</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-hover text-text-muted"><X size={20} /></button>
                 </div>
 
                 <div className="flex flex-col items-center mb-8">
@@ -49,7 +49,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                             name={formData.name}
                             initials={formData.initials}
                             size="xl"
-                            className="shadow-lg border-4 border-gray-50 ring-1 ring-gray-200"
+                            className="shadow-lg border-4 border-surface ring-1 ring-default"
                         />
                         <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                             <Camera className="text-white" size={24} />
@@ -72,25 +72,25 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                             />
                         </label>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Klicke zum Ändern</p>
+                    <p className="text-xs text-text-muted mt-2">Klicke zum Ändern</p>
                 </div>
 
                 <div className="space-y-4">
                     {/* ... name/initials ... */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Name</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Name</label>
                             <input
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
                                 value={formData.name || ''}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="Max Mustermann"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kürzel</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Kürzel</label>
                             <input
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition uppercase"
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition uppercase"
                                 value={formData.initials || ''}
                                 onChange={e => setFormData({ ...formData, initials: e.target.value })}
                                 placeholder="MM"
@@ -101,22 +101,22 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Email (Login)</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Email (Login)</label>
                             <div className="relative">
                                 <input
-                                    className="w-full pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                    className="w-full pl-9 p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
                                     value={formData.email || ''}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="name@agentur.com"
                                     type="email"
                                 />
-                                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Telefon</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Telefon</label>
                             <input
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
                                 value={formData.phone || ''}
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 placeholder="+43 123 45678"
@@ -126,9 +126,9 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Rolle</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Rolle</label>
                             <select
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
                                 value={formData.role || 'user'}
                                 onChange={e => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
                             >
@@ -137,9 +137,9 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Abteilung</label>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Abteilung</label>
                             <select
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
                                 value={formData.department_id || ''}
                                 onChange={e => setFormData({ ...formData, department_id: e.target.value })}
                             >
@@ -150,9 +150,9 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Job Titel (Position)</label>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Job Titel (Position)</label>
                         <select
-                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                            className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
                             value={formData.job_title || ''}
                             onChange={e => setFormData({ ...formData, job_title: e.target.value })}
                         >
@@ -163,18 +163,18 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                                 </option>
                             ))}
                         </select>
-                        <p className="text-xs text-gray-400 mt-1">Definiert den Stundensatz für diesen Mitarbeiter.</p>
+                        <p className="text-xs text-text-muted mt-1">Definiert den Stundensatz für diesen Mitarbeiter.</p>
                     </div>
                 </div>
 
                 <div className="flex gap-3 justify-end mt-8">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition">Abbrechen</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-secondary hover:bg-hover rounded-xl transition">Abbrechen</button>
                     <button
                         onClick={() => onSave(formData)}
                         disabled={isLoading}
-                        className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-sm flex items-center gap-2"
+                        className="px-4 py-2 text-sm font-bold text-surface bg-accent hover:opacity-90 rounded-xl transition shadow-sm flex items-center gap-2"
                     >
-                        {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                        {isLoading && <div className="w-4 h-4 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />}
                         {mode === 'create' ? 'Anlegen' : 'Speichern'}
                     </button>
                 </div>
@@ -378,18 +378,18 @@ export default function AdminUserManagement({ employees, departments, currentEmp
 
             {/* Registration Requests */}
             {requests.length > 0 && (
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2"><ShieldAlert size={20} /> Ausstehende Registrierungen</h3>
+                <div className="bg-accent-subtle/30 border border-accent/20 rounded-xl p-6">
+                    <h3 className="text-lg font-bold text-accent mb-4 flex items-center gap-2"><ShieldAlert size={20} /> Ausstehende Registrierungen</h3>
                     <div className="space-y-2">
                         {requests.map(req => (
-                            <div key={req.id} className="bg-white p-3 rounded-lg border border-blue-100 flex justify-between items-center shadow-sm">
+                            <div key={req.id} className="bg-surface p-3 rounded-lg border border-accent/20 flex justify-between items-center shadow-sm">
                                 <div>
-                                    <div className="font-bold text-gray-900">{req.name}</div>
-                                    <div className="text-sm text-gray-500">{req.email}</div>
+                                    <div className="font-bold text-text-primary">{req.name}</div>
+                                    <div className="text-sm text-text-secondary">{req.email}</div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleRejectRequest(req)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">Ablehnen</button>
-                                    <button onClick={() => handleApproveRequest(req)} className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition">Bestätigen</button>
+                                    <button onClick={() => handleRejectRequest(req)} className="bg-surface border border-default text-text-secondary px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition">Ablehnen</button>
+                                    <button onClick={() => handleApproveRequest(req)} className="bg-accent text-surface px-3 py-1.5 rounded-xl text-xs font-bold hover:opacity-90 transition">Bestätigen</button>
                                 </div>
                             </div>
                         ))}
@@ -400,15 +400,15 @@ export default function AdminUserManagement({ employees, departments, currentEmp
             {/* Employee Management */}
             <div>
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-gray-900">Mitarbeiter & Rollen</h2>
-                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition shadow-sm">
+                    <h2 className="text-lg font-bold text-text-primary">Mitarbeiter & Rollen</h2>
+                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-text-primary text-surface rounded-xl text-sm font-bold hover:opacity-90 transition shadow-sm">
                         <UserPlus size={16} /> Mitarbeiter anlegen
                     </button>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-surface rounded-xl shadow-sm border border-default overflow-hidden">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-bold">
+                        <thead className="bg-subtle text-xs uppercase text-text-muted font-bold">
                             <tr>
                                 <th className="p-4">Mitarbeiter</th>
                                 <th className="p-4">Rolle</th>
@@ -417,11 +417,11 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                                 <th className="p-4 text-right">Aktionen</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-default">
                             {employees.map(emp => {
                                 const isMe = currentEmployee.id === emp.id;
                                 return (
-                                    <tr key={emp.id} className="hover:bg-gray-50/50 transition">
+                                <tr key={emp.id} className="hover:bg-hover/50 transition">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <UserAvatar
@@ -431,30 +431,30 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                                                     size="sm"
                                                 />
                                                 <div>
-                                                    <div className="font-medium text-gray-900">{emp.name}</div>
-                                                    {emp.job_title && <div className="text-xs text-gray-400">{emp.job_title}</div>}
+                                                    <div className="font-medium text-text-primary">{emp.name}</div>
+                                                    {emp.job_title && <div className="text-xs text-text-muted">{emp.job_title}</div>}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.role === 'admin' ? 'bg-accent-subtle/30 text-accent' : 'bg-subtle text-text-secondary'}`}>
                                                 {emp.role === 'admin' ? <Shield size={10} /> : <User size={10} />}
                                                 {emp.role === 'admin' ? 'Admin' : 'User'}
                                             </span>
                                         </td>
                                         <td className="p-4">
-                                            <span className="text-gray-500">{departments.find(d => d.id === emp.department_id)?.name || '-'}</span>
+                                            <span className="text-text-secondary">{departments.find(d => d.id === emp.department_id)?.name || '-'}</span>
                                         </td>
                                         <td className="p-4 w-64">
-                                            <span className="text-gray-400 truncate block w-48">{emp.email || '-'}</span>
+                                            <span className="text-text-muted truncate block w-48">{emp.email || '-'}</span>
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-1">
-                                                <button onClick={() => handleOpenEdit(emp)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Bearbeiten">
+                                                <button onClick={() => handleOpenEdit(emp)} className="p-1.5 text-text-muted hover:text-accent hover:bg-surface border border-transparent hover:border-default hover:shadow-sm rounded transition" title="Bearbeiten">
                                                     <Pencil size={16} />
                                                 </button>
                                                 {!isMe && (
-                                                    <button onClick={() => handleDeleteEmployee(emp.id, emp.name)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Mitarbeiter entfernen">
+                                                    <button onClick={() => handleDeleteEmployee(emp.id, emp.name)} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-surface border border-transparent hover:border-default hover:shadow-sm rounded transition" title="Mitarbeiter entfernen">
                                                         <Trash size={16} />
                                                     </button>
                                                 )}

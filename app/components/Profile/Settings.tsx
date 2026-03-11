@@ -146,20 +146,20 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 // ... content ... 
 
                 <>
-                    <p className="text-gray-500 mb-8">Verwalte dein Profil und deine App-Einstellungen.</p>
+                    <p className="text-text-secondary mb-8">Verwalte dein Profil und deine App-Einstellungen.</p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* LEFT COLUMN: IDENTITY */}
                         <div className="lg:col-span-2 space-y-6">
                             {/* PROFILE CARD */}
-                            <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User size={20} className="text-gray-400" /> Profil Details</h2>
+                            <section className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
+                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User size={20} className="text-text-muted" /> Profil Details</h2>
 
                                 {/* Identity Selector */}
-                                <div className="mb-6 bg-gray-50 p-4 rounded-xl">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Wer bist du?</label>
+                                <div className="mb-6 bg-subtle p-4 rounded-xl">
+                                    <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Wer bist du?</label>
                                     <select
-                                        className="w-full p-2 border border-gray-200 rounded-xl bg-white"
+                                        className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none"
                                         onChange={(e) => {
                                             const emp = employees.find(ep => ep.id === e.target.value);
                                             if (emp) {
@@ -180,18 +180,18 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                             <option disabled>Keine Mitarbeiter gefunden</option>
                                         )}
                                     </select>
-                                    <p className="text-xs text-gray-400 mt-2">Wähle deinen Namen aus der Liste, um deine Daten zu bearbeiten.</p>
+                                    <p className="text-xs text-text-muted mt-2">Wähle deinen Namen aus der Liste, um deine Daten zu bearbeiten.</p>
                                 </div>
 
                                 {/* AVATAR SECTION */}
-                                <div className="flex items-center gap-6 mb-8 p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                <div className="flex items-center gap-6 mb-8 p-4 bg-subtle rounded-2xl border border-default">
                                     <div className="relative group">
                                         <UserAvatar
                                             src={avatarUrl}
                                             name={name}
                                             initials={initials}
                                             size="xl"
-                                            className="shadow-md border-2 border-white ring-1 ring-gray-200"
+                                            className="shadow-md border-2 border-surface ring-1 ring-default"
                                         />
                                         <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                             <Camera className="text-white" size={24} />
@@ -199,11 +199,11 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                         </label>
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-bold text-gray-900 mb-1">Profilbild</h3>
-                                        <p className="text-xs text-gray-500 mb-3">Lade ein Foto hoch, um dich für deine Kollegen erkennbar zu machen.</p>
+                                        <h3 className="text-sm font-bold text-text-primary mb-1">Profilbild</h3>
+                                        <p className="text-xs text-text-secondary mb-3">Lade ein Foto hoch, um dich für deine Kollegen erkennbar zu machen.</p>
                                         <button
                                             onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
-                                            className="text-xs font-bold bg-white border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 transition shadow-sm"
+                                            className="text-xs font-bold bg-surface border border-default px-3 py-1.5 rounded-xl hover:bg-hover transition shadow-sm text-text-secondary"
                                         >
                                             Foto ändern
                                         </button>
@@ -214,43 +214,43 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Anzeigename</label>
-                                                <input type="text" className="w-full p-2 border border-gray-200 rounded-xl font-medium" value={name} onChange={(e) => setName(e.target.value)} />
+                                                <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Anzeigename</label>
+                                                <input type="text" className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl font-medium" value={name} onChange={(e) => setName(e.target.value)} />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kürzel (2 Zeichen)</label>
-                                                <input type="text" maxLength={2} className="w-full p-2 border border-gray-200 rounded-xl font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
+                                                <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Kürzel (2 Zeichen)</label>
+                                                <input type="text" maxLength={2} className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Telefon (für Verträge)</label>
-                                            <input type="text" className="w-full p-2 border border-gray-200 rounded-xl font-medium" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+43 660 ..." />
+                                            <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Telefon (für Verträge)</label>
+                                            <input type="text" className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl font-medium" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+43 660 ..." />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Job Titel (Position)</label>
+                                            <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Job Titel (Position)</label>
                                             <div className="relative">
                                                 <input
                                                     type="text"
-                                                    className="w-full p-2 border border-blue-100 bg-blue-50/50 text-gray-700 rounded-xl font-medium cursor-not-allowed"
+                                                    className="w-full p-2 border border-accent/20 bg-accent-subtle/20 text-text-primary rounded-xl font-medium cursor-not-allowed outline-none"
                                                     value={jobTitle || 'Keine Position zugewiesen'}
                                                     disabled
                                                 />
-                                                <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300" />
+                                                <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-accent/50" />
                                             </div>
-                                            <p className="text-xs text-blue-400 mt-1 italic">
+                                            <p className="text-xs text-accent mt-1 italic">
                                                 Die Position kann nur durch die Team-Verwaltung geändert werden.
                                             </p>
-                                            <div className="text-xs text-gray-400 mt-1">Wird aus den Agentur-Positionen geladen.</div>
+                                            <div className="text-xs text-text-muted mt-1">Wird aus den Agentur-Positionen geladen.</div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Abteilung / Rolle</label>
-                                            <select className="w-full p-2 border border-gray-200 rounded-xl" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
+                                            <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Abteilung / Rolle</label>
+                                            <select className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
                                                 <option value="">Keine Abteilung</option>
                                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                             </select>
                                         </div>
                                         <div className="pt-4 flex justify-end">
-                                            <button onClick={handleSave} disabled={loading} className="bg-gray-900 text-white px-6 py-2 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 transition">Speichern</button>
+                                            <button onClick={handleSave} disabled={loading} className="bg-text-primary text-surface px-6 py-2 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition">Speichern</button>
                                         </div>
                                     </div>
                                 )}
@@ -258,9 +258,9 @@ export default function Settings({ session, employees, departments, onUpdate }: 
 
                             {/* ACCOUNT LINKING */}
                             {currentUser && (
-                                <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Lock size={20} className="text-gray-400" /> Account Verknüpfung</h2>
-                                    <div className={`p-4 rounded-xl flex items-center justify-between ${currentUser.email === session?.user?.email ? 'bg-green-50 text-green-900 border border-green-100' : 'bg-orange-50 text-orange-900 border border-orange-100'}`}>
+                                <section className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
+                                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Lock size={20} className="text-text-muted" /> Account Verknüpfung</h2>
+                                    <div className={`p-4 rounded-xl flex items-center justify-between ${currentUser.email === session?.user?.email ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'}`}>
                                         <div className="text-sm">
                                             {currentUser.email === session?.user?.email ? (
                                                 <span><span className="font-bold">Verknüpft:</span> Du bist als <u>{currentUser.name}</u> eingeloggt.</span>
@@ -273,7 +273,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                             )}
                                         </div>
                                         {currentUser.email !== session?.user?.email && (
-                                            <button onClick={handleLinkAccount} className="text-xs bg-white border border-gray-300 px-3 py-2 rounded-xl shadow-sm hover:bg-gray-50 font-bold">
+                                            <button onClick={handleLinkAccount} className="text-xs bg-surface border border-default text-text-primary px-3 py-2 rounded-xl shadow-sm hover:bg-hover font-bold outline-none">
                                                 Jetzt verknüpfen
                                             </button>
                                         )}
@@ -316,8 +316,8 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                     <AppearanceSettings />
                 </div>
             ) : activeTab === 'projects' && currentUser?.role === 'admin' ? (
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                    <h2 className="text-lg font-bold mb-4">Alle Projekte (Admin Übersicht)</h2>
+                <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
+                    <h2 className="text-lg font-bold mb-4 text-text-primary">Alle Projekte (Admin Übersicht)</h2>
                     {/* We can reuse DashboardView here, but we need to mock/pass props. 
                         DashboardView needs: projects, clients, employees, stats, onSelectProject, etc. 
                         We don't have all stats computed here easily unless we computed them.
@@ -329,7 +329,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                     {/* <p>Projekte werden geladen...</p> REMOVED */}
                 </div>
             ) : activeTab === 'clients' && currentUser?.role === 'admin' ? (
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
                     <AdminClientManagement clients={clients} onUpdate={onUpdate} />
                 </div>
             ) : activeTab === 'rates' && currentUser?.role === 'admin' ? (

@@ -267,34 +267,34 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                 onClick={onClose}
             />
 
-            <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white shadow-2xl z-[60] flex flex-col animate-in slide-in-from-right duration-300 border-l border-gray-100">
+            <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-surface shadow-2xl z-[60] flex flex-col animate-in slide-in-from-right duration-300 border-l border-default">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-50">
+                <div className="flex items-center justify-between p-4 border-b border-default">
                     <button
                         onClick={handleToggleMainTaskWithDelay}
-                        className={`group/check flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition duration-200 ${task.is_done || pendingCompletions[task.id] ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400'}`}
+                        className={`group/check flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition duration-200 ${task.is_done || pendingCompletions[task.id] ? 'bg-accent border-accent text-white' : 'bg-surface border-default text-text-secondary hover:border-accent'}`}
                     >
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${task.is_done || pendingCompletions[task.id] ? 'bg-white/20 border-white/40' : 'border-gray-200 group-hover/check:border-blue-400'}`}>
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${task.is_done || pendingCompletions[task.id] ? 'bg-surface/20 border-white/40' : 'border-default group-hover/check:border-accent'}`}>
                             <Check size={12} className={`transition-opacity ${task.is_done || pendingCompletions[task.id] ? 'opacity-100' : 'opacity-0'}`} />
                         </div>
                         {task.is_done || pendingCompletions[task.id] ? 'Erledigt' : 'Als erledigt markieren'}
                     </button>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => onDelete(task.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => onDelete(task.id)} className="p-2 text-text-placeholder hover:text-red-500 transition-colors">
                             <Trash2 size={20} />
                         </button>
-                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 transition-colors">
+                        <button onClick={onClose} className="p-2 text-text-placeholder hover:text-text-primary transition-colors">
                             <X size={24} />
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white">
+                <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-surface">
                     {/* Breadcrumbs & Title */}
                     <div className="space-y-2">
                         {/* Breadcrumbs */}
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider overflow-hidden">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-placeholder uppercase tracking-wider overflow-hidden">
                             <span className="truncate max-w-[150px]">
                                 {projectId ? (projects.find(p => p.id === projectId)?.title || 'Unbekanntes Projekt') : 'Persönliche Aufgaben'}
                             </span>
@@ -306,7 +306,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                             const { data } = await supabase.from('todos').select(`*, employees(id, initials, name, avatar_url)`).eq('id', crumb.id).single();
                                             if (data) onTaskClick?.(data as any);
                                         }}
-                                        className="truncate max-w-[120px] hover:text-blue-600 transition"
+                                        className="truncate max-w-[120px] hover:text-accent transition"
                                     >
                                         {crumb.title}
                                     </button>
@@ -351,10 +351,10 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                     {/* Metadata */}
                     <div className="space-y-4">
                         <div className="grid grid-cols-3 items-center">
-                            <div className="text-sm text-gray-500 flex items-center gap-2"><User size={16} /> Verantwortlich</div>
+                            <div className="text-sm text-text-muted flex items-center gap-2"><User size={16} /> Verantwortlich</div>
                             <div className="col-span-2">
                                 <select
-                                    className="w-full p-2 border-none rounded-xl text-sm hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 transition cursor-pointer"
+                                    className="w-full p-2 border-none rounded-xl text-sm hover:bg-subtle focus:ring-1 focus:ring-accent transition cursor-pointer"
                                     value={assigneeId}
                                     onChange={(e) => {
                                         setAssigneeId(e.target.value);
@@ -368,11 +368,11 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                         </div>
 
                         <div className="grid grid-cols-3 items-center">
-                            <div className="text-sm text-gray-500 flex items-center gap-2"><Calendar size={16} /> Fälligkeit</div>
+                            <div className="text-sm text-text-muted flex items-center gap-2"><Calendar size={16} /> Fälligkeit</div>
                             <div className="col-span-2">
                                 <input
                                     type="date"
-                                    className="w-full p-2 border-none rounded-xl text-sm hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 transition cursor-pointer"
+                                    className="w-full p-2 border-none rounded-xl text-sm hover:bg-subtle focus:ring-1 focus:ring-accent transition cursor-pointer"
                                     value={deadline}
                                     onChange={(e) => {
                                         setDeadline(e.target.value);
@@ -383,8 +383,8 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                         </div>
 
                         <div className="grid grid-cols-3 items-center">
-                            <div className="text-sm text-gray-500 flex items-center gap-2"><Layout size={16} /> Projekt</div>
-                            <div className="col-span-2 px-2 py-1.5 text-sm font-medium text-gray-700">
+                            <div className="text-sm text-text-muted flex items-center gap-2"><Layout size={16} /> Projekt</div>
+                            <div className="col-span-2 px-2 py-1.5 text-sm font-medium text-text-secondary">
                                 {projectId ? (projects.find(p => p.id === projectId)?.title || 'Unbekanntes Projekt') : 'Persönlich'}
                             </div>
                         </div>
@@ -392,13 +392,13 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
 
                     {/* Description */}
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Beschreibung</label>
+                        <label className="text-xs font-bold text-text-placeholder uppercase tracking-wider">Beschreibung</label>
                         <div
-                            className="relative group p-4 rounded-xl border border-gray-100 bg-gray-50/30 hover:bg-gray-50/50 transition duration-200"
+                            className="relative group p-4 rounded-xl border border-default bg-subtle/30 hover:bg-subtle/50 transition duration-200"
                             onPaste={handlePaste}
                         >
                             <textarea
-                                className="w-full min-h-[120px] bg-transparent border-none focus:ring-0 p-0 text-sm text-gray-700 placeholder-gray-400 resize-none"
+                                className="w-full min-h-[120px] bg-transparent border-none focus:ring-0 p-0 text-sm text-text-secondary placeholder-gray-400 resize-none"
                                 placeholder="Hier klicken, um Details hinzuzufügen..."
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
@@ -408,7 +408,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {imageUrls.map((url, i) => (
                                     <div key={i} className="relative w-20 h-20 group/img">
-                                        <img src={url} className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                                        <img src={url} className="w-full h-full object-cover rounded-xl border border-default" />
                                         <button
                                             onClick={() => {
                                                 const updated = imageUrls.filter((_, idx) => idx !== i);
@@ -422,8 +422,8 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                     </div>
                                 ))}
                                 {uploading && (
-                                    <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded-xl animate-pulse">
-                                        <ImageIcon size={20} className="text-gray-400" />
+                                    <div className="w-20 h-20 flex items-center justify-center bg-hover rounded-xl animate-pulse">
+                                        <ImageIcon size={20} className="text-text-placeholder" />
                                     </div>
                                 )}
                             </div>
@@ -431,7 +431,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="p-1.5 text-gray-400 hover:text-gray-900 bg-white rounded-xl shadow-sm border border-gray-100 transition"
+                                    className="p-1.5 text-text-placeholder hover:text-text-primary bg-surface rounded-xl shadow-sm border border-default transition"
                                     title="Bilder anhängen"
                                 >
                                     <Plus size={16} />
@@ -439,14 +439,14 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                             </div>
                         </div>
                         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={(e) => e.target.files && handleUpload(e.target.files)} />
-                        <p className="text-[10px] text-gray-400 italic">Tipp: Bilder können auch direkt mit Strg+V eingefügt werden.</p>
+                        <p className="text-[10px] text-text-placeholder italic">Tipp: Bilder können auch direkt mit Strg+V eingefügt werden.</p>
                     </div>
 
                     {/* Subtasks */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Unteraufgaben</label>
-                            <button onClick={handleAddSubtask} className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1">
+                            <label className="text-xs font-bold text-text-placeholder uppercase tracking-wider">Unteraufgaben</label>
+                            <button onClick={handleAddSubtask} className="text-xs text-accent font-bold hover:underline flex items-center gap-1">
                                 <Plus size={12} /> Hinzufügen
                             </button>
                         </div>
@@ -471,16 +471,16 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                 </SortableContext>
                             </DndContext>
                             {subtasks.length === 0 && !loadingSubtasks && (
-                                <div className="text-sm text-gray-400 italic pl-2">Noch keine Unteraufgaben vorhanden.</div>
+                                <div className="text-sm text-text-placeholder italic pl-2">Noch keine Unteraufgaben vorhanden.</div>
                             )}
                         </div>
                     </div>
                 </div>
 
                 {/* Footer / Status indication */}
-                <div className="p-4 border-t border-gray-50 bg-gray-50/30 flex justify-between items-center">
-                    <span className="text-[10px] text-gray-400">Automatische Speicherung erfolgt beim Verlassen der Felder.</span>
-                    {isSaving && <div className="text-[10px] text-blue-500 font-bold animate-pulse">Wird gespeichert...</div>}
+                <div className="p-4 border-t border-default bg-subtle/30 flex justify-between items-center">
+                    <span className="text-[10px] text-text-placeholder">Automatische Speicherung erfolgt beim Verlassen der Felder.</span>
+                    {isSaving && <div className="text-[10px] text-accent font-bold animate-pulse">Wird gespeichert...</div>}
                 </div>
             </div>
 
@@ -533,14 +533,14 @@ function SortableSubtask({
         <div
             ref={setNodeRef}
             style={style}
-            className={`flex items-center gap-2 p-2 hover:bg-gray-50 rounded-xl group/sub transition cursor-pointer relative ${isDragging ? 'shadow-lg bg-white rotate-1' : ''}`}
+            className={`flex items-center gap-2 p-2 hover:bg-subtle rounded-xl group/sub transition cursor-pointer relative ${isDragging ? 'shadow-lg bg-surface rotate-1' : ''}`}
             onClick={() => onTaskClick?.(subtask)}
         >
             {/* Drag Handle */}
             <div
                 {...attributes}
                 {...listeners}
-                className="p-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing opacity-0 group-hover/sub:opacity-100 transition-opacity -ml-1"
+                className="p-1 text-text-placeholder hover:text-text-muted cursor-grab active:cursor-grabbing opacity-0 group-hover/sub:opacity-100 transition-opacity -ml-1"
                 onClick={e => e.stopPropagation()}
             >
                 <GripVertical size={14} />
@@ -548,7 +548,7 @@ function SortableSubtask({
 
             <button
                 onClick={(e) => handleToggleSubtaskWithDelay(subtask.id, subtask.is_done || !!pendingCompletions[subtask.id], e)}
-                className={`w-5 h-5 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check_sub ${subtask.is_done || pendingCompletions[subtask.id] ? 'bg-blue-500 border-blue-500' : 'border-gray-200 hover:border-blue-500'}`}
+                className={`w-5 h-5 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check_sub ${subtask.is_done || pendingCompletions[subtask.id] ? 'bg-accent border-accent' : 'border-default hover:border-accent'}`}
             >
                 <Check size={10} className={`text-white transition-opacity ${subtask.is_done || pendingCompletions[subtask.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
             </button>
@@ -557,7 +557,7 @@ function SortableSubtask({
                 {editingSubtaskId === subtask.id ? (
                     <input
                         type="text"
-                        className={`w-full bg-white border border-blue-200 rounded px-1 text-sm focus:ring-1 focus:ring-blue-500 p-0 ${subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}
+                        className={`w-full bg-surface border border-accent rounded px-1 text-sm focus:ring-1 focus:ring-accent p-0 ${subtask.is_done ? 'text-text-placeholder line-through' : 'text-text-secondary'}`}
                         value={subtask.title}
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
@@ -577,7 +577,7 @@ function SortableSubtask({
                         }}
                     />
                 ) : (
-                    <span className={`text-sm truncate block ${subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                    <span className={`text-sm truncate block ${subtask.is_done ? 'text-text-placeholder line-through' : 'text-text-secondary'}`}>
                         {subtask.title}
                     </span>
                 )}
@@ -589,14 +589,14 @@ function SortableSubtask({
                         e.stopPropagation();
                         setEditingSubtaskId(subtask.id);
                     }}
-                    className="p-1 text-gray-400 hover:text-blue-500 transition border rounded-md border-transparent hover:border-blue-100 hover:bg-blue-50"
+                    className="p-1 text-text-placeholder hover:text-accent transition border rounded-md border-transparent hover:border-accent hover:bg-accent-subtle"
                     title="Bearbeiten"
                 >
                     <Edit2 size={12} />
                 </button>
                 <button
                     onClick={(e) => handleDeleteSubtask(subtask.id, e)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition border rounded-md border-transparent hover:border-red-100 hover:bg-red-50"
+                    className="p-1 text-text-placeholder hover:text-red-500 transition border rounded-md border-transparent hover:border-red-100 hover:bg-red-50"
                     title="Löschen"
                 >
                     <Trash2 size={12} />

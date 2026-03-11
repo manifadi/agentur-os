@@ -77,20 +77,20 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
             />
 
             {/* Modal Container */}
-            <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+            <div className="relative w-full max-w-4xl bg-surface rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+                <div className="p-6 border-b border-default bg-subtle/50">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
                                 <CheckCircle2 size={24} className="text-green-500" />
                                 Aufgaben Historie
                             </h2>
-                            <p className="text-sm text-gray-500 mt-1">Strukturierte Übersicht aller erledigten Aufgaben</p>
+                            <p className="text-sm text-text-muted mt-1">Strukturierte Übersicht aller erledigten Aufgaben</p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-white rounded-xl text-gray-400 hover:text-gray-900 transition shadow-sm border border-transparent hover:border-gray-200"
+                            className="p-2 hover:bg-surface rounded-xl text-text-placeholder hover:text-text-primary transition shadow-sm border border-transparent hover:border-default"
                         >
                             <X size={20} />
                         </button>
@@ -98,11 +98,11 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
 
                     {/* Search Field */}
                     <div className="relative">
-                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-placeholder" />
                         <input
                             type="text"
                             placeholder="Historie durchsuchen (Aufgabe, Projekt oder Kunde)..."
-                            className="w-full bg-white border border-gray-200 rounded-2xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm font-medium"
+                            className="w-full bg-surface border border-default rounded-2xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-accent focus:border-transparent transition-all shadow-sm font-medium"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -112,7 +112,7 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-12">
                     {totalCount === 0 ? (
-                        <div className="py-24 text-center text-gray-400">
+                        <div className="py-24 text-center text-text-placeholder">
                             <Search size={48} className="mx-auto mb-4 opacity-10" />
                             <p className="text-sm font-medium">Keine passenden Aufgaben in der Historie gefunden.</p>
                         </div>
@@ -122,12 +122,12 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
                             {groupedTasks.personal.length > 0 && (
                                 <section>
                                     <div className="flex items-center gap-2 mb-4 px-1">
-                                        <div className="p-1.5 bg-gray-100 rounded-lg text-gray-500">
+                                        <div className="p-1.5 bg-hover rounded-lg text-text-muted">
                                             <Layout size={14} />
                                         </div>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Persönliche Aufgaben</h3>
+                                        <h3 className="text-xs font-bold text-text-placeholder uppercase tracking-widest">Persönliche Aufgaben</h3>
                                     </div>
-                                    <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50 overflow-hidden shadow-sm">
+                                    <div className="bg-surface rounded-2xl border border-default divide-y divide-gray-50 overflow-hidden shadow-sm">
                                         {groupedTasks.personal.map(todo => (
                                             <TaskRow key={todo.id} todo={todo} onToggle={onToggle} onTaskClick={onTaskClick} />
                                         ))}
@@ -138,24 +138,24 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
                             {/* Grouped by Customer / Project */}
                             {groupedTasks.groups.map(group => (
                                 <section key={group.customerName} className="space-y-6">
-                                    <div className="flex items-center gap-2 px-1 border-b border-gray-100 pb-2">
-                                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                                    <div className="flex items-center gap-2 px-1 border-b border-default pb-2">
+                                        <div className="p-1.5 bg-accent-subtle text-accent rounded-lg">
                                             <Building2 size={14} />
                                         </div>
-                                        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">{group.customerName}</h3>
+                                        <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">{group.customerName}</h3>
                                     </div>
 
                                     <div className="space-y-6 pl-4 md:pl-8">
                                         {group.projects.map(project => (
                                             <div key={project.projectName} className="space-y-3">
-                                                <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                                                <div className="flex items-center gap-2 text-[11px] font-bold text-text-placeholder uppercase tracking-wide">
                                                     <FolderOpen size={12} className="opacity-70" />
                                                     <span>{project.projectName}</span>
-                                                    <span className="font-mono text-[9px] opacity-50 px-1.5 py-0.5 bg-gray-50 rounded border border-gray-100">
+                                                    <span className="font-mono text-[9px] opacity-50 px-1.5 py-0.5 bg-subtle rounded border border-default">
                                                         {project.jobNumber}
                                                     </span>
                                                 </div>
-                                                <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50 overflow-hidden shadow-sm">
+                                                <div className="bg-surface rounded-2xl border border-default divide-y divide-gray-50 overflow-hidden shadow-sm">
                                                     {project.tasks.map(todo => (
                                                         <TaskRow key={todo.id} todo={todo} onToggle={onToggle} onTaskClick={onTaskClick} />
                                                     ))}
@@ -170,9 +170,9 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
                 </div>
 
                 {/* Status Bar */}
-                <div className="p-4 bg-gray-50 border-t border-gray-100 text-center flex justify-between px-8">
-                    <p className="text-[10px] text-gray-400 font-medium">Anzeige: {totalCount} Einträge</p>
-                    <p className="text-[10px] text-gray-400 font-medium italic">Tipp: Klicke auf "Reaktivieren", um Aufgaben zurückzuholen.</p>
+                <div className="p-4 bg-subtle border-t border-default text-center flex justify-between px-8">
+                    <p className="text-[10px] text-text-placeholder font-medium">Anzeige: {totalCount} Einträge</p>
+                    <p className="text-[10px] text-text-placeholder font-medium italic">Tipp: Klicke auf "Reaktivieren", um Aufgaben zurückzuholen.</p>
                 </div>
             </div>
         </div>
@@ -182,7 +182,7 @@ export default function TaskHistoryModal({ projects, personalTodos, onClose, onT
 function TaskRow({ todo, onToggle, onTaskClick }: { todo: Todo, onToggle: (id: string, s: boolean) => Promise<void>, onTaskClick?: (t: Todo) => void }) {
     return (
         <div
-            className="group flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+            className="group flex items-center gap-4 p-4 hover:bg-subtle transition-colors cursor-pointer"
             onClick={() => onTaskClick?.(todo)}
         >
             <button
@@ -190,23 +190,23 @@ function TaskRow({ todo, onToggle, onTaskClick }: { todo: Todo, onToggle: (id: s
                     e.stopPropagation();
                     onToggle(todo.id, true);
                 }}
-                className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center shrink-0 bg-blue-500 border-blue-500 group/check`}
+                className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center shrink-0 bg-accent border-accent group/check`}
             >
                 <Check size={12} className="text-white" />
             </button>
 
             <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-gray-400 line-through truncate leading-tight group-hover:text-gray-900 group-hover:no-underline transition-colors">
+                <h3 className="text-sm font-medium text-text-placeholder line-through truncate leading-tight group-hover:text-text-primary group-hover:no-underline transition-colors">
                     {todo.title}
                 </h3>
                 {todo.deadline && (
-                    <span className="text-[10px] text-gray-400 mt-1 block font-medium opacity-60">
+                    <span className="text-[10px] text-text-placeholder mt-1 block font-medium opacity-60">
                         Fällig war am: {new Date(todo.deadline).toLocaleDateString('de-DE')}
                     </span>
                 )}
             </div>
 
-            <div className="text-[10px] font-bold text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            <div className="text-[10px] font-bold text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                 <RotateCcw size={10} /> Reaktivieren
             </div>
         </div>

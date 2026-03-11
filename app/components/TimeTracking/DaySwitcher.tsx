@@ -68,13 +68,13 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
             {/* Left Arrow */}
             <button
                 onClick={handlePrevWeek}
-                className="p-3 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm"
+                className="p-3 bg-surface border border-default rounded-xl text-text-muted hover:text-text-primary hover:border-accent hover:bg-subtle transition-all shadow-sm"
             >
                 <ChevronLeft size={20} />
             </button>
 
             {/* Week Strip */}
-            <div className="flex bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm gap-1">
+            <div className="flex bg-surface p-1.5 rounded-2xl border border-default shadow-sm gap-1">
                 {weekDays.map((date) => {
                     const isSelected = isSameDay(date, currentDate);
                     const isToday = isSameDay(date, new Date());
@@ -85,13 +85,13 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
 
                     // State Styling
                     if (isSelected) {
-                        wrapperClass += "bg-gray-900 text-white shadow-md scale-105 z-10 font-bold";
+                        wrapperClass += "bg-text-primary text-surface shadow-md scale-105 z-10 font-bold border-transparent";
                     } else if (isToday) {
-                        wrapperClass += "bg-blue-100 text-blue-700 font-extrabold border border-blue-200 hover:bg-blue-200";
+                        wrapperClass += "bg-accent-subtle/30 text-accent font-extrabold border border-accent/20 hover:bg-accent-subtle/50";
                     } else if (isWeekend) {
-                        wrapperClass += "bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600";
+                        wrapperClass += "bg-subtle text-text-placeholder hover:bg-hover hover:text-text-secondary border-transparent";
                     } else {
-                        wrapperClass += "text-gray-600 hover:bg-gray-50 hover:text-gray-900";
+                        wrapperClass += "text-text-secondary border-transparent hover:bg-hover hover:text-text-primary";
                     }
 
                     return (
@@ -100,7 +100,7 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
                             onClick={() => onDateChange(date)}
                             className={wrapperClass}
                         >
-                            <span className={`text-[10px] uppercase mb-0.5 ${isSelected ? 'text-gray-300' : (isWeekend ? 'text-gray-300' : 'text-gray-400')}`}>
+                            <span className={`text-[10px] uppercase mb-0.5 ${isSelected ? 'text-surface/70' : (isWeekend ? 'text-text-placeholder' : 'text-text-muted')}`}>
                                 {formatDayName(date)}
                             </span>
                             <span className="leading-none text-base">
@@ -109,7 +109,7 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
 
                             {/* Today Dot Indicator if not active */}
                             {isToday && !isSelected && (
-                                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full"></div>
                             )}
                         </div>
                     );
@@ -119,7 +119,7 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
             {/* Right Arrow */}
             <button
                 onClick={handleNextWeek}
-                className="p-3 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm"
+                className="p-3 bg-surface border border-default rounded-xl text-text-muted hover:text-text-primary hover:border-accent hover:bg-subtle transition-all shadow-sm"
             >
                 <ChevronRight size={20} />
             </button>
@@ -128,7 +128,7 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
             {!isCurrentDateToday && (
                 <button
                     onClick={handleJumpToToday}
-                    className="ml-2 px-4 py-3 bg-blue-50 text-blue-600 font-bold rounded-xl text-sm hover:bg-blue-100 transition-colors"
+                    className="ml-2 px-4 py-3 bg-accent/10 text-accent font-bold rounded-xl text-sm hover:bg-accent/20 transition-colors"
                 >
                     Heute
                 </button>

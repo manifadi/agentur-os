@@ -149,8 +149,10 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
     };
 
     return (
-        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col min-h-[300px]">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-gray-400" /> Aufgaben</h2>
+        <div className="bg-surface rounded-2xl p-4 md:p-6 shadow-sm border border-default flex-1 flex flex-col min-h-[300px]">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> Aufgaben
+            </h2>
             <div className="overflow-y-auto pr-2 px-2 py-1 space-y-3 flex-1 custom-scrollbar">
                 <DndContext
                     sensors={sensors}
@@ -161,6 +163,21 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
                         items={sortedTodos.map(t => t.id)}
                         strategy={verticalListSortingStrategy}
                     >
+                        {sortedTodos.length === 0 && !isAdding && (
+                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                                <div className="w-16 h-16 rounded-2xl bg-subtle border border-default flex items-center justify-center mb-4 shadow-sm">
+                                    <CheckCircle2 size={24} className="text-text-placeholder" />
+                                </div>
+                                <p className="text-sm font-semibold text-text-primary mb-1">Keine Aufgaben</p>
+                                <p className="text-xs text-text-secondary mb-5 max-w-[220px]">Erstelle die erste Aufgabe und halte den Überblick über alle Aufgaben in diesem Projekt.</p>
+                                <button
+                                    onClick={() => setIsAdding(true)}
+                                    className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-accent text-surface rounded-xl hover:brightness-110 transition-all shadow-sm"
+                                >
+                                    <Plus size={14} /> Erste Aufgabe erstellen
+                                </button>
+                            </div>
+                        )}
                         {sortedTodos.filter(t => !t.parent_id || pendingIds.has(t.id)).map((todo) => {
                             const isPending = pendingIds.has(todo.id);
                             const isDoneEffective = todo.is_done || isPending;
@@ -169,16 +186,16 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
 
                             if (editingId === todo.id) {
                                 return (
-                                    <div key={todo.id} className="flex flex-1 items-center gap-2 flex-wrap p-3 bg-blue-50/30 rounded-xl">
-                                        <input autoFocus type="text" className="flex-1 min-w-[120px] bg-white rounded-xl border-none text-sm px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(todo.id)} />
-                                        <input type="date" className="bg-white rounded-xl border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500 w-auto" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(todo.id)} />
-                                        <select className="w-24 bg-white rounded-xl border-none text-xs px-2 py-1 focus:ring-1 focus:ring-blue-500" value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(todo.id)}>
+                                    <div key={todo.id} className="flex flex-1 items-center gap-2 flex-wrap p-3 bg-accent-subtle/30 rounded-xl">
+                                        <input autoFocus type="text" className="flex-1 min-w-[120px] bg-surface rounded-xl border-none text-sm px-2 py-1 focus:ring-1 focus:ring-accent text-text-primary" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(todo.id)} />
+                                        <input type="date" className="bg-surface rounded-xl border-none text-xs px-2 py-1 focus:ring-1 focus:ring-accent w-auto text-text-secondary" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(todo.id)} />
+                                        <select className="w-24 bg-surface rounded-xl border-none text-xs px-2 py-1 focus:ring-1 focus:ring-accent text-text-secondary" value={editAssignee} onChange={(e) => setEditAssignee(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(todo.id)}>
                                             <option value="">Niemand</option>
                                             {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                                         </select>
                                         <div className="flex gap-1">
-                                            <button onClick={() => handleSaveEdit(todo.id)} className="p-1 text-green-600 hover:bg-green-50 rounded-xl"><Check size={16} /></button>
-                                            <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-xl"><X size={16} /></button>
+                                            <button onClick={() => handleSaveEdit(todo.id)} className="p-1 text-green-500 hover:bg-green-500/10 rounded-xl"><Check size={16} /></button>
+                                            <button onClick={() => setEditingId(null)} className="p-1 text-text-muted hover:bg-hover rounded-xl"><X size={16} /></button>
                                         </div>
                                     </div>
                                 );
@@ -202,25 +219,25 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
                 </DndContext>
 
                 {isAdding ? (
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl animate-in fade-in slide-in-from-top-1 flex-wrap">
+                    <div className="flex items-center gap-2 p-2 bg-subtle rounded-xl animate-in fade-in slide-in-from-top-1 flex-wrap">
                         <input
                             autoFocus
                             type="text"
                             placeholder="Aufgabe..."
-                            className="flex-1 min-w-[120px] bg-transparent border-none text-sm focus:ring-0 p-1"
+                            className="flex-1 min-w-[120px] bg-transparent border-none text-sm focus:ring-0 p-1 text-text-primary"
                             value={newTitle}
                             onChange={(e) => setNewTitle(e.target.value)}
                             onKeyDown={handleKeyDown}
                         />
                         <input
                             type="date"
-                            className="bg-transparent border-none text-xs text-gray-500 focus:ring-0 p-1 w-auto"
+                            className="bg-transparent border-none text-xs text-text-secondary focus:ring-0 p-1 w-auto"
                             value={newDeadline}
                             onChange={(e) => setNewDeadline(e.target.value)}
                             onKeyDown={handleKeyDown}
                         />
                         <select
-                            className="w-24 bg-transparent border-none text-xs text-gray-500 focus:ring-0 cursor-pointer"
+                            className="w-24 bg-transparent border-none text-xs text-text-secondary focus:ring-0 cursor-pointer"
                             value={newAssignee}
                             onChange={(e) => setNewAssignee(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -229,12 +246,12 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
                             {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                         <div className="flex gap-1">
-                            <button onClick={handleCreate} className="text-blue-600 hover:bg-blue-100 p-1 rounded-xl"><Plus size={16} /></button>
-                            <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:bg-gray-200 p-1 rounded-xl"><X size={16} /></button>
+                            <button onClick={handleCreate} className="text-accent hover:bg-accent/10 p-1 rounded-xl"><Plus size={16} /></button>
+                            <button onClick={() => setIsAdding(false)} className="text-text-muted hover:bg-hover p-1 rounded-xl"><X size={16} /></button>
                         </div>
                     </div>
                 ) : (
-                    <button onClick={() => setIsAdding(true)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 mt-4 pl-1 transition"><Plus size={14} /> Neue Aufgabe</button>
+                    <button onClick={() => setIsAdding(true)} className="flex items-center gap-2 text-xs text-text-muted hover:text-text-primary mt-4 pl-1 transition"><Plus size={14} /> Neue Aufgabe</button>
                 )}
             </div>
         </div>

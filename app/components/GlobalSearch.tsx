@@ -141,25 +141,25 @@ export default function GlobalSearch() {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 backdrop-blur-sm bg-gray-900/20 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 backdrop-blur-sm bg-black/40 animate-in fade-in duration-200">
             <div
-                className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200"
+                className="relative w-full max-w-2xl bg-surface rounded-3xl shadow-2xl border border-default overflow-hidden animate-in zoom-in-95 duration-200"
                 ref={wrapperRef}
             >
                 {/* Search Input Area */}
-                <div className="relative border-b border-gray-50 p-4 flex items-center gap-4">
-                    <Search className="text-gray-400" size={24} strokeWidth={2.5} />
+                <div className="relative border-b border-default p-4 flex items-center gap-4 bg-surface">
+                    <Search className="text-text-muted" size={24} strokeWidth={2.5} />
                     <input
                         ref={inputRef}
                         type="text"
-                        className="flex-1 bg-transparent border-none text-xl outline-none placeholder:text-gray-300 font-medium py-2"
+                        className="flex-1 bg-transparent border-none text-xl outline-none placeholder:text-text-placeholder text-text-primary font-medium py-2"
                         placeholder="Suche nach Projekten, Kunden, Aufgaben..."
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                     />
                     <div className="flex items-center gap-2">
-                        {loading && <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />}
-                        <div className="bg-gray-50 border border-gray-200 text-[10px] font-bold text-gray-400 px-2 py-1 rounded-lg shadow-sm tracking-widest uppercase">ESC</div>
+                        {loading && <div className="w-5 h-5 border-2 border-accent-subtle border-t-accent rounded-full animate-spin" />}
+                        <div className="bg-subtle border border-default text-[10px] font-bold text-text-muted px-2 py-1 rounded-lg shadow-sm tracking-widest uppercase">ESC</div>
                     </div>
                 </div>
 
@@ -170,7 +170,7 @@ export default function GlobalSearch() {
                             {/* CLIENTS */}
                             {results.clients.length > 0 && (
                                 <section>
-                                    <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <div className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
                                         <Briefcase size={12} /> Kunden
                                     </div>
                                     <div className="grid grid-cols-1 gap-1">
@@ -178,16 +178,16 @@ export default function GlobalSearch() {
                                             <button
                                                 key={c.id}
                                                 onClick={() => handleSelect(`/uebersicht?client_id=${c.id}`)}
-                                                className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                                className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
-                                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold border border-gray-100 group-hover:bg-blue-50 group-hover:text-blue-600 overflow-hidden shadow-sm">
+                                                <div className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center text-sm font-bold border border-default group-hover:bg-accent-subtle group-hover:text-accent overflow-hidden shadow-sm text-text-primary">
                                                     {c.logo_url ? <img src={c.logo_url} className="w-full h-full object-cover" /> : c.name.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-bold text-gray-900 group-hover:text-blue-600 transition truncate">{c.name}</div>
-                                                    <div className="text-[10px] text-gray-400 truncate tracking-wide">KUNDE • {c.address || 'Keine Adresse'}</div>
+                                                    <div className="font-bold text-text-primary group-hover:text-accent transition truncate">{c.name}</div>
+                                                    <div className="text-[10px] text-text-muted truncate tracking-wide">KUNDE • {c.address || 'Keine Adresse'}</div>
                                                 </div>
-                                                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                                <ChevronRight size={16} className="text-text-muted/50 group-hover:text-accent opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                                             </button>
                                         ))}
                                     </div>
@@ -197,7 +197,7 @@ export default function GlobalSearch() {
                             {/* PROJECTS */}
                             {results.projects.length > 0 && (
                                 <section>
-                                    <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <div className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
                                         <Layout size={12} /> Projekte
                                     </div>
                                     <div className="grid grid-cols-1 gap-1">
@@ -205,16 +205,16 @@ export default function GlobalSearch() {
                                             <button
                                                 key={p.id}
                                                 onClick={() => handleSelect(`/uebersicht?project_id=${p.id}`)}
-                                                className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                                className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
-                                                <div className="w-10 h-10 rounded-xl bg-blue-50/50 flex items-center justify-center text-blue-600 border border-blue-50 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                                                <div className="w-10 h-10 rounded-xl bg-accent-subtle/50 flex items-center justify-center text-accent border border-accent/20 group-hover:bg-accent group-hover:text-accent-text transition-all shadow-sm">
                                                     <Layout size={20} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-bold text-gray-900 group-hover:text-blue-600 transition truncate">{p.title}</div>
-                                                    <div className="text-[10px] text-gray-400 truncate tracking-widest font-mono">{p.job_number} • {p.status}</div>
+                                                    <div className="font-bold text-text-primary group-hover:text-accent transition truncate">{p.title}</div>
+                                                    <div className="text-[10px] text-text-muted truncate tracking-widest font-mono">{p.job_number} • {p.status}</div>
                                                 </div>
-                                                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                                <ChevronRight size={16} className="text-text-muted/50 group-hover:text-accent opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                                             </button>
                                         ))}
                                     </div>
@@ -224,7 +224,7 @@ export default function GlobalSearch() {
                             {/* TODOS */}
                             {results.todos.length > 0 && (
                                 <section>
-                                    <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <div className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
                                         <CheckSquare size={12} /> Aufgaben
                                     </div>
                                     <div className="grid grid-cols-1 gap-1">
@@ -232,18 +232,18 @@ export default function GlobalSearch() {
                                             <button
                                                 key={t.id}
                                                 onClick={() => handleSelect(t.project_id ? `/uebersicht?project_id=${t.project_id}&task_id=${t.id}` : `/aufgaben?task_id=${t.id}`)}
-                                                className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                                className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all shadow-sm ${t.is_done ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all shadow-sm ${t.is_done ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
                                                     <CheckSquare size={20} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className={`font-bold transition truncate ${t.is_done ? 'text-gray-400 line-through' : 'text-gray-900 group-hover:text-blue-600'}`}>{t.title}</div>
-                                                    <div className="text-[10px] text-gray-400 truncate tracking-widest uppercase">
+                                                    <div className={`font-bold transition truncate ${t.is_done ? 'text-text-muted line-through' : 'text-text-primary group-hover:text-accent'}`}>{t.title}</div>
+                                                    <div className="text-[10px] text-text-muted truncate tracking-widest uppercase">
                                                         {t.project_title || 'Private Aufgabe'}
                                                     </div>
                                                 </div>
-                                                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                                <ChevronRight size={16} className="text-text-muted/50 group-hover:text-accent opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                                             </button>
                                         ))}
                                     </div>
@@ -253,7 +253,7 @@ export default function GlobalSearch() {
                             {/* LOGS */}
                             {results.logs.length > 0 && (
                                 <section>
-                                    <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <div className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
                                         <FileText size={12} /> Logbucheinträge
                                     </div>
                                     <div className="grid grid-cols-1 gap-1">
@@ -261,14 +261,14 @@ export default function GlobalSearch() {
                                             <button
                                                 key={l.id}
                                                 onClick={() => handleSelect(`/uebersicht?project_id=${l.project_id}`)}
-                                                className="flex flex-col gap-1 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                                className="flex flex-col gap-1 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
                                                 <div className="flex justify-between items-center">
-                                                    <div className="font-bold text-gray-900 group-hover:text-blue-600 transition truncate">{l.title}</div>
-                                                    <div className="text-[10px] text-gray-400 tracking-wider uppercase font-bold">{new Date(l.entry_date).toLocaleDateString()}</div>
+                                                    <div className="font-bold text-text-primary group-hover:text-accent transition truncate">{l.title}</div>
+                                                    <div className="text-[10px] text-text-muted tracking-wider uppercase font-bold">{new Date(l.entry_date).toLocaleDateString()}</div>
                                                 </div>
-                                                <div className="text-xs text-gray-500 line-clamp-2">{l.content}</div>
-                                                <div className="text-[10px] text-blue-500/60 font-bold uppercase tracking-widest mt-1">PROJEKT • {l.projects?.title}</div>
+                                                <div className="text-xs text-text-secondary line-clamp-2">{l.content}</div>
+                                                <div className="text-[10px] text-accent font-bold uppercase tracking-widest mt-1">PROJEKT • {l.projects?.title}</div>
                                             </button>
                                         ))}
                                     </div>
@@ -278,62 +278,62 @@ export default function GlobalSearch() {
                             {/* Fallback Empty */}
                             {results.projects.length === 0 && results.clients.length === 0 && results.todos.length === 0 && results.logs.length === 0 && !loading && (
                                 <div className="py-12 text-center">
-                                    <div className="text-gray-300 mb-2"><Search size={40} className="mx-auto" /></div>
-                                    <p className="text-gray-500 font-medium">Keine Ergebnisse für "{query}"</p>
+                                    <div className="text-text-muted mb-2"><Search size={40} className="mx-auto" /></div>
+                                    <p className="text-text-secondary font-medium">Keine Ergebnisse für "{query}"</p>
                                 </div>
                             )}
                         </div>
                     ) : (
                         <div className="py-8 scrollbar-none">
-                            <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Vorschläge</div>
+                            <div className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Vorschläge</div>
                             <div className="grid grid-cols-1 gap-1">
                                 <button
                                     onClick={() => handleSelect('/projekte/erstellen')}
-                                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                    className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                 >
-                                    <div className="w-10 h-10 rounded-xl bg-gray-900 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <div className="w-10 h-10 rounded-xl bg-text-primary text-surface flex items-center justify-center shadow-default group-hover:scale-110 transition-transform">
                                         <Plus size={20} />
                                     </div>
                                     <div className="flex-1">
-                                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition">Neues Projekt erstellen</div>
-                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Schnellaktion</div>
+                                        <div className="font-bold text-text-primary group-hover:text-accent transition">Neues Projekt erstellen</div>
+                                        <div className="text-[10px] text-text-muted uppercase tracking-widest">Schnellaktion</div>
                                     </div>
-                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+                                    <ChevronRight size={16} className="text-text-muted/50 group-hover:text-accent" />
                                 </button>
                                 <button
                                     onClick={() => handleSelect('/zeiterfassung')}
-                                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                    className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                 >
-                                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <div className="w-10 h-10 rounded-xl bg-accent text-accent-text flex items-center justify-center shadow-default group-hover:scale-110 transition-transform">
                                         <Clock size={20} />
                                     </div>
                                     <div className="flex-1">
-                                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition">Zeit erfassen</div>
-                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">Stundeneintrag hinzufügen</div>
+                                        <div className="font-bold text-text-primary group-hover:text-accent transition">Zeit erfassen</div>
+                                        <div className="text-[10px] text-text-muted uppercase tracking-widest">Stundeneintrag hinzufügen</div>
                                     </div>
-                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+                                    <ChevronRight size={16} className="text-text-muted/50 group-hover:text-accent" />
                                 </button>
                                 <button
                                     onClick={() => handleSelect('/aufgaben')}
-                                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl group transition-all text-left"
+                                    className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                 >
-                                    <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-default group-hover:scale-110 transition-transform">
                                         <CheckSquare size={20} />
                                     </div>
                                     <div className="flex-1">
-                                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition">Meine Aufgaben</div>
-                                        <div className="text-[10px] text-gray-400 uppercase tracking-widest">To-Do Liste öffnen</div>
+                                        <div className="font-bold text-text-primary group-hover:text-accent transition">Meine Aufgaben</div>
+                                        <div className="text-[10px] text-text-muted uppercase tracking-widest">To-Do Liste öffnen</div>
                                     </div>
-                                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+                                    <ChevronRight size={16} className="text-text-muted/50 group-hover:text-accent" />
                                 </button>
                             </div>
 
                             <div className="mt-8 flex items-center justify-center gap-6">
-                                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                    <span className="bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">Enter</span> wählen
+                                <div className="flex items-center gap-2 text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                                    <span className="bg-subtle px-2 py-1 rounded-lg border border-default">Enter</span> wählen
                                 </div>
-                                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                    <span className="bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">ESC</span> schließen
+                                <div className="flex items-center gap-2 text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                                    <span className="bg-subtle px-2 py-1 rounded-lg border border-default">ESC</span> schließen
                                 </div>
                             </div>
                         </div>
@@ -341,8 +341,8 @@ export default function GlobalSearch() {
                 </div>
 
                 {/* Footer Tip */}
-                <div className="bg-gray-50/50 p-4 border-t border-gray-50 flex justify-center">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">Agentur OS • Spotlight Search</p>
+                <div className="bg-subtle p-4 border-t border-default flex justify-center">
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em]">Agentur OS • Spotlight Search</p>
                 </div>
             </div>
         </div>
