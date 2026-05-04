@@ -226,7 +226,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 )}
 
                 <GlobalSearch />
-                <Toaster position="bottom-right" expand={true} richColors duration={8000} closeButton />
+                <Toaster position="bottom-right" richColors duration={3500} closeButton toastOptions={{ style: { fontFamily: 'var(--font-family)', fontSize: '13px', fontWeight: '500' } }} />
 
                 <main
                     className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}

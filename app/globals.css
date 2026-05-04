@@ -11,7 +11,7 @@
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
   --bg-input: #ffffff;
-  --bg-hover: #F5F5F7;
+  --bg-hover: #F0F0F2;
   --bg-subtle: #F5F5F7;
 
   /* Sidebar */
@@ -40,6 +40,27 @@
   --accent-text: #ffffff;
   --accent-subtle: rgba(17, 24, 39, 0.08);
   --accent-subtle-hover: rgba(17, 24, 39, 0.12);
+
+  /* ── Semantic Status Colors ──────────────────────────────── */
+  --color-success:        #10B981;
+  --color-success-subtle: rgba(16, 185, 129, 0.10);
+  --color-success-text:   #065F46;
+  --color-success-border: rgba(16, 185, 129, 0.25);
+
+  --color-warning:        #F59E0B;
+  --color-warning-subtle: rgba(245, 158, 11, 0.10);
+  --color-warning-text:   #78350F;
+  --color-warning-border: rgba(245, 158, 11, 0.25);
+
+  --color-danger:        #EF4444;
+  --color-danger-subtle: rgba(239, 68, 68, 0.10);
+  --color-danger-text:   #991B1B;
+  --color-danger-border: rgba(239, 68, 68, 0.25);
+
+  --color-info:        #3B82F6;
+  --color-info-subtle: rgba(59, 130, 246, 0.10);
+  --color-info-text:   #1E40AF;
+  --color-info-border: rgba(59, 130, 246, 0.25);
 
   /* Selection */
   --selection-bg: rgba(17, 24, 39, 0.15);
@@ -72,7 +93,7 @@ html.dark {
   --bg-surface: #1A1A1E;
   --bg-card: #1E1E24;
   --bg-input: #252530;
-  --bg-hover: #252530;
+  --bg-hover: #2A2A35;
   --bg-subtle: #1A1A1E;
 
   --sidebar-bg: #111114;
@@ -91,6 +112,12 @@ html.dark {
   --border-default: #2D2D35;
   --border-strong: #3F3F46;
   --border-subtle: #252530;
+
+  /* Dark mode semantic tokens — lighter text for readability */
+  --color-success-text:  #6EE7B7;
+  --color-warning-text:  #FCD34D;
+  --color-danger-text:   #FCA5A5;
+  --color-info-text:     #93C5FD;
 
   --selection-bg: rgba(250, 250, 250, 0.15);
 
@@ -256,6 +283,346 @@ body {
 }
 
 /* ============================================================
+   DESIGN SYSTEM — COMPONENT UTILITIES
+   ============================================================ */
+@layer components {
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+
+  /* Primary: one dominant CTA per section */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+      px-4 py-2.5 rounded-xl
+      text-[13px] font-semibold
+      transition-all duration-150
+      active:scale-[0.98] cursor-pointer;
+    background-color: var(--accent);
+    color: var(--accent-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 4px 12px var(--accent-subtle);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    filter: none;
+  }
+
+  /* Secondary: alternative action */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+      px-4 py-2.5 rounded-xl
+      text-[13px] font-semibold
+      transition-all duration-150
+      active:scale-[0.98] cursor-pointer;
+    background-color: var(--bg-subtle);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+  }
+  .btn-secondary:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--border-strong);
+  }
+  .btn-secondary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Ghost: icon-only or tertiary action */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5
+      p-2 rounded-xl
+      text-[13px] font-semibold
+      transition-all duration-150
+      active:scale-[0.97] cursor-pointer;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  /* Danger: destructive action */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+      px-4 py-2.5 rounded-xl
+      text-[13px] font-semibold
+      transition-all duration-150
+      active:scale-[0.98] cursor-pointer;
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger-text);
+    border: 1px solid var(--color-danger-border);
+  }
+  .btn-danger:hover {
+    background-color: var(--color-danger);
+    color: #ffffff;
+    border-color: var(--color-danger);
+  }
+
+  /* ── Add Trigger — inline "add" at bottom of lists ───────── */
+  .add-trigger {
+    @apply flex items-center gap-2.5 w-full
+      px-4 py-2.5 rounded-xl
+      text-[13px] font-semibold
+      transition-all duration-150 cursor-pointer;
+    color: var(--text-muted);
+    border: 1.5px dashed var(--border-default);
+    background: transparent;
+  }
+  .add-trigger:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background-color: var(--accent-subtle);
+  }
+  .add-trigger .add-trigger-icon {
+    @apply w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150;
+    border: 1.5px solid currentColor;
+  }
+  .add-trigger:hover .add-trigger-icon {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+
+  /* ── Badges ──────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1
+      px-2 py-0.5 rounded-md
+      text-[11px] font-bold uppercase tracking-wide
+      leading-none;
+  }
+  .badge-default {
+    background-color: var(--bg-subtle);
+    color: var(--text-muted);
+    border: 1px solid var(--border-default);
+  }
+  .badge-accent {
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+  }
+  .badge-success {
+    background-color: var(--color-success-subtle);
+    color: var(--color-success-text);
+    border: 1px solid var(--color-success-border);
+  }
+  .badge-warning {
+    background-color: var(--color-warning-subtle);
+    color: var(--color-warning-text);
+    border: 1px solid var(--color-warning-border);
+  }
+  .badge-danger {
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger-text);
+    border: 1px solid var(--color-danger-border);
+  }
+  .badge-info {
+    background-color: var(--color-info-subtle);
+    color: var(--color-info-text);
+    border: 1px solid var(--color-info-border);
+  }
+
+  /* ── Input Field ─────────────────────────────────────────── */
+  .input-field {
+    @apply w-full px-3 py-2.5 rounded-xl
+      text-[13px] font-medium
+      transition-all duration-150 outline-none;
+    background-color: var(--bg-subtle);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+  }
+  .input-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+    background-color: var(--bg-surface);
+  }
+  .input-field::placeholder {
+    color: var(--text-placeholder);
+  }
+
+  /* ── Card ────────────────────────────────────────────────── */
+  .card {
+    @apply rounded-2xl overflow-hidden;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-sm);
+  }
+  .card-header {
+    @apply flex items-center justify-between px-5 py-4;
+    border-bottom: 1px solid var(--border-default);
+    background-color: var(--bg-subtle);
+  }
+  .card-header-title {
+    @apply flex items-center gap-2.5;
+  }
+  .card-header-icon {
+    @apply w-7 h-7 rounded-lg flex items-center justify-center shrink-0;
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+  }
+  .card-body {
+    @apply p-5;
+  }
+  .card-footer {
+    @apply flex items-center justify-end gap-2.5 px-5 py-3.5;
+    border-top: 1px solid var(--border-default);
+    background-color: var(--bg-subtle);
+  }
+
+  /* ── Section Header ──────────────────────────────────────── */
+  .section-header {
+    @apply flex items-center justify-between mb-3;
+  }
+  .section-header-label {
+    @apply text-[11px] font-bold uppercase tracking-[0.06em];
+    color: var(--text-muted);
+  }
+
+  /* ── List Item ───────────────────────────────────────────── */
+  .list-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl
+      transition-colors duration-150 cursor-pointer;
+    position: relative;
+  }
+  .list-item:hover {
+    background-color: var(--bg-hover);
+  }
+  .list-item-icon {
+    @apply w-9 h-9 rounded-xl flex items-center justify-center shrink-0;
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+  }
+  .list-item-title {
+    @apply text-[14px] font-semibold truncate;
+    color: var(--text-primary);
+  }
+  .list-item-subtitle {
+    @apply text-[12px] mt-0.5 truncate;
+    color: var(--text-muted);
+  }
+  .list-item-actions {
+    @apply flex items-center gap-0.5 shrink-0 transition-opacity duration-150;
+    opacity: 0;
+  }
+  .list-item:hover .list-item-actions {
+    opacity: 1;
+  }
+
+  /* ── Segmented Control ───────────────────────────────────── */
+  .segmented-control {
+    @apply flex p-1 gap-1 rounded-xl;
+    background-color: var(--bg-subtle);
+    border: 1px solid var(--border-default);
+  }
+  .segmented-control-item {
+    @apply flex-1 px-3 py-1.5 rounded-lg
+      text-[13px] font-semibold
+      transition-all duration-150 cursor-pointer;
+    color: var(--text-muted);
+  }
+  .segmented-control-item:hover {
+    color: var(--text-primary);
+  }
+  .segmented-control-item.active {
+    @apply shadow-sm;
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+  }
+
+  /* ── Empty State ─────────────────────────────────────────── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 text-center px-6;
+  }
+  .empty-state-icon {
+    @apply w-12 h-12 rounded-2xl flex items-center justify-center mb-3;
+    background-color: var(--bg-subtle);
+    border: 1px solid var(--border-default);
+    color: var(--text-placeholder);
+  }
+  .empty-state-title {
+    @apply text-[14px] font-semibold mb-1;
+    color: var(--text-primary);
+  }
+  .empty-state-subtitle {
+    @apply text-[12px] mb-4;
+    color: var(--text-muted);
+  }
+
+  /* ── Drag Handle ─────────────────────────────────────────── */
+  .drag-handle {
+    @apply flex items-center justify-center w-full py-1.5 cursor-grab
+      opacity-25 hover:opacity-60 transition-opacity duration-150;
+  }
+  .drag-handle-bar {
+    @apply w-8 h-1 rounded-full;
+    background-color: var(--text-muted);
+  }
+
+  /* ── Typography Scale ─────────────────────────────────────── */
+  /* Use these classes for consistent type hierarchy across all pages */
+  .ds-display {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    color: var(--text-primary);
+  }
+  .ds-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: var(--text-primary);
+  }
+  .ds-body {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+  .ds-callout {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+  .ds-caption {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ── Status Dot ───────────────────────────────────────────── */
+  .status-dot {
+    @apply inline-flex items-center gap-2;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .status-dot::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Data Table ───────────────────────────────────────────── */
+  .ds-table-row {
+    @apply border-b transition-colors duration-100 cursor-pointer;
+    border-color: var(--border-subtle);
+  }
+  .ds-table-row:last-child {
+    border-bottom: none;
+  }
+  .ds-table-row:hover {
+    background-color: var(--bg-hover);
+  }
+}
+
+/* ============================================================
    GLOBAL SCROLLBAR STYLING
    ============================================================ */
 @layer base {
@@ -297,25 +664,11 @@ body {
    ANIMATIONS
    ============================================================ */
 @keyframes wiggle {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  25% {
-    transform: rotate(-0.5deg);
-  }
-
-  50% {
-    transform: rotate(0deg);
-  }
-
-  75% {
-    transform: rotate(0.5deg);
-  }
-
-  100% {
-    transform: rotate(0deg);
-  }
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(-0.5deg); }
+  50%  { transform: rotate(0deg); }
+  75%  { transform: rotate(0.5deg); }
+  100% { transform: rotate(0deg); }
 }
 
 .animate-wiggle-subtle {
@@ -323,25 +676,10 @@ body {
 }
 
 @keyframes highlight-scale {
-  0% {
-    transform: scale(1);
-    background-color: transparent;
-  }
-
-  10% {
-    transform: scale(1.02);
-    background-color: var(--accent-subtle);
-  }
-
-  30% {
-    transform: scale(1.02);
-    background-color: var(--accent-subtle);
-  }
-
-  100% {
-    transform: scale(1);
-    background-color: transparent;
-  }
+  0%   { transform: scale(1); background-color: transparent; }
+  10%  { transform: scale(1.02); background-color: var(--accent-subtle); }
+  30%  { transform: scale(1.02); background-color: var(--accent-subtle); }
+  100% { transform: scale(1); background-color: transparent; }
 }
 
 .animate-highlight {

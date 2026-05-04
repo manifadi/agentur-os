@@ -11,6 +11,9 @@ import { Todo } from '../../types';
 import { useApp } from '../../context/AppContext';
 import ConfirmModal from '../Modals/ConfirmModal';
 import { deleteFileFromSupabase, uploadFileToSupabase } from '../../utils/supabaseUtils';
+import { getStatusSortRank, getStatusDot } from '../../utils';
+
+type SortOrder = 'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc';
 
 interface DashboardViewProps {
     projects: Project[];
@@ -23,6 +26,12 @@ interface DashboardViewProps {
     onOpenCreateModal: () => void;
     todaysHours: number; // NEW
     onAddTime: () => void; // NEW
+    activeStatus: string[];
+    setActiveStatus: (status: string[]) => void;
+    activePmId: string | null;
+    setActivePmId: (id: string | null) => void;
+    sortOrder: SortOrder;
+    setSortOrder: (order: SortOrder) => void;
 }
 
 export default function DashboardView({
@@ -35,13 +44,15 @@ export default function DashboardView({
     onSelectClient,
     onOpenCreateModal,
     todaysHours,
-    onAddTime
+    onAddTime,
+    activeStatus,
+    setActiveStatus,
+    activePmId,
+    setActivePmId,
+    sortOrder,
+    setSortOrder
 }: DashboardViewProps) {
     const { fetchData } = useApp();
-    // New Filter States
-    const [activeStatus, setActiveStatus] = useState<string[]>([]);
-    const [activePmId, setActivePmId] = useState<string | null>(null);
-    const [sortOrder, setSortOrder] = useState<'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc'>('created_desc');
     const [selectedTask, setSelectedTask] = useState<Todo | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
@@ -60,8 +71,11 @@ export default function DashboardView({
             return true;
         });
 
-        // Sorting
+        // Sorting: status priority first, then user-selected sort within each status group
         result.sort((a, b) => {
+            const statusDiff = getStatusSortRank(a.status) - getStatusSortRank(b.status);
+            if (statusDiff !== 0) return statusDiff;
+
             if (sortOrder === 'title_asc') return a.title.localeCompare(b.title);
             if (sortOrder === 'created_desc') return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
 
@@ -124,12 +138,12 @@ export default function DashboardView({
                         )}
                         <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                                <h1 className="text-2xl font-black text-text-primary tracking-tight">
+                                <h1 className="ds-display">
                                     {selectedClient ? selectedClient.name : 'Alle Projekte'}
                                 </h1>
-                                <ChevronsUpDown size={20} className={`text-text-muted group-hover:text-accent transition-all ${dropdownOpen ? 'rotate-180 text-accent' : ''}`} />
+                                <ChevronsUpDown size={18} className={`text-text-muted group-hover:text-accent transition-all mt-0.5 ${dropdownOpen ? 'rotate-180 text-accent' : ''}`} />
                             </div>
-                            <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em] mt-0.5">
+                            <p className="ds-caption mt-1">
                                 {selectedClient ? 'Fokussierte Ansicht' : 'Gesamtübersicht'}
                             </p>
                         </div>
@@ -166,27 +180,22 @@ export default function DashboardView({
                     )}
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    {/* Search Trigger Button */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
                     <button
-                        onClick={() => {
-                            window.dispatchEvent(new CustomEvent('agentur-os-open-search'));
-                        }}
-                        className="p-2.5 rounded-xl bg-surface text-text-muted hover:text-text-primary hover:bg-hover transition-all border border-default shadow-sm"
+                        onClick={() => window.dispatchEvent(new CustomEvent('agentur-os-open-search'))}
+                        className="btn-ghost p-2.5 border border-border-default bg-surface shadow-sm rounded-xl"
                         title="Suche öffnen (⌘K)"
                     >
-                        <Search size={22} />
+                        <Search size={18} />
                     </button>
 
                     <button
                         onClick={onOpenCreateModal}
-                        className="flex items-center gap-2 bg-accent text-accent-text px-6 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transform whitespace-nowrap"
+                        className="btn-primary whitespace-nowrap"
                     >
-                        <Plus size={18} strokeWidth={3} /> Projekt hinzufügen
+                        <Plus size={16} strokeWidth={2.5} /> Projekt hinzufügen
                     </button>
 
-
-                    {/* FILTER MENU */}
                     <FilterMenu
                         employees={relevantPms}
                         activeStatus={activeStatus}
@@ -200,28 +209,29 @@ export default function DashboardView({
             </header>
 
 
-            <div className="mb-4 flex items-center gap-2">
-                {/* Remove redundant horizontal filter list, or keep as active filter pills? */}
-                {/* For cleaner UI, let's keep it clean. But maybe show active filters? */}
-                {(activeStatus.length > 0 || activePmId) && (
-                    <div className="flex gap-2">
-                        {activeStatus.map(s => <span key={s} className="text-xs bg-subtle text-text-secondary px-2 py-1 rounded-md border border-default">{s}</span>)}
-                        {activePmId && (
-                            <div className="flex items-center gap-1.5 bg-accent-subtle text-accent px-2 py-1 rounded-md border border-accent-subtle">
-                                {employees.find(e => e.id === activePmId) && (
-                                    <UserAvatar
-                                        src={employees.find(e => e.id === activePmId)?.avatar_url}
-                                        name={employees.find(e => e.id === activePmId)?.name}
-                                        initials={employees.find(e => e.id === activePmId)?.initials}
-                                        size="xs"
-                                    />
-                                )}
-                                <span className="text-xs">{employees.find(e => e.id === activePmId)?.name}</span>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+            {(activeStatus.length > 0 || activePmId) && (
+                <div className="mb-5 flex flex-wrap items-center gap-2">
+                    <span className="ds-caption mr-1">Filter:</span>
+                    {activeStatus.map(s => (
+                        <span
+                            key={s}
+                            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-text-secondary bg-surface border border-border-default px-2.5 py-1 rounded-lg shadow-sm"
+                        >
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStatusDot(s)}`} />
+                            {s}
+                        </span>
+                    ))}
+                    {activePmId && (() => {
+                        const pm = employees.find(e => e.id === activePmId);
+                        return pm ? (
+                            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-text-secondary bg-surface border border-border-default px-2.5 py-1 rounded-lg shadow-sm">
+                                <UserAvatar src={pm.avatar_url} name={pm.name} initials={pm.initials} size="xs" />
+                                {pm.name}
+                            </span>
+                        ) : null;
+                    })()}
+                </div>
+            )}
 
             <ProjectList
                 projects={filteredProjects}

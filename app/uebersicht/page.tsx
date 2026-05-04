@@ -13,6 +13,7 @@ import ConfirmModal from '../components/Modals/ConfirmModal';
 import { supabase } from '../supabaseClient';
 import { Project, Client, Employee } from '../types';
 import { deleteFileFromSupabase, uploadFileToSupabase } from '../utils/supabaseUtils';
+import { toast } from 'sonner';
 
 export default function UebersichtPage() {
     const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees, setProjects } = useApp();
@@ -27,6 +28,11 @@ export default function UebersichtPage() {
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+    // Filter state — lifted here so it persists when opening a project detail and returning
+    const [activeStatus, setActiveStatus] = useState<string[]>([]);
+    const [activePmId, setActivePmId] = useState<string | null>(null);
+    const [sortOrder, setSortOrder] = useState<'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc'>('created_desc');
 
     // -- FILTER PROJECTS: Show only "My Projects" --
     // Definition: PM, Member, Has Tasks, OR Has Allocations
@@ -157,9 +163,11 @@ export default function UebersichtPage() {
 
     // Projects
     const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
-        const { data: newProject } = await supabase.from('projects').insert([{
+        const { data: newProject, error } = await supabase.from('projects').insert([{
             title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', organization_id: activeUser?.organization_id
         }]).select().single();
+
+        if (error) { toast.error('Projekt konnte nicht erstellt werden.'); return; }
 
         if (newProject && activeUser) {
             await supabase.from('project_members').insert([{
@@ -172,6 +180,7 @@ export default function UebersichtPage() {
 
         fetchData();
         setCreateProjectOpen(false);
+        toast.success(`„${data.title}" wurde erstellt.`);
     };
 
     const handleSelectProject = (project: Project) => {
@@ -216,12 +225,16 @@ export default function UebersichtPage() {
     };
 
     const handleUpdateProject = async (id: string, updates: Partial<Project>) => {
-        const { data } = await supabase.from('projects').update(updates).eq('id', id).select();
+        const { data, error } = await supabase.from('projects').update(updates).eq('id', id).select();
+        if (error) { toast.error('Änderungen konnten nicht gespeichert werden.'); return; }
         if (data) {
             await fetchData();
             const updated = projects.find(p => p.id === id);
-            // Keep selectedProject in sync, but no URL change needed
             if (updated) setSelectedProject({ ...updated, ...updates } as any);
+            // Only show toast for explicit saves (not status-only updates that have their own toast)
+            if (!('status' in updates && Object.keys(updates).length === 1)) {
+                toast.success('Änderungen gespeichert.');
+            }
         }
     };
 
@@ -229,11 +242,13 @@ export default function UebersichtPage() {
         if (!selectedProject) return;
         setConfirmConfig({
             title: "Projekt löschen?",
-            message: "Sicher?",
+            message: `„${selectedProject.title}" wird unwiderruflich gelöscht.`,
             action: async () => {
-                await supabase.from('projects').delete().eq('id', selectedProject.id);
+                const { error } = await supabase.from('projects').delete().eq('id', selectedProject.id);
+                if (error) { toast.error('Projekt konnte nicht gelöscht werden.'); return; }
                 setProjects(projects.filter(p => p.id !== selectedProject.id));
                 handleCloseProject();
+                toast.success('Projekt gelöscht.');
             }
         });
         setConfirmOpen(true);
@@ -247,8 +262,9 @@ export default function UebersichtPage() {
             organization_id: activeUser.organization_id,
             role: 'member'
         }]);
-        if (error) console.error(error);
+        if (error) { toast.error('Beitritt fehlgeschlagen.'); return; }
         fetchData();
+        toast.success('Projekt beigetreten.');
     };
 
     return (
@@ -276,6 +292,12 @@ export default function UebersichtPage() {
                         onOpenCreateModal={() => setCreateProjectOpen(true)}
                         todaysHours={todaysHours}
                         onAddTime={() => setTimeModalOpen(true)}
+                        activeStatus={activeStatus}
+                        setActiveStatus={setActiveStatus}
+                        activePmId={activePmId}
+                        setActivePmId={setActivePmId}
+                        sortOrder={sortOrder}
+                        setSortOrder={setSortOrder}
                     />
                 )}
             </div>

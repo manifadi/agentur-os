@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -28,30 +28,43 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
     if (!isOpen) return null;
 
+    const iconMap = {
+        danger: <AlertTriangle size={20} />,
+        info: <Info size={20} />,
+        warning: <AlertCircle size={20} />,
+        success: <CheckCircle size={20} />,
+    };
+    const iconColorMap = {
+        danger: 'bg-[var(--color-danger-subtle)] text-[var(--color-danger-text)]',
+        info: 'bg-[var(--color-info-subtle)] text-[var(--color-info-text)]',
+        warning: 'bg-[var(--color-warning-subtle)] text-[var(--color-warning-text)]',
+        success: 'bg-[var(--color-success-subtle)] text-[var(--color-success-text)]',
+    };
+    const confirmColorMap = {
+        danger: 'bg-[var(--color-danger)] hover:brightness-110',
+        info: 'bg-[var(--color-info)] hover:brightness-110',
+        warning: 'bg-[var(--color-warning)] hover:brightness-110',
+        success: 'bg-[var(--color-success)] hover:brightness-110',
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-surface rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-default">
-                <div className="flex items-start gap-4 mb-4">
-                    <div className={`p-3 rounded-full shrink-0 ${type === 'danger' ? 'bg-red-500/10 text-red-500' :
-                        type === 'info' ? 'bg-blue-500/10 text-blue-500' :
-                            type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                                'bg-green-500/10 text-green-500'
-                        }`}>
-                        <AlertTriangle size={24} />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-surface rounded-2xl shadow-lg max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-border-subtle">
+                <div className="flex items-start gap-4 mb-5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColorMap[type]}`}>
+                        {iconMap[type]}
                     </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-text-primary leading-tight mb-1">{title}</h3>
-                        <p className="text-sm text-text-secondary leading-relaxed">
-                            {message}
-                        </p>
+                    <div className="pt-0.5">
+                        <h3 className="ds-title leading-tight mb-1">{title}</h3>
+                        <p className="ds-callout leading-relaxed">{message}</p>
                     </div>
                 </div>
 
-                <div className="flex gap-2 justify-end mt-6">
+                <div className="flex gap-2 justify-end">
                     {showCancel && (
                         <button
                             onClick={onCancel}
-                            className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-hover rounded-xl transition"
+                            className="btn-ghost px-4 py-2 rounded-xl text-[13px]"
                             disabled={isLoading}
                         >
                             {cancelText}
@@ -60,17 +73,10 @@ export default function ConfirmModal({
                     <button
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className={`px-4 py-2 text-sm font-bold text-white rounded-xl transition shadow-sm flex items-center gap-2 ${type === 'danger' ? 'bg-red-600 hover:bg-red-700' :
-                            type === 'info' ? 'bg-blue-600 hover:bg-blue-700' :
-                                type === 'warning' ? 'bg-amber-600 hover:bg-amber-700' :
-                                    'bg-green-600 hover:bg-green-700'
-                            } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-all duration-150 active:scale-[0.98] shadow-sm ${confirmColorMap[type]} ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                         {isLoading && (
-                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
                         )}
                         {confirmText}
                     </button>

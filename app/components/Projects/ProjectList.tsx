@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Project, Client, Todo } from '../../types';
-import { getStatusStyle, getDeadlineColorClass } from '../../utils';
+import { getStatusDot, getDeadlineColorClass } from '../../utils';
 import UserAvatar from '../UI/UserAvatar';
 
 interface ProjectListProps {
@@ -14,63 +14,102 @@ interface ProjectListProps {
 
 export default function ProjectList({ projects, selectedClient, onSelectProject, showOpenTodos, onTaskClick }: ProjectListProps) {
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-default overflow-hidden overflow-x-auto">
+        <div className="bg-card rounded-2xl shadow-sm border border-border-subtle overflow-hidden overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="bg-surface border-b border-default">
-                    <tr>
-                        <th className="py-3 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider w-24">Job Nr</th>
-                        <th className="py-3 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">Projekt Titel</th>
-                        <th className="py-3 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">PM</th>
-                        <th className="py-3 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">Status</th>
-                        <th className="py-3 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wider text-right">Deadline</th>
-                        <th className="py-3 px-4 w-10"></th>
+                <thead>
+                    <tr className="border-b border-border-subtle">
+                        <th className="py-3 px-5 ds-caption w-28">Job Nr</th>
+                        <th className="py-3 px-5 ds-caption">Projekt</th>
+                        <th className="py-3 px-5 ds-caption">PM</th>
+                        <th className="py-3 px-5 ds-caption">Status</th>
+                        <th className="py-3 px-5 ds-caption text-right">Deadline</th>
+                        <th className="w-12"></th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
-                    {projects.map((project, index) => (
+                <tbody>
+                    {projects.map((project) => (
                         <React.Fragment key={project.id}>
-                            <tr onClick={() => onSelectProject(project)} className={`${index % 2 === 0 ? 'bg-card' : 'bg-subtle'} hover:bg-hover transition group cursor-pointer`}>
-                                <td className="py-3 px-4 text-sm text-text-secondary font-mono align-top">{project.job_number}</td>
-                                <td className="py-3 px-4 text-sm font-medium text-text-primary align-top">
+                            <tr
+                                onClick={() => onSelectProject(project)}
+                                className="ds-table-row group"
+                            >
+                                <td className="py-4 px-5 text-[13px] text-text-muted font-mono align-top">
+                                    {project.job_number}
+                                </td>
+
+                                <td className="py-4 px-5 align-top">
                                     <div className="flex items-center gap-3">
-                                        {!selectedClient && project.clients?.logo_url ? <div className="w-8 h-8 rounded-md bg-card border border-default flex items-center justify-center p-0.5 shrink-0 shadow-sm"><img src={project.clients.logo_url} className="w-full h-full object-contain" /></div> : !selectedClient && <div className="w-8 h-8 rounded-md bg-subtle border border-default flex items-center justify-center text-[10px] text-text-muted shrink-0 font-bold">{project.clients?.name.substring(0, 2).toUpperCase()}</div>}
-                                        <span>{project.title}</span>
+                                        {!selectedClient && (
+                                            <div className="w-7 h-7 rounded-lg bg-subtle border border-border-subtle flex items-center justify-center overflow-hidden shrink-0">
+                                                {project.clients?.logo_url
+                                                    ? <img src={project.clients.logo_url} className="w-full h-full object-contain p-0.5" />
+                                                    : <span className="text-[10px] font-bold text-text-muted">{project.clients?.name.substring(0, 2).toUpperCase()}</span>
+                                                }
+                                            </div>
+                                        )}
+                                        <span className="text-[14px] font-semibold text-text-primary leading-snug">{project.title}</span>
                                     </div>
-                                    {/* SHOW OPEN TODOS IF FILTER ACTIVE */}
+
                                     {showOpenTodos && project.openTodosPreview && project.openTodosPreview.length > 0 && (
-                                        <div className="mt-3 ml-11 space-y-1">
+                                        <div className="mt-2.5 space-y-1" style={{ marginLeft: selectedClient ? '0' : '40px' }}>
                                             {project.openTodosPreview.map(t => (
                                                 <div
                                                     key={t.id}
-                                                    className="flex items-center gap-2 text-xs text-text-secondary hover:text-accent transition"
+                                                    className="flex items-center gap-2 text-[12px] text-text-muted hover:text-accent transition-colors cursor-pointer"
                                                     onClick={(e) => { e.stopPropagation(); onTaskClick?.(t); }}
                                                 >
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400"></div>
-                                                    {t.title} <span className="text-text-muted">({t.employees?.initials || 'Unassigned'})</span>
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                                    {t.title}
+                                                    <span className="text-text-placeholder">({t.employees?.initials || '—'})</span>
                                                 </div>
                                             ))}
-                                            {project.totalTodos && project.doneTodos !== undefined && (project.totalTodos - project.doneTodos > 3) && <div className="text-[10px] text-text-muted pl-3.5">...und {project.totalTodos - project.doneTodos - 3} weitere</div>}
+                                            {project.totalTodos && project.doneTodos !== undefined && (project.totalTodos - project.doneTodos > 3) && (
+                                                <div className="text-[11px] text-text-placeholder pl-3.5">
+                                                    +{project.totalTodos - project.doneTodos - 3} weitere
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </td>
-                                <td className="py-3 px-4 align-top">
+
+                                <td className="py-4 px-5 align-top">
                                     <UserAvatar
                                         src={project.employees?.avatar_url}
                                         name={project.employees?.name}
                                         initials={project.employees?.initials}
                                         size="sm"
-                                        className="shadow-sm"
                                     />
                                 </td>
-                                <td className="py-3 px-4 align-top"><span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${getStatusStyle(project.status)}`}>{project.status}</span></td>
-                                <td className={`py-3 px-4 text-sm text-right align-top ${getDeadlineColorClass(project.deadline)}`}>{project.deadline}</td>
-                                <td className="py-3 px-4 text-text-muted group-hover:text-text-primary align-top"><ChevronRight size={16} /></td>
+
+                                <td className="py-4 px-5 align-top">
+                                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-text-secondary">
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(project.status)}`} />
+                                        {project.status}
+                                    </span>
+                                </td>
+
+                                <td className={`py-4 px-5 text-[13px] font-medium text-right align-top tabular-nums ${getDeadlineColorClass(project.deadline)}`}>
+                                    {project.deadline}
+                                </td>
+
+                                <td className="py-4 pr-4 align-top">
+                                    <ChevronRight
+                                        size={15}
+                                        className="text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity duration-150 ml-auto"
+                                    />
+                                </td>
                             </tr>
                         </React.Fragment>
                     ))}
                 </tbody>
             </table>
-            {projects.length === 0 && <div className="p-12 text-center text-text-muted text-sm">Keine Projekte gefunden.</div>}
+
+            {projects.length === 0 && (
+                <div className="py-16 flex flex-col items-center gap-2 text-center">
+                    <p className="ds-callout">Keine Projekte gefunden.</p>
+                    <p className="text-[12px] text-text-placeholder">Passe den Filter an oder erstelle ein neues Projekt.</p>
+                </div>
+            )}
         </div>
     );
 }

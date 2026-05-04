@@ -168,17 +168,17 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
             <div className="bg-surface border border-default rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="p-5 border-b border-default flex justify-between items-center bg-subtle/50">
-                    <h3 className="font-bold text-xl text-text-primary">{entryToEdit ? 'Eintrag bearbeiten' : 'Stunden erfassen'}</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-hover rounded-xl transition text-text-muted hover:text-text-primary">
-                        <X size={20} />
+                <div className="px-5 py-4 border-b border-default flex justify-between items-center" style={{ background: 'var(--bg-subtle)' }}>
+                    <h3 className="text-[17px] font-semibold" style={{ color: 'var(--text-primary)' }}>{entryToEdit ? 'Eintrag bearbeiten' : 'Stunden erfassen'}</h3>
+                    <button onClick={onClose} className="btn-ghost">
+                        <X size={18} />
                     </button>
                 </div>
 
                 <div className="p-6 space-y-5 overflow-y-auto">
                     {/* Project Search */}
                     <div className="relative">
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Projekt</label>
+                        <label className="section-header-label mb-2 block">Projekt</label>
                         <div className="relative">
                             <input
                                 type="text"
@@ -222,27 +222,37 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
                     {/* Show Current User Position (Agency Position) - and Match Status */}
                     <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Meine Position (Intern)</label>
-                        <div className={`p-3 border rounded-xl text-sm font-bold flex justify-between items-center ${agencyPositionId ? 'bg-green-50 border-green-200 text-green-900' : 'bg-orange-50 border-orange-200 text-orange-900'}`}>
+                        <label className="section-header-label mb-2 block">Meine Position (Intern)</label>
+                        <div
+                            className="p-3 border rounded-xl text-sm font-semibold flex justify-between items-center"
+                            style={agencyPositionId ? {
+                                background: 'var(--color-success-subtle)',
+                                borderColor: 'var(--color-success-border)',
+                                color: 'var(--color-success-text)'
+                            } : {
+                                background: 'var(--color-warning-subtle)',
+                                borderColor: 'var(--color-warning-border)',
+                                color: 'var(--color-warning-text)'
+                            }}
+                        >
                             <div className="flex flex-col">
                                 <span>{currentUser.job_title || 'Keine Job-Bezeichnung im Profil'}</span>
                                 {agencyPositionId && agencyPositionTitle !== currentUser.job_title && (
                                     <span className="text-[10px] font-normal opacity-70">Gematcht als: {agencyPositionTitle}</span>
                                 )}
                             </div>
-
                             {agencyPositionId ? (
-                                <span className="text-xs font-medium text-green-600 flex items-center gap-1">
-                                    <Check size={12} /> ID gefunden
+                                <span className="badge badge-success flex items-center gap-1">
+                                    <Check size={10} /> ID gefunden
                                 </span>
                             ) : (
-                                <span className="text-xs font-medium text-orange-600 flex items-center gap-1">
-                                    <AlertCircle size={12} /> Keine ID
+                                <span className="badge badge-warning flex items-center gap-1">
+                                    <AlertCircle size={10} /> Keine ID
                                 </span>
                             )}
                         </div>
                         {!agencyPositionId && currentUser.job_title && (
-                            <p className="text-[10px] text-orange-500 mt-1 pl-1">
+                            <p className="text-[11px] mt-1.5 pl-1" style={{ color: 'var(--color-warning-text)' }}>
                                 Hinweis: "{currentUser.job_title}" wurde nicht in den Agentur-Positionen gefunden.
                             </p>
                         )}
@@ -251,7 +261,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                     {/* Date & Hours */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2">Datum</label>
+                            <label className="section-header-label mb-2 block">Datum</label>
                             <div className="relative">
                                 <input
                                     type="date"
@@ -263,7 +273,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2">Stunden</label>
+                            <label className="section-header-label mb-2 block">Stunden</label>
                             <input
                                 type="number"
                                 step="0.25"
@@ -277,7 +287,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
                     {/* Description */}
                     <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Beschreibung</label>
+                        <label className="section-header-label mb-2 block">Beschreibung</label>
                         <textarea
                             className="w-full p-3 bg-subtle border border-default text-text-primary rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition min-h-[100px] resize-none"
                             placeholder="Was hast du gemacht?"
@@ -289,9 +299,11 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                     <button
                         onClick={handleSave}
                         disabled={isSubmitting || !projectId || !hours}
-                        className="w-full py-3.5 bg-accent text-accent-text rounded-xl font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform active:scale-[0.99] flex items-center justify-center gap-2"
+                        className="btn-primary w-full py-3 justify-center"
                     >
-                        {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={20} />}
+                        {isSubmitting
+                            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            : <Check size={16} />}
                         {isSubmitting ? 'Speichert...' : 'Eintrag speichern'}
                     </button>
                 </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, BarChart3, Edit3 } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
-import { getStatusStyle, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
+import { getStatusStyle, getStatusDot, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
+import { toast } from 'sonner';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { supabase } from '../../supabaseClient';
@@ -121,6 +122,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const handleStatusUpdate = async (newStatus: string) => {
         await onUpdateProject(project.id, { status: newStatus });
         setIsStatusDropdownOpen(false);
+        toast.success(`Status → ${newStatus}`);
     };
 
     const isFavorite = currentEmployee?.dashboard_config?.favoriteProjectIds?.includes(project.id);
@@ -174,25 +176,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         }).eq('id', project.id);
 
         if (error) {
-            setConfirmConfig({
-                isOpen: true,
-                title: 'Fehler beim Speichern',
-                message: 'Es gab ein Problem beim Speichern der Vertragsdaten: ' + error.message,
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                type: 'danger',
-                confirmText: 'Verstanden',
-                showCancel: false
-            });
+            toast.error('Vertragsdaten konnten nicht gespeichert werden.');
         } else {
-            setConfirmConfig({
-                isOpen: true,
-                title: 'Gespeichert',
-                message: 'Die Vertragsdaten wurden erfolgreich aktualisiert.',
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                type: 'success',
-                confirmText: 'Super',
-                showCancel: false
-            });
+            toast.success('Vertragsdaten gespeichert.');
         }
     };
 
@@ -475,12 +461,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             }
 
             // 4. Redirect to new project in edit mode (Step 1)
+            toast.success(`„${project.title}" wurde dupliziert.`);
             router.push(`/projekte/erstellen?edit=${newProject.id}&step=1`);
             setShowDuplicateModal(false);
 
         } catch (err: any) {
             console.error('Duplication error:', err);
-            alert('Fehler beim Kopieren des Projekts: ' + err.message);
+            toast.error('Fehler beim Duplizieren: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -568,6 +555,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             client_id: editData.clientId
         });
         setIsEditing(false);
+        toast.success('Projekteinstellungen gespeichert.');
     };
 
     return (
@@ -689,24 +677,25 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     <div className="relative" ref={statusDropdownRef}>
                         <button
                             onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all hover:brightness-95 flex items-center gap-1.5 ${getStatusStyle(project.status)}`}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[13px] font-semibold bg-subtle border border-border-default hover:bg-hover transition-all duration-150 text-text-primary"
                         >
-                            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(project.status)}`} />
                             {project.status}
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-text-muted ml-0.5"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </button>
                         {isStatusDropdownOpen && (
-                            <div className="absolute top-full left-0 mt-1 w-52 bg-surface rounded-xl shadow-xl border border-default py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                            <div className="absolute top-full left-0 mt-1.5 w-56 bg-surface rounded-xl shadow-lg border border-border-subtle py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                                 {STATUS_OPTIONS.map((status) => (
                                     <button
                                         key={status}
                                         onClick={() => handleStatusUpdate(status)}
-                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-hover flex items-center justify-between group transition-colors ${project.status === status ? 'text-accent font-semibold' : 'text-text-primary'}`}
+                                        className={`w-full text-left px-3 py-2 text-[13px] hover:bg-hover flex items-center gap-2.5 transition-colors ${project.status === status ? 'font-semibold text-text-primary' : 'text-text-secondary'}`}
                                     >
-                                        <span className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${getStatusStyle(status).split(' ')[0]}`} />
-                                            {status}
-                                        </span>
-                                        {project.status === status && <div className="w-1.5 h-1.5 bg-accent rounded-full" />}
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(status)}`} />
+                                        {status}
+                                        {project.status === status && (
+                                            <svg className="ml-auto text-accent shrink-0" width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5L5 9.5L11 3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -752,7 +741,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             </div>
 
             {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-            <div className="flex gap-1 border-b border-default mb-6">
+            <div className="flex gap-0.5 border-b border-border-subtle mb-7">
                 {([
                     { id: 'details', label: 'Übersicht', icon: Layout },
                     { id: 'contract', label: 'Vertrag & Angebot', icon: FileText },
@@ -762,12 +751,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     <button
                         key={id}
                         onClick={() => handleTabChange(id)}
-                        className={`flex items-center gap-1.5 px-3 pb-3 text-sm font-semibold transition-all border-b-2 -mb-px ${activeTab === id
-                            ? 'text-accent border-accent'
-                            : 'text-text-muted hover:text-text-primary border-transparent'
-                            }`}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 border-b-2 -mb-px rounded-t-lg ${
+                            activeTab === id
+                                ? 'text-accent border-accent bg-accent-subtle/40'
+                                : 'text-text-muted hover:text-text-primary hover:bg-hover border-transparent'
+                        }`}
                     >
-                        <Icon size={15} />
+                        <Icon size={14} strokeWidth={activeTab === id ? 2.5 : 1.75} />
                         <span>{label}</span>
                     </button>
                 ))}
