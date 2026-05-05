@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, FolderOpen } from 'lucide-react';
 import { Project, Client, Todo } from '../../types';
 import { getStatusDot, getDeadlineColorClass } from '../../utils';
 import UserAvatar from '../UI/UserAvatar';
@@ -10,9 +10,10 @@ interface ProjectListProps {
     onSelectProject: (project: Project) => void;
     showOpenTodos: boolean;
     onTaskClick?: (task: Todo) => void;
+    onCreateProject?: () => void;
 }
 
-export default function ProjectList({ projects, selectedClient, onSelectProject, showOpenTodos, onTaskClick }: ProjectListProps) {
+export default function ProjectList({ projects, selectedClient, onSelectProject, showOpenTodos, onTaskClick, onCreateProject }: ProjectListProps) {
     return (
         <div className="bg-card rounded-2xl shadow-sm border border-border-subtle overflow-hidden overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
@@ -105,9 +106,24 @@ export default function ProjectList({ projects, selectedClient, onSelectProject,
             </table>
 
             {projects.length === 0 && (
-                <div className="py-16 flex flex-col items-center gap-2 text-center">
-                    <p className="ds-callout">Keine Projekte gefunden.</p>
-                    <p className="text-[12px] text-text-placeholder">Passe den Filter an oder erstelle ein neues Projekt.</p>
+                <div className="py-16 flex flex-col items-center gap-4 text-center px-6">
+                    <div className="w-16 h-16 rounded-2xl bg-subtle border border-default flex items-center justify-center">
+                        <FolderOpen size={24} className="text-text-placeholder" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-text-primary mb-1">Keine Projekte</p>
+                        <p className="text-xs text-text-muted max-w-xs">
+                            {selectedClient ? `Noch keine Projekte für diesen Kunden.` : 'Lege dein erstes Projekt an, um loszulegen.'}
+                        </p>
+                    </div>
+                    {onCreateProject && (
+                        <button
+                            onClick={onCreateProject}
+                            className="px-4 py-2 bg-accent text-surface text-xs font-bold rounded-xl hover:opacity-90 transition shadow-sm"
+                        >
+                            Erstes Projekt anlegen
+                        </button>
+                    )}
                 </div>
             )}
         </div>

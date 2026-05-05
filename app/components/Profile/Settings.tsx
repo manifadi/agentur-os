@@ -1,352 +1,363 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import { User, Bell, Moon, Smartphone, Mail, Lock, Settings as SettingsIconLucide, Shield, Building2, Palette, ArrowRight } from 'lucide-react';
+import {
+    User, Palette, Building2, Users, Banknote, Image as ImageIcon,
+    FileText, Lock, Camera
+} from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
 import AdminUserManagement from './AdminUserManagement';
-import AdminProjectList from './AdminProjectList';
-import AdminClientManagement from './AdminClientManagement';
 import AdminRateManagement from './AdminRateManagement';
 import AdminAgencySettings from './AdminAgencySettings';
 import AppearanceSettings from './AppearanceSettings';
-import { useApp } from '../../context/AppContext';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
-import { Camera } from 'lucide-react';
 
-interface SettingsProps {
+type Section = 'profil' | 'design' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
+
+const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none text-sm transition';
+
+const NAV: { group: string; adminOnly: boolean; items: { id: Section; label: string; icon: React.ElementType }[] }[] = [
+    {
+        group: 'Ich',
+        adminOnly: false,
+        items: [
+            { id: 'profil', label: 'Profil', icon: User },
+            { id: 'design', label: 'Design & Thema', icon: Palette },
+        ],
+    },
+    {
+        group: 'Agentur',
+        adminOnly: true,
+        items: [
+            { id: 'unternehmen', label: 'Unternehmen', icon: Building2 },
+            { id: 'team', label: 'Team', icon: Users },
+            { id: 'stundensaetze', label: 'Stundensätze', icon: Banknote },
+            { id: 'branding', label: 'Branding', icon: ImageIcon },
+            { id: 'vorlagen', label: 'Vorlagen', icon: FileText },
+        ],
+    },
+];
+
+interface Props {
     session: any;
     employees: Employee[];
     departments: Department[];
     onUpdate: () => void;
 }
 
-export default function Settings({ session, employees, departments, onUpdate }: SettingsProps) {
-    const { projects, clients } = useApp(); // Get global projects and clients
-    const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+export default function Settings({ session, employees, departments, onUpdate }: Props) {
+    const [section, setSection] = useState<Section>('profil');
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'admin' | 'projects' | 'clients' | 'rates' | 'agency' | 'appearance'>('profile');
+    const [saved, setSaved] = useState(false);
 
-    // Form State
+    const currentUser = employees.find(e => e.email === session?.user?.email) ?? null;
+    const isAdmin = currentUser?.role === 'admin';
+
     const [name, setName] = useState('');
     const [initials, setInitials] = useState('');
-    const [deptId, setDeptId] = useState('');
-    const [jobTitle, setJobTitle] = useState('');
-    const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [deptId, setDeptId] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-    // Effect to auto-select if session matches
     useEffect(() => {
-        if (session?.user?.email && employees.length > 0) {
-            const found = employees.find(e => e.email === session.user.email);
-            if (found) {
-                setCurrentUser(found);
-                setName(found.name);
-                setInitials(found.initials);
-                setDeptId(found.department_id || '');
-                setJobTitle(found.job_title || '');
-                setEmail(found.email || '');
-                setPhone(found.phone || '');
-                setAvatarUrl(found.avatar_url || null);
-            }
+        if (currentUser) {
+            setName(currentUser.name);
+            setInitials(currentUser.initials);
+            setPhone(currentUser.phone || '');
+            setDeptId(currentUser.department_id || '');
+            setAvatarUrl(currentUser.avatar_url || null);
         }
-    }, [employees, session]);
+    }, [currentUser?.id]);
 
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setLoading(true);
-        try {
-            const publicUrl = await uploadFileToSupabase(file, 'avatars');
-            setAvatarUrl(publicUrl);
-            if (currentUser) {
-                await supabase.from('employees').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
-                onUpdate();
-            }
-        } catch (error) {
-            console.error('Error uploading avatar:', error);
-            alert('Upload fehlgeschlagen.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSave = async () => {
+    const handleSaveProfile = async () => {
         if (!currentUser) return;
         setLoading(true);
         await supabase.from('employees').update({
             name,
             initials: initials.toUpperCase(),
+            phone: phone || null,
             department_id: deptId || null,
-            job_title: jobTitle,
-            email: email || null,
-            phone: phone || null
         }).eq('id', currentUser.id);
         onUpdate();
         setLoading(false);
-        alert("Einstellungen gespeichert!");
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
     };
 
-    const handleLinkAccount = async () => {
-        if (!currentUser || !session?.user?.email) return;
-        if (confirm(`Möchtest du dieses Profil (${currentUser.name}) mit deinem Login (${session.user.email}) verknüpfen?`)) {
-            setEmail(session.user.email);
-            await supabase.from('employees').update({ email: session.user.email }).eq('id', currentUser.id);
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !currentUser) return;
+        setLoading(true);
+        try {
+            const url = await uploadFileToSupabase(file, 'avatars');
+            setAvatarUrl(url);
+            await supabase.from('employees').update({ avatar_url: url }).eq('id', currentUser.id);
             onUpdate();
+        } catch (err) {
+            console.error(err);
         }
+        setLoading(false);
     };
 
     return (
-        <div className="max-w-4xl mx-auto mt-10 p-6">
-            <h1 className="text-3xl font-bold mb-6 flex items-center gap-3"><SettingsHeaderIcon size={32} /> Einstellungen</h1>
+        <div className="flex" style={{ minHeight: '100%' }}>
 
-            <div className="flex gap-1 mb-8 flex-wrap" style={{ borderBottom: '1px solid var(--border-default)' }}>
-                {([
-                    { id: 'profile', label: 'Mein Profil', icon: User },
-                    { id: 'appearance', label: 'Design', icon: Palette },
-                ] as const).map(({ id, label, icon: Icon }) => (
-                    <button
-                        key={id}
-                        onClick={() => setActiveTab(id)}
-                        className="pb-3 px-3 text-sm font-medium transition-all relative flex items-center gap-1.5"
-                        style={{
-                            color: activeTab === id ? 'var(--accent)' : 'var(--text-muted)',
-                            borderBottom: activeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
-                        }}
-                    >
-                        <Icon size={13} />{label}
-                    </button>
-                ))}
+            {/* ── Sidebar ─────────────────────────────────── */}
+            <aside
+                className="w-52 shrink-0 py-8 px-3 space-y-6"
+                style={{ borderRight: '1px solid var(--border-default)' }}
+            >
+                {NAV.map(({ group, adminOnly, items }) => {
+                    if (adminOnly && !isAdmin) return null;
+                    return (
+                        <div key={group}>
+                            <p
+                                className="text-[10px] font-bold uppercase tracking-widest px-3 mb-2"
+                                style={{ color: 'var(--text-muted)' }}
+                            >
+                                {group}
+                            </p>
+                            <div className="space-y-0.5">
+                                {items.map(({ id, label, icon: Icon }) => {
+                                    const active = section === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            onClick={() => setSection(id)}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all text-left ${!active ? 'hover:bg-hover' : ''}`}
+                                            style={{
+                                                background: active ? 'var(--accent)' : 'transparent',
+                                                color: active ? '#fff' : 'var(--text-secondary)',
+                                            }}
+                                        >
+                                            <Icon size={15} />
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </aside>
 
-                {currentUser && currentUser.role === 'admin' && (
-                    ([
-                        { id: 'admin', label: 'Team', icon: Shield },
-                        { id: 'projects', label: 'Projekte', icon: SettingsIconLucide },
-                        { id: 'clients', label: 'Kunden', icon: Building2 },
-                        { id: 'rates', label: 'Stundensätze', icon: SettingsIconLucide },
-                        { id: 'agency', label: 'Unternehmen', icon: Building2 },
-                    ] as const).map(({ id, label, icon: Icon }) => (
-                        <button
-                            key={id}
-                            onClick={() => setActiveTab(id)}
-                            className="pb-3 px-3 text-sm font-medium transition-all relative flex items-center gap-1.5"
-                            style={{
-                                color: activeTab === id ? 'var(--accent)' : 'var(--text-muted)',
-                                borderBottom: activeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
-                            }}
-                        >
-                            <Icon size={13} />{label}
-                        </button>
-                    ))
-                )}
-            </div>
+            {/* ── Content ─────────────────────────────────── */}
+            <main className="flex-1 overflow-y-auto px-8 py-8">
 
-            {activeTab === 'profile' ? (
-                // ... content ... 
+                    {/* ── PROFIL ── */}
+                    {section === 'profil' && (
+                        <div className="max-w-xl space-y-5">
+                            <SectionHeader
+                                title="Profil"
+                                subtitle="Deine persönlichen Daten und Account-Einstellungen."
+                            />
 
-                <>
-                    <p className="text-text-secondary mb-8">Verwalte dein Profil und deine App-Einstellungen.</p>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* LEFT COLUMN: IDENTITY */}
-                        <div className="lg:col-span-2 space-y-6">
-                            {/* PROFILE CARD */}
-                            <section className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User size={20} className="text-text-muted" /> Profil Details</h2>
-
-                                {/* Identity Selector */}
-                                <div className="mb-6 bg-subtle p-4 rounded-xl">
-                                    <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Wer bist du?</label>
-                                    <select
-                                        className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none"
-                                        onChange={(e) => {
-                                            const emp = employees.find(ep => ep.id === e.target.value);
-                                            if (emp) {
-                                                setCurrentUser(emp);
-                                                setName(emp.name);
-                                                setInitials(emp.initials);
-                                                setDeptId(emp.department_id || '');
-                                                setJobTitle(emp.job_title || '');
-                                                setEmail(emp.email || '');
-                                                setPhone(emp.phone || '');
-                                            }
-                                        }}
-                                        value={currentUser?.id || ''}
-                                    >
-                                        {employees?.length > 0 ? (
-                                            employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.email ? '✅' : ''}</option>)
-                                        ) : (
-                                            <option disabled>Keine Mitarbeiter gefunden</option>
-                                        )}
-                                    </select>
-                                    <p className="text-xs text-text-muted mt-2">Wähle deinen Namen aus der Liste, um deine Daten zu bearbeiten.</p>
-                                </div>
-
-                                {/* AVATAR SECTION */}
-                                <div className="flex items-center gap-6 mb-8 p-4 bg-subtle rounded-2xl border border-default">
-                                    <div className="relative group">
+                            {/* Avatar */}
+                            <Card>
+                                <div className="flex items-center gap-5">
+                                    <div className="relative group shrink-0">
                                         <UserAvatar
                                             src={avatarUrl}
                                             name={name}
                                             initials={initials}
                                             size="xl"
-                                            className="shadow-md border-2 border-surface ring-1 ring-default"
+                                            className="shadow-sm"
                                         />
-                                        <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                            <Camera className="text-white" size={24} />
+                                        <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                                            <Camera size={20} className="text-white" />
                                             <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                                         </label>
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-bold text-text-primary mb-1">Profilbild</h3>
-                                        <p className="text-xs text-text-secondary mb-3">Lade ein Foto hoch, um dich für deine Kollegen erkennbar zu machen.</p>
-                                        <button
-                                            onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
-                                            className="text-xs font-bold bg-surface border border-default px-3 py-1.5 rounded-xl hover:bg-hover transition shadow-sm text-text-secondary"
-                                        >
-                                            Foto ändern
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {currentUser && (
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Anzeigename</label>
-                                                <input type="text" className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl font-medium" value={name} onChange={(e) => setName(e.target.value)} />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Kürzel (2 Zeichen)</label>
-                                                <input type="text" maxLength={2} className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl font-medium uppercase" value={initials} onChange={(e) => setInitials(e.target.value)} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Telefon (für Verträge)</label>
-                                            <input type="text" className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl font-medium" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+43 660 ..." />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Job Titel (Position)</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    className="w-full p-2 border border-accent/20 bg-accent-subtle/20 text-text-primary rounded-xl font-medium cursor-not-allowed outline-none"
-                                                    value={jobTitle || 'Keine Position zugewiesen'}
-                                                    disabled
-                                                />
-                                                <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-accent/50" />
-                                            </div>
-                                            <p className="text-xs text-accent mt-1 italic">
-                                                Die Position kann nur durch die Team-Verwaltung geändert werden.
-                                            </p>
-                                            <div className="text-xs text-text-muted mt-1">Wird aus den Agentur-Positionen geladen.</div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Abteilung / Rolle</label>
-                                            <select className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl" value={deptId} onChange={(e) => setDeptId(e.target.value)}>
-                                                <option value="">Keine Abteilung</option>
-                                                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="pt-4 flex justify-end">
-                                            <button onClick={handleSave} disabled={loading} className="bg-text-primary text-surface px-6 py-2 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition">Speichern</button>
-                                        </div>
-                                    </div>
-                                )}
-                            </section>
-
-                            {/* ACCOUNT LINKING */}
-                            {currentUser && (
-                                <section className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Lock size={20} className="text-text-muted" /> Account Verknüpfung</h2>
-                                    <div className={`p-4 rounded-xl flex items-center justify-between ${currentUser.email === session?.user?.email ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'}`}>
-                                        <div className="text-sm">
-                                            {currentUser.email === session?.user?.email ? (
-                                                <span><span className="font-bold">Verknüpft:</span> Du bist als <u>{currentUser.name}</u> eingeloggt.</span>
-                                            ) : (
-                                                <span>
-                                                    <span className="font-bold">Nicht verknüpft.</span><br />
-                                                    Dein Login: {session?.user?.email}<br />
-                                                    Profil Email: {currentUser.email || 'Keine'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {currentUser.email !== session?.user?.email && (
-                                            <button onClick={handleLinkAccount} className="text-xs bg-surface border border-default text-text-primary px-3 py-2 rounded-xl shadow-sm hover:bg-hover font-bold outline-none">
-                                                Jetzt verknüpfen
-                                            </button>
+                                        <p className="font-bold text-text-primary">{name || '—'}</p>
+                                        <p className="text-sm text-text-muted">{session?.user?.email}</p>
+                                        {currentUser?.job_title && (
+                                            <p className="text-xs text-text-muted mt-0.5">{currentUser.job_title}</p>
                                         )}
+                                        <span
+                                            className="inline-block mt-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                                            style={{
+                                                background: isAdmin ? 'var(--accent-subtle)' : 'var(--bg-subtle)',
+                                                color: isAdmin ? 'var(--accent)' : 'var(--text-muted)',
+                                            }}
+                                        >
+                                            {isAdmin ? 'Admin' : 'Mitarbeiter'}
+                                        </span>
                                     </div>
-                                </section>
-                            )}
-                        </div>
+                                </div>
+                            </Card>
 
-                        {/* RIGHT COLUMN: DESIGN SHORTCUT */}
-                        <div className="space-y-6">
-                            {/* Design / Appearance shortcut card */}
-                            <button
-                                onClick={() => setActiveTab('appearance')}
-                                className="w-full text-left p-5 rounded-2xl shadow-sm transition-all duration-150 group"
-                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
-                                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-default)')}
-                            >
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <Palette size={18} style={{ color: 'var(--accent)' }} />
-                                        <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Design anpassen</h2>
-                                    </div>
-                                    <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" style={{ color: 'var(--text-muted)' }} />
+                            {/* Form */}
+                            <Card>
+                                <Label>Persönliche Daten</Label>
+                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                    <Field label="Name">
+                                        <input className={INPUT} value={name} onChange={e => setName(e.target.value)} />
+                                    </Field>
+                                    <Field label="Kürzel (2 Zeichen)">
+                                        <input className={INPUT + ' uppercase'} value={initials} onChange={e => setInitials(e.target.value)} maxLength={2} />
+                                    </Field>
+                                    <Field label="Telefon">
+                                        <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+43 660 ..." />
+                                    </Field>
+                                    <Field label="Abteilung">
+                                        <select className={INPUT} value={deptId} onChange={e => setDeptId(e.target.value)}>
+                                            <option value="">Keine Abteilung</option>
+                                            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                        </select>
+                                    </Field>
                                 </div>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Dark Mode, Schriftart, Akzentfarben und Hintergrund — alles anpassbar und geräteübergreifend synchronisiert.</p>
-                                {/* Mini preview swatches */}
-                                <div className="flex gap-1.5 mt-3">
-                                    {['#111827', '#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#D97706'].map(c => (
-                                        <div key={c} className="w-4 h-4 rounded-full" style={{ background: c }} />
-                                    ))}
+                                <div className="flex justify-end pt-5">
+                                    <SaveButton onClick={handleSaveProfile} loading={loading} saved={saved} />
                                 </div>
-                            </button>
+                            </Card>
+
+                            {/* Account Status */}
+                            <Card>
+                                <p className="text-xs font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5 text-text-muted">
+                                    <Lock size={12} /> Account
+                                </p>
+                                <div
+                                    className={`p-3 rounded-xl text-sm font-medium ${currentUser?.email === session?.user?.email
+                                        ? 'bg-green-500/10 text-green-600'
+                                        : 'bg-orange-500/10 text-orange-600'
+                                        }`}
+                                >
+                                    {currentUser?.email === session?.user?.email
+                                        ? `Eingeloggt als ${currentUser?.name} · ${session?.user?.email}`
+                                        : `Login (${session?.user?.email}) stimmt nicht mit Profil-E-Mail überein.`}
+                                </div>
+                            </Card>
                         </div>
-                    </div>
-                </>
-            ) : activeTab === 'appearance' ? (
-                <div>
-                    <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Passe das Design der App nach deinem Geschmack an. Alle Einstellungen werden automatisch gespeichert.</p>
-                    <AppearanceSettings />
-                </div>
-            ) : activeTab === 'projects' && currentUser?.role === 'admin' ? (
-                <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                    <h2 className="text-lg font-bold mb-4 text-text-primary">Alle Projekte (Admin Übersicht)</h2>
-                    {/* We can reuse DashboardView here, but we need to mock/pass props. 
-                        DashboardView needs: projects, clients, employees, stats, onSelectProject, etc. 
-                        We don't have all stats computed here easily unless we computed them.
-                        Maybe just a simple table is better? Or simplified DashboardView?
-                        Let's try to import DashboardView components or ProjectList.
-                        Actually, let's keep it simple: A list of all projects with filter.
-                    */}
-                    <AdminProjectList projects={projects} clients={clients} />
-                    {/* <p>Projekte werden geladen...</p> REMOVED */}
-                </div>
-            ) : activeTab === 'clients' && currentUser?.role === 'admin' ? (
-                <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                    <AdminClientManagement clients={clients} onUpdate={onUpdate} />
-                </div>
-            ) : activeTab === 'rates' && currentUser?.role === 'admin' ? (
-                <AdminRateManagement />
-            ) : activeTab === 'agency' && currentUser?.role === 'admin' ? (
-                <AdminAgencySettings />
-            ) : currentUser ? (
-                <AdminUserManagement
-                    employees={employees}
-                    departments={departments}
-                    currentEmployee={currentUser}
-                    onUpdate={onUpdate}
-                />
-            ) : null}
+                    )}
+
+                    {/* ── DESIGN ── */}
+                    {section === 'design' && (
+                        <div className="max-w-xl space-y-5">
+                            <SectionHeader
+                                title="Design & Thema"
+                                subtitle="Dark Mode, Schriftart und Akzentfarben — auf allen Geräten synchronisiert."
+                            />
+                            <AppearanceSettings />
+                        </div>
+                    )}
+
+                    {/* ── UNTERNEHMEN ── */}
+                    {section === 'unternehmen' && isAdmin && (
+                        <div className="max-w-2xl space-y-5">
+                            <SectionHeader
+                                title="Unternehmen"
+                                subtitle="Firmendaten für Angebote, Rechnungen und Verträge."
+                            />
+                            <AdminAgencySettings section="company" />
+                        </div>
+                    )}
+
+                    {/* ── TEAM — volle Breite, da Tabelle ── */}
+                    {section === 'team' && isAdmin && currentUser && (
+                        <div className="space-y-5">
+                            <SectionHeader
+                                title="Team"
+                                subtitle="Mitarbeiter verwalten, Rollen und Abteilungen zuweisen."
+                            />
+                            <AdminUserManagement
+                                employees={employees}
+                                departments={departments}
+                                currentEmployee={currentUser}
+                                onUpdate={onUpdate}
+                            />
+                        </div>
+                    )}
+
+                    {/* ── STUNDENSÄTZE — volle Breite ── */}
+                    {section === 'stundensaetze' && isAdmin && (
+                        <div className="space-y-5">
+                            <SectionHeader
+                                title="Stundensätze"
+                                subtitle="Positionen und Stundensätze, die agenturweit für Kalkulation und Zeiterfassung verwendet werden."
+                            />
+                            <AdminRateManagement />
+                        </div>
+                    )}
+
+                    {/* ── BRANDING ── */}
+                    {section === 'branding' && isAdmin && (
+                        <div className="max-w-xl space-y-5">
+                            <SectionHeader
+                                title="Branding"
+                                subtitle="App-Logo und Dokumenten-Header für PDFs."
+                            />
+                            <AdminAgencySettings section="branding" />
+                        </div>
+                    )}
+
+                    {/* ── VORLAGEN ── */}
+                    {section === 'vorlagen' && isAdmin && (
+                        <div className="max-w-3xl space-y-5">
+                            <SectionHeader
+                                title="Vorlagen"
+                                subtitle="Textbausteine für Einleitung und Schluss von Angeboten und Verträgen."
+                            />
+                            <AdminAgencySettings section="templates" />
+                        </div>
+                    )}
+
+            </main>
         </div>
     );
 }
 
-// Icon wrapper for header
-const SettingsHeaderIcon = ({ size }: { size: number }) => <SettingsIconLucide size={size} />;
+// ── Kleine Helper-Komponenten ─────────────────────────────
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
+    return (
+        <div className="pb-2">
+            <h1 className="text-xl font-bold text-text-primary">{title}</h1>
+            <p className="text-sm mt-1 text-text-muted">{subtitle}</p>
+        </div>
+    );
+}
+
+function Card({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            className="rounded-2xl p-6"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+    return <p className="text-sm font-bold text-text-primary">{children}</p>;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-1.5 text-text-muted">
+                {label}
+            </label>
+            {children}
+        </div>
+    );
+}
+
+function SaveButton({ onClick, loading, saved }: { onClick: () => void; loading: boolean; saved: boolean }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={loading}
+            className="px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-50"
+            style={{
+                background: saved ? '#22c55e' : 'var(--text-primary)',
+                color: 'var(--bg-surface)',
+            }}
+        >
+            {saved ? 'Gespeichert ✓' : 'Speichern'}
+        </button>
+    );
+}

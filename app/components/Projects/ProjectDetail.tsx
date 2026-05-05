@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, BarChart3, Edit3 } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder } from 'lucide-react';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
 import { getStatusStyle, getStatusDot, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import { toast } from 'sonner';
@@ -16,7 +16,6 @@ import ProjectContractTab from './ProjectContractTab';
 import ProjectInvoiceTab from './ProjectInvoiceTab';
 import ProjectDocumentsTab from './ProjectDocumentsTab';
 import CalculationImportModal from '../Modals/CalculationImportModal';
-import { Receipt } from 'lucide-react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
 import ConfirmModal from '../Modals/ConfirmModal';
@@ -62,8 +61,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const pdfInputRef = useRef<HTMLInputElement>(null);
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
-    // Contract & Invoice Logic
-    const [activeTab, setActiveTab] = useState<'details' | 'contract' | 'invoice' | 'documents'>('details');
+    // Tab navigation
+    const [activeTab, setActiveTab] = useState<'uebersicht' | 'aufgaben' | 'kalkulation' | 'dokumente'>('uebersicht');
+    const [kalkulationView, setKalkulationView] = useState<'angebot' | 'rechnung'>('angebot');
     const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
     const [contractIntro, setContractIntro] = useState('');
@@ -93,12 +93,14 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     // Sync Tab with URL
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab === 'contract' || tab === 'details' || tab === 'invoice' || tab === 'documents') {
-            setActiveTab(tab as any);
-        }
+        const map: Record<string, 'uebersicht' | 'aufgaben' | 'kalkulation' | 'dokumente'> = {
+            uebersicht: 'uebersicht', aufgaben: 'aufgaben', kalkulation: 'kalkulation', dokumente: 'dokumente',
+            details: 'uebersicht', contract: 'kalkulation', invoice: 'kalkulation', documents: 'dokumente',
+        };
+        if (tab && map[tab]) setActiveTab(map[tab]);
     }, [searchParams]);
 
-    const handleTabChange = (tab: 'details' | 'contract' | 'invoice' | 'documents') => {
+    const handleTabChange = (tab: 'uebersicht' | 'aufgaben' | 'kalkulation' | 'dokumente') => {
         setActiveTab(tab);
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
@@ -609,16 +611,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                     <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
                                         <Calculator size={13} />
                                     </div>
-                                    Kalkulation
-                                </button>
-                                <button
-                                    onClick={() => { router.push(`/projekte/erstellen?edit=${project.id}&step=4`); setShowActionsMenu(false); }}
-                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
-                                >
-                                    <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
-                                        <BarChart3 size={13} />
-                                    </div>
-                                    Reporting
+                                    Positionen bearbeiten
                                 </button>
                                 <div className="h-px bg-default my-1 mx-4" />
                                 <button
@@ -743,10 +736,10 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             {/* ── Tabs ─────────────────────────────────────────────────────────── */}
             <div className="flex gap-0.5 border-b border-border-subtle mb-7">
                 {([
-                    { id: 'details', label: 'Übersicht', icon: Layout },
-                    { id: 'contract', label: 'Vertrag & Angebot', icon: FileText },
-                    { id: 'invoice', label: 'Rechnung', icon: Receipt },
-                    { id: 'documents', label: 'Dokumente', icon: Upload },
+                    { id: 'uebersicht', label: 'Übersicht', icon: Layout },
+                    { id: 'aufgaben', label: 'Aufgaben', icon: CheckSquare },
+                    { id: 'kalkulation', label: 'Kalkulation', icon: Calculator },
+                    { id: 'dokumente', label: 'Dokumente', icon: Folder },
                 ] as const).map(({ id, label, icon: Icon }) => (
                     <button
                         key={id}
@@ -763,14 +756,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 ))}
             </div>
 
-            {/* ── Details Tab ──────────────────────────────────────────────────── */}
-            {activeTab === 'details' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* LEFT COLUMN: Resources + Logbook (1/3) */}
-                    <div className="col-span-1 flex flex-col gap-4">
-                        {/* Resources card */}
-                        <div className="bg-surface rounded-2xl border border-default shadow-sm p-4">
-                            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center gap-1.5">
+            {/* ── Übersicht Tab ────────────────────────────────────────────────── */}
+            {activeTab === 'uebersicht' && (
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    {/* LEFT: Resources card (2/5) */}
+                    <div className="col-span-2 flex flex-col gap-4">
+                        <div className="bg-surface rounded-2xl border border-default shadow-sm p-5">
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 flex items-center gap-1.5">
                                 <FileText size={13} /> Ressourcen
                             </h2>
                             <div className="space-y-2">
@@ -820,8 +812,10 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                 )}
                             </div>
                         </div>
+                    </div>
 
-                        {/* Logbook */}
+                    {/* RIGHT: Logbook (3/5) */}
+                    <div className="col-span-3">
                         <Logbook
                             logs={logs}
                             onAdd={handleAddLog}
@@ -831,74 +825,94 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             currentEmployeeId={currentEmployee?.id}
                         />
                     </div>
-
-                    {/* RIGHT COLUMN: Tasks (2/3) */}
-                    <div className="col-span-2 flex flex-col gap-4">
-                        {/* Progress bar above tasks */}
-                        {todos.length > 0 && (() => {
-                            const done = todos.filter(t => t.is_done).length;
-                            const pct = Math.round((done / todos.length) * 100);
-                            return (
-                                <div className="bg-surface rounded-2xl border border-default shadow-sm p-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-bold text-text-primary">Aufgaben-Fortschritt</span>
-                                        <span className="text-xs font-bold text-accent">{pct}%</span>
-                                    </div>
-                                    <div className="w-full h-2 bg-subtle rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
-                                            style={{ width: `${pct}%` }}
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between mt-1.5">
-                                        <span className="text-[10px] text-text-muted">{done} von {todos.length} erledigt</span>
-                                        <span className="text-[10px] text-text-muted">{todos.length - done} offen</span>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
-                        <TodoList
-                            todos={todos}
-                            employees={employees}
-                            onAdd={handleAddTodo}
-                            onToggle={handleToggleTodo}
-                            onUpdate={handleUpdateTodo}
-                            onDelete={handleDeleteTodo}
-                            onReorder={handleReorderTodos}
-                            onTaskClick={(t) => setSelectedTask(t)}
-                            highlightId={highlightId}
-                        />
-                    </div>
                 </div>
             )}
 
+            {/* ── Aufgaben Tab ─────────────────────────────────────────────────── */}
+            {activeTab === 'aufgaben' && (
+                <div className="flex flex-col gap-4">
+                    {todos.length > 0 && (() => {
+                        const done = todos.filter(t => t.is_done).length;
+                        const pct = Math.round((done / todos.length) * 100);
+                        return (
+                            <div className="bg-surface rounded-2xl border border-default shadow-sm p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold text-text-primary">Fortschritt</span>
+                                    <span className="text-xs font-bold text-accent">{pct}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-subtle rounded-full overflow-hidden">
+                                    <div className="h-full bg-accent rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
+                                </div>
+                                <div className="flex items-center justify-between mt-1.5">
+                                    <span className="text-[10px] text-text-muted">{done} von {todos.length} erledigt</span>
+                                    <span className="text-[10px] text-text-muted">{todos.length - done} offen</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                    <TodoList
+                        todos={todos}
+                        employees={employees}
+                        onAdd={handleAddTodo}
+                        onToggle={handleToggleTodo}
+                        onUpdate={handleUpdateTodo}
+                        onDelete={handleDeleteTodo}
+                        onReorder={handleReorderTodos}
+                        onTaskClick={(t) => setSelectedTask(t)}
+                        highlightId={highlightId}
+                    />
+                </div>
+            )}
 
+            {/* ── Kalkulation Tab ──────────────────────────────────────────────── */}
+            {activeTab === 'kalkulation' && (
+                <div>
+                    {/* Sub-navigation pills */}
+                    <div className="flex gap-1.5 mb-6 p-1 bg-subtle rounded-xl w-fit border border-default">
+                        {([
+                            { id: 'angebot', label: 'Angebot' },
+                            { id: 'rechnung', label: 'Rechnung' },
+                        ] as const).map(({ id, label }) => (
+                            <button
+                                key={id}
+                                onClick={() => setKalkulationView(id)}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    kalkulationView === id
+                                        ? 'bg-surface text-text-primary shadow-sm border border-default'
+                                        : 'text-text-muted hover:text-text-primary'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
 
-            {activeTab === 'documents' && (
+                    {kalkulationView === 'angebot' && (
+                        <ProjectContractTab
+                            project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
+                            agencySettings={agencySettings}
+                            templates={templates}
+                            onUpdateProject={onUpdateProject}
+                        />
+                    )}
+                    {kalkulationView === 'rechnung' && (
+                        <ProjectInvoiceTab
+                            project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
+                            agencySettings={agencySettings}
+                            templates={templates}
+                            onUpdateProject={onUpdateProject}
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* ── Dokumente Tab ────────────────────────────────────────────────── */}
+            {activeTab === 'dokumente' && (
                 <ProjectDocumentsTab
                     project={project}
                     onUpdateProject={async (projectId, updates) => {
                         await onUpdateProject(projectId, updates);
                     }}
-                />
-            )}
-            
-            {activeTab === 'contract' && (
-                <ProjectContractTab
-                    project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
-                    agencySettings={agencySettings}
-                    templates={templates}
-                    onUpdateProject={onUpdateProject}
-                />
-            )}
-
-            {activeTab === 'invoice' && (
-                <ProjectInvoiceTab
-                    project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
-                    agencySettings={agencySettings}
-                    templates={templates}
-                    onUpdateProject={onUpdateProject}
                 />
             )}
 

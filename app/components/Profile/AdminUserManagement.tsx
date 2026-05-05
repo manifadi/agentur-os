@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
-import { Pencil, X, Plus, Shield, ShieldAlert, User, UserPlus, Trash, Building2, Mail, Camera } from 'lucide-react';
+import { Pencil, X, Plus, Shield, ShieldAlert, User, UserPlus, Trash, Building2, Mail, Camera, Send, Clock } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
+import { toast } from 'sonner';
 
 interface AdminUserManagementProps {
     employees: Employee[];
@@ -183,10 +184,81 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
     );
 }
 
+function InviteModal({ isOpen, onClose, organizationId }: { isOpen: boolean; onClose: () => void; organizationId: string }) {
+    const [email, setEmail] = useState('');
+    const [name, setName] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email || !name) return;
+        setLoading(true);
+        try {
+            const res = await fetch('/api/invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, name, organizationId }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || 'Einladung fehlgeschlagen.');
+            } else {
+                toast.success(`Einladung an ${email} gesendet.`);
+                setEmail('');
+                setName('');
+                onClose();
+            }
+        } catch {
+            toast.error('Netzwerkfehler. Bitte versuche es erneut.');
+        }
+        setLoading(false);
+    };
+
+    if (!isOpen) return null;
+
+    const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none text-sm transition';
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-surface rounded-2xl shadow-xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200 border border-default">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-xl font-bold text-text-primary">Mitarbeiter einladen</h3>
+                        <p className="text-xs text-text-muted mt-0.5">Sendet eine Einladungs-E-Mail mit Magic Link.</p>
+                    </div>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-hover text-text-muted"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Name</label>
+                        <input className={INPUT} value={name} onChange={e => setName(e.target.value)} placeholder="Max Mustermann" required />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">E-Mail</label>
+                        <input className={INPUT} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="max@agentur.com" required />
+                    </div>
+                    <div className="flex gap-3 justify-end pt-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-secondary hover:bg-hover rounded-xl transition">Abbrechen</button>
+                        <button
+                            type="submit"
+                            disabled={loading || !email || !name}
+                            className="px-4 py-2 text-sm font-bold text-surface bg-accent hover:opacity-90 rounded-xl transition shadow-sm flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {loading ? <div className="w-4 h-4 border-2 border-surface/30 border-t-surface rounded-full animate-spin" /> : <Send size={14} />}
+                            Einladung senden
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function AdminUserManagement({ employees, departments, currentEmployee, onUpdate }: AdminUserManagementProps) {
     const [loading, setLoading] = useState(false);
     const [requests, setRequests] = useState<any[]>([]);
     const [agencyPositions, setAgencyPositions] = useState<any[]>([]);
+    const [showInviteModal, setShowInviteModal] = useState(false);
 
     useEffect(() => {
         const fetchPositions = async () => {
@@ -230,8 +302,9 @@ export default function AdminUserManagement({ employees, departments, currentEmp
     useEffect(() => {
         if (currentEmployee.organization_id) {
             fetchRequests();
+            onUpdate();
         }
-    }, [currentEmployee, currentEmployee.organization_id]);
+    }, [currentEmployee.organization_id]);
 
     const fetchRequests = async () => {
         const { data, error } = await supabase.from('registration_requests')
@@ -363,14 +436,22 @@ export default function AdminUserManagement({ employees, departments, currentEmp
         setLoading(false);
     };
 
+    // Invited employees = those without a user_id (pre-created but not yet accepted)
+    const invitedEmployees = employees.filter(e => !e.user_id && e.email);
+
     return (
         <div className="space-y-8">
+            <InviteModal
+                isOpen={showInviteModal}
+                onClose={() => { setShowInviteModal(false); onUpdate(); }}
+                organizationId={currentEmployee.organization_id || ''}
+            />
             <UserModal
                 isOpen={modalState.isOpen}
                 mode={modalState.mode}
                 user={modalState.user}
                 departments={departments}
-                agencyPositions={agencyPositions} // Passed prop
+                agencyPositions={agencyPositions}
                 onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
                 onSave={handleModalSave}
                 isLoading={loading}
@@ -379,7 +460,7 @@ export default function AdminUserManagement({ employees, departments, currentEmp
             {/* Registration Requests */}
             {requests.length > 0 && (
                 <div className="bg-accent-subtle/30 border border-accent/20 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-accent mb-4 flex items-center gap-2"><ShieldAlert size={20} /> Ausstehende Registrierungen</h3>
+                    <h3 className="text-lg font-bold text-accent mb-4 flex items-center gap-2"><ShieldAlert size={20} /> Ausstehende Beitrittsanfragen</h3>
                     <div className="space-y-2">
                         {requests.map(req => (
                             <div key={req.id} className="bg-surface p-3 rounded-lg border border-accent/20 flex justify-between items-center shadow-sm">
@@ -397,13 +478,41 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 </div>
             )}
 
+            {/* Pending invites */}
+            {invitedEmployees.length > 0 && (
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-amber-600 dark:text-amber-400 mb-3 flex items-center gap-2">
+                        <Clock size={15} /> Ausstehende Einladungen ({invitedEmployees.length})
+                    </h3>
+                    <div className="space-y-2">
+                        {invitedEmployees.map(emp => (
+                            <div key={emp.id} className="bg-surface p-3 rounded-lg border border-amber-500/10 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <UserAvatar name={emp.name} initials={emp.initials} size="sm" />
+                                    <div>
+                                        <div className="text-sm font-semibold text-text-primary">{emp.name}</div>
+                                        <div className="text-xs text-text-muted">{emp.email}</div>
+                                    </div>
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">Eingeladen</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Employee Management */}
             <div>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-text-primary">Mitarbeiter & Rollen</h2>
-                    <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-text-primary text-surface rounded-xl text-sm font-bold hover:opacity-90 transition shadow-sm">
-                        <UserPlus size={16} /> Mitarbeiter anlegen
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-accent text-surface rounded-xl text-sm font-bold hover:opacity-90 transition shadow-sm">
+                            <Send size={14} /> Einladen
+                        </button>
+                        <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-subtle border border-default text-text-primary rounded-xl text-sm font-bold hover:bg-hover transition">
+                            <UserPlus size={16} /> Manuell anlegen
+                        </button>
+                    </div>
                 </div>
 
                 <div className="bg-surface rounded-xl shadow-sm border border-default overflow-hidden">

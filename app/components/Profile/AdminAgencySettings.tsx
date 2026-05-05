@@ -2,99 +2,80 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { AgencySettings, OrganizationTemplate } from '../../types';
-import { Building2, FileText, Plus, Trash2, Save, File, Upload } from 'lucide-react';
+import { Plus, Trash2, Save, Upload } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 
-export default function AdminAgencySettings() {
+interface Props {
+    section?: 'company' | 'branding' | 'templates';
+}
+
+const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition text-sm';
+const CARD = 'bg-surface p-6 rounded-2xl border border-default shadow-sm';
+
+export default function AdminAgencySettings({ section }: Props) {
     const [settings, setSettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
     const [allDepartments, setAllDepartments] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [tLoading, setTLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
 
-    // Template Form State
-    const [newTemplate, setNewTemplate] = useState<{ name: string, content: string, type: 'intro' | 'outro' }>({ name: '', content: '', type: 'intro' });
-
-    const [confirmConfig, setConfirmConfig] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void;
-        type: 'danger' | 'info' | 'warning' | 'success';
-        confirmText?: string;
-        showCancel?: boolean;
-    }>({
-        isOpen: false,
-        title: '',
-        message: '',
-        onConfirm: () => { },
-        type: 'info'
+    const [newTemplate, setNewTemplate] = useState<{ name: string; content: string; type: 'intro' | 'outro' }>({
+        name: '', content: '', type: 'intro'
     });
 
-    useEffect(() => {
-        fetchSettings();
-    }, []);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean; title: string; message: string;
+        onConfirm: () => void; type: 'danger' | 'info' | 'warning' | 'success';
+        confirmText?: string; showCancel?: boolean;
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'info' });
+
+    const showCompany = !section || section === 'company';
+    const showBranding = !section || section === 'branding';
+    const showTemplates = !section || section === 'templates';
+
+    useEffect(() => { fetchSettings(); }, []);
 
     const fetchSettings = async () => {
         setLoading(true);
         setErrorMsg(null);
         try {
             const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) {
-                setErrorMsg("Authentifizierungs-Fehler: " + (authError?.message || 'Kein Benutzer'));
+            if (authError || !user) { setErrorMsg('Authentifizierungs-Fehler'); setLoading(false); return; }
+
+            const { data: emp, error: empError } = await supabase
+                .from('employees').select('organization_id').eq('user_id', user.id).maybeSingle();
+
+            if (empError || !emp) {
+                setErrorMsg('Kein Mitarbeiter-Profil gefunden.');
                 setLoading(false);
                 return;
             }
 
-            // Use maybeSingle to avoid 406/Throws if no employee found
-            const { data: emp, error: empError } = await supabase.from('employees').select('organization_id').eq('id', user.id).maybeSingle();
-
-            if (empError) {
-                console.error("Employee Fetch Error:", empError);
-                setErrorMsg("Fehler beim Laden des Mitarbeiter-Profils: " + empError.message + " (" + empError.code + ")");
-                setLoading(false);
-                return;
-            }
-
-            if (!emp) {
-                setErrorMsg(`Kein Mitarbeiter-Profil gefunden. (User ID: ${user.id}). Bitte stelle sicher, dass du in der 'employees' Tabelle existierst.`);
-                setLoading(false);
-                return;
-            }
-
-            const { data, error: settingsError } = await supabase.from('agency_settings').select('*').eq('organization_id', emp.organization_id).maybeSingle();
+            const { data, error: settingsError } = await supabase
+                .from('agency_settings').select('*').eq('organization_id', emp.organization_id).maybeSingle();
 
             if (settingsError) {
-                console.error("Settings Fetch Error:", settingsError);
-                setErrorMsg("Fehler beim Laden der Einstellungen: " + settingsError.message + " (" + settingsError.code + ")");
+                setErrorMsg('Fehler beim Laden der Einstellungen: ' + settingsError.message);
             } else if (data) {
                 setSettings(data);
                 fetchTemplates(data.organization_id);
                 fetchDepartments(data.organization_id);
             } else {
-                // Initialize defaults if no record exists yet
-                const initialSettings = {
-                    id: '',
-                    organization_id: emp.organization_id,
-                    company_name: '',
-                    address: '',
-                    tax_id: '',
-                    bank_name: '',
-                    iban: '',
-                    bic: '',
-                    commercial_register: '',
-                    footer_text: '',
-                    logo_url: '',
-                    resource_planner_departments: []
+                const defaults: AgencySettings = {
+                    id: '', organization_id: emp.organization_id,
+                    company_name: '', address: '', tax_id: '', bank_name: '',
+                    iban: '', bic: '', commercial_register: '', footer_text: '',
+                    logo_url: '', resource_planner_departments: [],
+                    default_tax_rate: 20, invoice_number_prefix: 'RE'
                 };
-                setSettings(initialSettings);
+                setSettings(defaults);
                 fetchTemplates(emp.organization_id);
                 fetchDepartments(emp.organization_id);
             }
         } catch (e: any) {
-            console.error("Unexpected Error:", e);
-            setErrorMsg("Unerwarteter Fehler: " + (e.message || JSON.stringify(e)));
+            setErrorMsg('Unerwarteter Fehler: ' + e.message);
         } finally {
             setLoading(false);
         }
@@ -102,9 +83,7 @@ export default function AdminAgencySettings() {
 
     const fetchTemplates = async (orgId: string) => {
         const { data } = await supabase.from('organization_templates')
-            .select('*')
-            .eq('organization_id', orgId)
-            .order('created_at', { ascending: true });
+            .select('*').eq('organization_id', orgId).order('created_at', { ascending: true });
         if (data) setTemplates(data as any);
     };
 
@@ -113,12 +92,9 @@ export default function AdminAgencySettings() {
         if (data) setAllDepartments(data);
     };
 
-    const handleSaveSettings = async () => {
+    const handleSave = async () => {
         if (!settings) return;
         setLoading(true);
-
-        const { id, ...updates } = settings;
-        // Upsert based on organization_id
         const { error } = await supabase.from('agency_settings').upsert({
             organization_id: settings.organization_id,
             company_name: settings.company_name,
@@ -134,102 +110,79 @@ export default function AdminAgencySettings() {
             footer_text: settings.footer_text,
             logo_url: settings.logo_url,
             document_header_url: settings.document_header_url,
-            resource_planner_departments: settings.resource_planner_departments || []
+            resource_planner_departments: settings.resource_planner_departments || [],
+            default_tax_rate: settings.default_tax_rate ?? 20,
+            invoice_number_prefix: settings.invoice_number_prefix || 'RE'
         }, { onConflict: 'organization_id' });
 
+        setLoading(false);
         if (error) {
             setConfirmConfig({
-                isOpen: true,
-                title: 'Fehler',
-                message: error.message,
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                type: 'danger',
-                confirmText: 'OK',
-                showCancel: false
+                isOpen: true, title: 'Fehler', message: error.message, type: 'danger',
+                onConfirm: () => setConfirmConfig(p => ({ ...p, isOpen: false })),
+                confirmText: 'OK', showCancel: false
             });
         } else {
-            setConfirmConfig({
-                isOpen: true,
-                title: 'Gespeichert',
-                message: 'Die Einstellungen wurden erfolgreich aktualisiert.',
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                type: 'success',
-                confirmText: 'Super',
-                showCancel: false
-            });
-            fetchSettings();
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
         }
-        setLoading(false);
     };
 
-    const handleAddTemplate = async () => {
-        if (!newTemplate.name || !newTemplate.content) {
-            setConfirmConfig({
-                isOpen: true,
-                title: 'Hinweis',
-                message: 'Bitte Name und Inhalt für die Vorlage angeben.',
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                type: 'warning',
-                confirmText: 'OK',
-                showCancel: false
-            });
-            return;
-        }
-        if (!settings?.organization_id) return;
+    const set = (field: keyof AgencySettings, value: string | number) =>
+        setSettings(prev => prev ? { ...prev, [field]: value } : prev);
 
+    const handleAddTemplate = async () => {
+        if (!newTemplate.name || !newTemplate.content || !settings?.organization_id) return;
         setTLoading(true);
         const { error } = await supabase.from('organization_templates').insert([{
             organization_id: settings.organization_id,
-            name: newTemplate.name,
-            content: newTemplate.content,
-            type: newTemplate.type
+            name: newTemplate.name, content: newTemplate.content, type: newTemplate.type
         }]);
-
-        if (error) {
-            setConfirmConfig({
-                isOpen: true,
-                title: 'Fehler',
-                message: error.message,
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                type: 'danger',
-                confirmText: 'OK',
-                showCancel: false
-            });
-        }
-        else {
+        if (!error) {
             setNewTemplate({ name: '', content: '', type: 'intro' });
             fetchTemplates(settings.organization_id);
         }
         setTLoading(false);
     };
 
-    const handleDeleteTemplate = async (id: string) => {
+    const handleDeleteTemplate = (id: string) => {
         setConfirmConfig({
-            isOpen: true,
-            title: 'Vorlage löschen?',
+            isOpen: true, title: 'Vorlage löschen?',
             message: 'Möchtest du diese Vorlage wirklich löschen?',
             onConfirm: async () => {
                 await supabase.from('organization_templates').delete().eq('id', id);
                 if (settings?.organization_id) fetchTemplates(settings.organization_id);
-                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                setConfirmConfig(p => ({ ...p, isOpen: false }));
             },
-            type: 'danger',
-            confirmText: 'Löschen'
+            type: 'danger', confirmText: 'Löschen'
         });
     };
 
-    const safeUpdate = (field: keyof AgencySettings, value: string) => {
-        setSettings(prev => prev ? { ...prev, [field]: value } : prev);
+    const uploadImage = async (file: File, field: 'logo_url' | 'document_header_url') => {
+        if (!settings) return;
+        setLoading(true);
+        try {
+            const url = await uploadFileToSupabase(file, 'documents');
+            const updated = { ...settings, [field]: url };
+            setSettings(updated);
+            await supabase.from('agency_settings').upsert(
+                { ...updated, resource_planner_departments: updated.resource_planner_departments || [] },
+                { onConflict: 'organization_id' }
+            );
+        } catch (err: any) {
+            alert('Upload fehlgeschlagen: ' + err.message);
+        }
+        setLoading(false);
     };
 
-    if (loading && !settings) return <div>Lade Einstellungen...</div>;
+    if (loading && !settings) return (
+        <div className="flex items-center justify-center py-16 text-text-muted text-sm">Lade Einstellungen…</div>
+    );
 
-    // Check for explicit error message OR missing settings
-    if (errorMsg || (!settings && !loading)) return (
-        <div className="p-6 text-center max-w-lg mx-auto mt-10 border border-red-500/20 bg-red-500/10 rounded-xl">
-            <h3 className="text-red-500 font-bold text-lg mb-2">Einstellungen konnten nicht geladen werden</h3>
-            <p className="text-sm text-red-400 mb-4">{errorMsg || "Unbekannter Fehler: Daten sind leer."}</p>
-            <p className="text-xs text-text-muted mb-6">Bitte überprüfe deine Internetverbindung oder kontaktiere den Support.</p>
+    if (errorMsg) return (
+        <div className="p-6 text-center rounded-2xl border border-red-500/20 bg-red-500/10">
+            <p className="text-red-500 font-bold mb-2">Einstellungen konnten nicht geladen werden</p>
+            <p className="text-sm text-red-400 mb-4">{errorMsg}</p>
             <button onClick={fetchSettings} className="bg-red-500/20 text-red-500 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition">
                 Erneut versuchen
             </button>
@@ -237,298 +190,282 @@ export default function AdminAgencySettings() {
     );
 
     return (
-        <div className="space-y-8">
-            {/* AGENCY DATA */}
-            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Building2 size={20} className="text-text-muted" /> Unternehmensdaten (für Verträge/Rechnungen)</h2>
+        <div className="space-y-6">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="company_name">Firmenname</label>
-                        <input id="company_name" name="company_name" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.company_name || ''} onChange={e => safeUpdate('company_name', e.target.value)} placeholder="z.B. Muster Agentur GmbH" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="address">Adresse (Straße, PLZ, Ort)</label>
-                        <textarea id="address" name="address" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition h-[42px] resize-none" value={settings?.address || ''} onChange={e => safeUpdate('address', e.target.value)} placeholder="Musterstraße 1, 1010 Wien" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="tax_id">UID-Nummer / Steuernummer</label>
-                        <input id="tax_id" name="tax_id" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.tax_id || ''} onChange={e => safeUpdate('tax_id', e.target.value)} placeholder="ATU12345678" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="commercial_register">Firmenbuchnummer</label>
-                        <input id="commercial_register" name="commercial_register" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.commercial_register || ''} onChange={e => safeUpdate('commercial_register', e.target.value)} placeholder="FN 123456 x" />
-                    </div>
-                </div>
-
-                <div className="mt-6 border-t border-default pt-4">
-                    <h3 className="text-sm font-bold text-text-primary mb-4">Kontakt & Web</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="general_email">Email (Allgemein)</label>
-                            <input id="general_email" name="general_email" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.general_email || ''} onChange={e => safeUpdate('general_email', e.target.value)} placeholder="office@agentur.com" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="general_phone">Telefon (Allgemein)</label>
-                            <input id="general_phone" name="general_phone" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.general_phone || ''} onChange={e => safeUpdate('general_phone', e.target.value)} placeholder="+43 1 234 56 78" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="website">Webseite</label>
-                            <input id="website" name="website" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.website || ''} onChange={e => safeUpdate('website', e.target.value)} placeholder="www.agentur.com" />
+            {/* ── COMPANY SECTION ── */}
+            {showCompany && (
+                <>
+                    {/* Firmendaten */}
+                    <div className={CARD}>
+                        <SectionTitle>Firmendaten</SectionTitle>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+                            <Field label="Firmenname">
+                                <input className={INPUT} value={settings?.company_name || ''} onChange={e => set('company_name', e.target.value)} placeholder="Muster Agentur GmbH" />
+                            </Field>
+                            <Field label="Adresse">
+                                <textarea className={INPUT + ' h-10 resize-none'} value={settings?.address || ''} onChange={e => set('address', e.target.value)} placeholder="Musterstraße 1, 1010 Wien" />
+                            </Field>
+                            <Field label="UID-Nummer / Steuernummer">
+                                <input className={INPUT} value={settings?.tax_id || ''} onChange={e => set('tax_id', e.target.value)} placeholder="ATU12345678" />
+                            </Field>
+                            <Field label="Firmenbuchnummer">
+                                <input className={INPUT} value={settings?.commercial_register || ''} onChange={e => set('commercial_register', e.target.value)} placeholder="FN 123456 x" />
+                            </Field>
                         </div>
                     </div>
-                </div>
 
-                <div className="mt-6 border-t border-default pt-4">
-                    <h3 className="text-sm font-bold text-text-primary mb-4">Bankverbindung</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="bank_name">Bank Name</label>
-                            <input id="bank_name" name="bank_name" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.bank_name || ''} onChange={e => safeUpdate('bank_name', e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="iban">IBAN</label>
-                            <input id="iban" name="iban" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.iban || ''} onChange={e => safeUpdate('iban', e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="bic">BIC</label>
-                            <input id="bic" name="bic" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition" value={settings?.bic || ''} onChange={e => safeUpdate('bic', e.target.value)} />
+                    {/* Kontakt */}
+                    <div className={CARD}>
+                        <SectionTitle>Kontakt & Web</SectionTitle>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+                            <Field label="E-Mail">
+                                <input className={INPUT} value={settings?.general_email || ''} onChange={e => set('general_email', e.target.value)} placeholder="office@agentur.com" />
+                            </Field>
+                            <Field label="Telefon">
+                                <input className={INPUT} value={settings?.general_phone || ''} onChange={e => set('general_phone', e.target.value)} placeholder="+43 1 234 56 78" />
+                            </Field>
+                            <Field label="Webseite">
+                                <input className={INPUT} value={settings?.website || ''} onChange={e => set('website', e.target.value)} placeholder="www.agentur.com" />
+                            </Field>
                         </div>
                     </div>
-                </div>
 
-                <div className="mt-6 border-t border-default pt-4">
-                    <label className="block text-xs font-bold text-text-muted uppercase mb-2" htmlFor="footer_text">Footer Text (für alle Dokumente)</label>
-                    <textarea id="footer_text" name="footer_text" className="w-full p-2 border border-default rounded-xl bg-input text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition h-20" value={settings?.footer_text || ''} onChange={e => safeUpdate('footer_text', e.target.value)} placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
-                </div>
-
-                <div className="mt-6 flex justify-end">
-                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-text-primary text-surface px-5 py-2 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition shadow-lg">
-                        <Save size={16} /> Speichern
-                    </button>
-                </div>
-            </div>
-
-            {/* RESOURCE PLANNER SETTINGS */}
-            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Building2 size={20} className="text-text-muted" /> Ressourcenplan Filter-Einstellungen
-                </h2>
-                <p className="text-sm text-text-secondary mb-6">Wähle die Abteilungen aus, die im Ressourcenplan als Filter angezeigt werden sollen.</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {allDepartments.map(dept => {
-                        const isSelected = settings?.resource_planner_departments?.includes(dept.id);
-
-                        return (
-                            <button
-                                key={dept.id}
-                                onClick={() => {
-                                    if (!settings) return;
-                                    const current = settings.resource_planner_departments || [];
-                                    if (isSelected) {
-                                        setSettings({ ...settings, resource_planner_departments: current.filter(id => id !== dept.id) });
-                                    } else {
-                                        setSettings({ ...settings, resource_planner_departments: [...current, dept.id] });
-                                    }
-                                }}
-                                className={`p-4 rounded-xl border text-left transition ${isSelected
-                                    ? 'border-text-primary bg-text-primary text-surface shadow-md'
-                                    : 'border-default bg-surface text-text-secondary hover:border-accent hover:bg-hover'
-                                    }`}
-                            >
-                                <div className="font-bold text-sm">{dept.name}</div>
-                                <div className={`text-[10px] uppercase mt-1 ${isSelected ? 'text-surface/70' : 'text-text-muted'}`}>
-                                    {isSelected ? 'Ausgewählt' : 'Verfügbar'}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {allDepartments.length === 0 && (
-                    <div className="text-center py-8 text-text-muted border border-default border-dashed rounded-xl">
-                        Keine Abteilungen gefunden. Bitte erst Abteilungen anlegen.
-                    </div>
-                )}
-
-                <div className="mt-6 flex justify-end">
-                    <button onClick={handleSaveSettings} disabled={loading} className="flex items-center gap-2 bg-text-primary text-surface px-5 py-2 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition shadow-lg">
-                        <Save size={16} /> Speichern
-                    </button>
-                </div>
-            </div>
-
-            {/* BRANDING */}
-            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                <h2 className="text-lg font-bold mb-6 flex items-center gap-2"><File size={20} className="text-text-muted" /> Branding & Design</h2>
-
-                <div className="space-y-8">
-                    {/* 1. APP LOGO */}
-                    <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 items-start">
-                        <div className="w-40 h-40 bg-subtle border border-default rounded-2xl flex items-center justify-center overflow-hidden relative">
-                            {settings?.logo_url ? (
-                                <img src={settings.logo_url} className="w-full h-full object-contain p-4" alt="App Logo" />
-                            ) : (
-                                <span className="text-xs text-center text-text-muted font-bold uppercase p-4">Kein Logo<br />(Quadratisch)</span>
-                            )}
+                    {/* Bankverbindung */}
+                    <div className={CARD}>
+                        <SectionTitle>Bankverbindung</SectionTitle>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+                            <Field label="Bank">
+                                <input className={INPUT} value={settings?.bank_name || ''} onChange={e => set('bank_name', e.target.value)} />
+                            </Field>
+                            <Field label="IBAN">
+                                <input className={INPUT} value={settings?.iban || ''} onChange={e => set('iban', e.target.value)} />
+                            </Field>
+                            <Field label="BIC">
+                                <input className={INPUT} value={settings?.bic || ''} onChange={e => set('bic', e.target.value)} />
+                            </Field>
                         </div>
-                        <div>
-                            <h3 className="font-bold text-text-primary mb-1">App Logo (Quadratisch)</h3>
-                            <p className="text-sm text-text-secondary mb-4">Dieses Logo wird in der Seitenleiste der App angezeigt.</p>
-                            <div className="relative inline-block">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    onChange={async (e) => {
-                                        const file = e.target.files?.[0];
-                                        if (!file) return;
-                                        setLoading(true);
-                                        try {
-                                            const url = await uploadFileToSupabase(file, 'documents');
-                                            console.log("Uploaded Logo URL:", url);
-                                            setSettings(s => s ? ({ ...s, logo_url: url }) : null);
+                    </div>
 
-                                            if (settings) {
-                                                const { error } = await supabase.from('agency_settings').upsert({
+                    {/* Rechnungen */}
+                    <div className={CARD}>
+                        <SectionTitle>Rechnungen</SectionTitle>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+                            <Field label="Standard-Mehrwertsteuer (%)">
+                                <input className={INPUT} type="number" min="0" max="100"
+                                    value={settings?.default_tax_rate ?? 20}
+                                    onChange={e => set('default_tax_rate', parseFloat(e.target.value) || 0)}
+                                    placeholder="20" />
+                                <p className="text-xs text-text-muted mt-1">z.B. 20 für Österreich, 19 für Deutschland</p>
+                            </Field>
+                            <Field label="Rechnungsnummer-Präfix">
+                                <input className={INPUT} value={settings?.invoice_number_prefix || 'RE'}
+                                    onChange={e => set('invoice_number_prefix', e.target.value)} placeholder="RE" />
+                                <p className="text-xs text-text-muted mt-1">z.B. "RE" → RE-2025-001</p>
+                            </Field>
+                        </div>
+                        <div className="mt-5">
+                            <Field label="Footer Text (erscheint auf allen Dokumenten)">
+                                <textarea className={INPUT + ' h-20 mt-1'} value={settings?.footer_text || ''}
+                                    onChange={e => set('footer_text', e.target.value)}
+                                    placeholder="z.B. Geschäftsführung: Max Mustermann | Gerichtsstand: Wien" />
+                            </Field>
+                        </div>
+                    </div>
+
+                    {/* Ressourcenplan */}
+                    {allDepartments.length > 0 && (
+                        <div className={CARD}>
+                            <SectionTitle>Ressourcenplan</SectionTitle>
+                            <p className="text-sm text-text-muted mt-1 mb-4">Wähle die Abteilungen aus, die im Ressourcenplan als Filter angezeigt werden.</p>
+                            <div className="flex flex-wrap gap-2">
+                                {allDepartments.map(dept => {
+                                    const selected = settings?.resource_planner_departments?.includes(dept.id);
+                                    return (
+                                        <button
+                                            key={dept.id}
+                                            onClick={() => {
+                                                if (!settings) return;
+                                                const current = settings.resource_planner_departments || [];
+                                                setSettings({
                                                     ...settings,
-                                                    logo_url: url
-                                                }, { onConflict: 'organization_id' });
+                                                    resource_planner_departments: selected
+                                                        ? current.filter(id => id !== dept.id)
+                                                        : [...current, dept.id]
+                                                });
+                                            }}
+                                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${selected
+                                                ? 'bg-accent text-white border-accent shadow-sm'
+                                                : 'border-default text-text-secondary hover:border-accent hover:bg-hover'
+                                            }`}
+                                        >
+                                            {dept.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
-                                                if (error) {
-                                                    console.error("DB Save Error:", error);
-                                                    alert("Fehler beim Speichern: " + error.message);
-                                                }
-                                            }
-                                        } catch (err: any) {
-                                            console.error(err);
-                                            alert('Upload fehlgeschlagen. Stelle sicher, dass du eingeloggt bist.');
-                                        }
-                                        setLoading(false);
-                                    }}
-                                />
-                                <button className="flex items-center gap-2 bg-surface border border-default text-text-secondary px-4 py-2 rounded-xl text-sm font-bold hover:bg-hover transition">
-                                    <Upload size={16} /> Logo hochladen
-                                </button>
+                    <div className="flex justify-end">
+                        <SaveButton onClick={handleSave} loading={loading} saved={saved} />
+                    </div>
+                </>
+            )}
+
+            {/* ── BRANDING SECTION ── */}
+            {showBranding && (
+                <>
+                    {/* App Logo */}
+                    <div className={CARD}>
+                        <SectionTitle>App Logo</SectionTitle>
+                        <p className="text-sm text-text-muted mt-1 mb-5">Wird in der Seitenleiste angezeigt. Quadratisches Format empfohlen.</p>
+                        <div className="flex items-center gap-6">
+                            <div className="w-24 h-24 bg-subtle border border-default rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
+                                {settings?.logo_url
+                                    ? <img src={settings.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
+                                    : <span className="text-xs text-text-muted text-center font-bold uppercase">Kein Logo</span>
+                                }
+                            </div>
+                            <div>
+                                <label className="relative inline-flex items-center gap-2 cursor-pointer bg-surface border border-default text-text-secondary px-4 py-2 rounded-xl text-sm font-bold hover:bg-hover transition">
+                                    <Upload size={15} /> Logo hochladen
+                                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer"
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'logo_url'); }} />
+                                </label>
+                                {settings?.logo_url && (
+                                    <button onClick={() => set('logo_url', '')} className="ml-3 text-xs text-text-muted hover:text-red-500 transition">Entfernen</button>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="h-px bg-default w-full"></div>
-
-                    {/* 2. DOCUMENT BANNER */}
-                    <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 items-start">
-                        <div className="w-full md:w-[400px] h-[60px] bg-subtle border border-default rounded-xl flex items-center justify-center overflow-hidden relative col-span-2 md:col-span-1 md:col-start-2">
-                            {/* Preview box mostly for verifying presence, actual preview might need to be wider */}
-                            {settings?.document_header_url ? (
-                                <img src={settings.document_header_url} className="w-full h-full object-cover" alt="Banner" />
-                            ) : (
-                                <span className="text-xs text-text-muted font-bold uppercase">Kein Banner</span>
-                            )}
+                    {/* Dokumenten-Header */}
+                    <div className={CARD}>
+                        <SectionTitle>Dokumenten-Header</SectionTitle>
+                        <p className="text-sm text-text-muted mt-1 mb-5">Erscheint im Kopfbereich aller PDFs. Empfohlen: 1050 × 150 px.</p>
+                        <div className="w-full h-16 bg-subtle border border-default rounded-xl overflow-hidden mb-5 flex items-center justify-center">
+                            {settings?.document_header_url
+                                ? <img src={settings.document_header_url} className="w-full h-full object-cover" alt="Header" />
+                                : <span className="text-xs text-text-muted font-bold uppercase">Kein Header</span>
+                            }
                         </div>
-
-                        <div className="md:col-start-2">
-                            <h3 className="font-bold text-text-primary mb-1">Dokumenten Header (1050x150px)</h3>
-                            <p className="text-sm text-text-secondary mb-4">Dieser Banner erscheint im Kopfbereich aller PDF-Dokumente (Angebote, Verträge).</p>
-                            <div className="relative inline-block">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    onChange={async (e) => {
-                                        const file = e.target.files?.[0];
-                                        if (!file) return;
-                                        setLoading(true);
-                                        try {
-                                            const url = await uploadFileToSupabase(file, 'documents');
-                                            console.log("Uploaded Banner URL:", url);
-                                            setSettings(s => s ? ({ ...s, document_header_url: url }) : null);
-
-                                            if (settings) {
-                                                const { error } = await supabase.from('agency_settings').upsert({
-                                                    ...settings,
-                                                    document_header_url: url
-                                                }, { onConflict: 'organization_id' });
-
-                                                if (error) {
-                                                    console.error("DB Save Error:", error);
-                                                    alert("Fehler beim Speichern (DB Spalte fehlt?): " + error.message);
-                                                }
-                                            }
-                                        } catch (err: any) {
-                                            console.error(err);
-                                            alert('Upload fehlgeschlagen: ' + err.message);
-                                        }
-                                        setLoading(false);
-                                    }}
-                                />
-                                <button className="flex items-center gap-2 bg-surface border border-default text-text-secondary px-4 py-2 rounded-xl text-sm font-bold hover:bg-hover transition">
-                                    <Upload size={16} /> Banner hochladen
-                                </button>
-                            </div>
-                        </div>
+                        <label className="relative inline-flex items-center gap-2 cursor-pointer bg-surface border border-default text-text-secondary px-4 py-2 rounded-xl text-sm font-bold hover:bg-hover transition">
+                            <Upload size={15} /> Header hochladen
+                            <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'document_header_url'); }} />
+                        </label>
+                        {settings?.document_header_url && (
+                            <button onClick={() => set('document_header_url', '')} className="ml-3 text-xs text-text-muted hover:text-red-500 transition">Entfernen</button>
+                        )}
                     </div>
-                </div>
-            </div>
+                </>
+            )}
 
-            {/* TEMPLATES */}
-            <div className="bg-surface p-6 rounded-2xl border border-default shadow-sm">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText size={20} className="text-text-muted" /> Vertragsvorlagen</h2>
-                <p className="text-sm text-text-secondary mb-6">Erstelle Textbausteine für Einleitung und Schluss von Verträgen.</p>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* List */}
-                    <div className="space-y-3">
-                        {templates.length === 0 && <div className="text-center text-text-muted py-4 border border-default border-dashed rounded-xl">Keine Vorlagen.</div>}
-                        {templates.map(t => (
-                            <div key={t.id} className="p-4 rounded-xl border border-default bg-subtle flex justify-between items-start group hover:bg-surface hover:shadow-sm transition">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${t.type === 'intro' ? 'bg-accent-subtle/30 text-accent' : 'bg-orange-500/10 text-orange-500'}`}>{t.type}</span>
-                                        <span className="font-bold text-sm text-text-primary">{t.name}</span>
-                                    </div>
-                                    <p className="text-xs text-text-secondary line-clamp-2">{t.content}</p>
-                                </div>
-                                <button onClick={() => handleDeleteTemplate(t.id)} className="text-text-placeholder hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16} /></button>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Add New */}
-                    <div className="bg-subtle p-4 rounded-xl border border-default">
-                        <h3 className="text-sm font-bold text-text-primary mb-3">Neue Vorlage erstellen</h3>
+            {/* ── TEMPLATES SECTION ── */}
+            {showTemplates && (
+                <div className={CARD}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Liste */}
                         <div className="space-y-3">
-                            <div>
-                                <label className="text-xs font-bold text-text-muted uppercase">Typ</label>
-                                <div className="flex gap-2 mt-1">
-                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'intro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'intro' ? 'bg-accent-subtle/30 border-accent/20 text-accent' : 'bg-surface border-default text-text-secondary hover:bg-hover'}`}>Einleitung</button>
-                                    <button onClick={() => setNewTemplate({ ...newTemplate, type: 'outro' })} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newTemplate.type === 'outro' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' : 'bg-surface border-default text-text-secondary hover:bg-hover'}`}>Schluss / AGB</button>
+                            {templates.length === 0 && (
+                                <div className="text-center text-text-muted py-8 border border-default border-dashed rounded-xl text-sm">
+                                    Noch keine Vorlagen angelegt.
                                 </div>
+                            )}
+                            {templates.map(t => (
+                                <div key={t.id} className="p-4 rounded-xl border border-default bg-subtle flex justify-between items-start group hover:bg-surface hover:shadow-sm transition">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded shrink-0 ${t.type === 'intro' ? 'bg-accent-subtle/30 text-accent' : 'bg-orange-500/10 text-orange-500'}`}>
+                                                {t.type === 'intro' ? 'Einleitung' : 'Schluss'}
+                                            </span>
+                                            <span className="font-bold text-sm text-text-primary truncate">{t.name}</span>
+                                        </div>
+                                        <p className="text-xs text-text-muted line-clamp-2">{t.content}</p>
+                                    </div>
+                                    <button onClick={() => handleDeleteTemplate(t.id)}
+                                        className="text-text-placeholder hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition shrink-0 ml-2">
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Neue Vorlage */}
+                        <div className="bg-subtle p-5 rounded-xl border border-default space-y-4">
+                            <p className="text-sm font-bold text-text-primary">Neue Vorlage</p>
+                            <div className="flex gap-2">
+                                {(['intro', 'outro'] as const).map(type => (
+                                    <button key={type} onClick={() => setNewTemplate({ ...newTemplate, type })}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${newTemplate.type === type
+                                            ? type === 'intro' ? 'bg-accent-subtle/30 border-accent/20 text-accent' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'
+                                            : 'bg-surface border-default text-text-secondary hover:bg-hover'
+                                        }`}>
+                                        {type === 'intro' ? 'Einleitung' : 'Schluss / AGB'}
+                                    </button>
+                                ))}
                             </div>
-                            <div>
-                                <input className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-accent focus:ring-2 rounded-xl text-sm" placeholder="Bezeichnung (z.B. Standard Einleitung)" value={newTemplate.name} onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })} />
-                            </div>
-                            <div>
-                                <textarea className="w-full p-2 border border-default bg-input text-text-primary focus:bg-surface focus:ring-accent focus:ring-2 rounded-xl text-sm h-32 resize-none" placeholder="Textinhalt..." value={newTemplate.content} onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })} />
-                            </div>
-                            <button onClick={handleAddTemplate} disabled={tLoading} className="w-full py-2 bg-text-primary text-surface rounded-xl text-sm font-bold hover:opacity-90 transition flex justify-center items-center gap-2">
-                                <Plus size={16} /> Hinzufügen
+                            <input
+                                className={INPUT}
+                                placeholder="Bezeichnung (z.B. Standard Einleitung)"
+                                value={newTemplate.name}
+                                onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                            />
+                            <textarea
+                                className={INPUT + ' h-28 resize-none'}
+                                placeholder="Textinhalt…"
+                                value={newTemplate.content}
+                                onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })}
+                            />
+                            <button
+                                onClick={handleAddTemplate}
+                                disabled={tLoading || !newTemplate.name || !newTemplate.content}
+                                className="w-full py-2 bg-text-primary text-surface rounded-xl text-sm font-bold hover:opacity-90 transition flex justify-center items-center gap-2 disabled:opacity-50"
+                            >
+                                <Plus size={15} /> Vorlage hinzufügen
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
+
             <ConfirmModal
                 isOpen={confirmConfig.isOpen}
                 title={confirmConfig.title}
                 message={confirmConfig.message}
                 onConfirm={confirmConfig.onConfirm}
-                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                onCancel={() => setConfirmConfig(p => ({ ...p, isOpen: false }))}
                 type={confirmConfig.type}
                 confirmText={confirmConfig.confirmText}
                 showCancel={confirmConfig.showCancel}
             />
         </div>
+    );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+    return <p className="text-sm font-bold text-text-primary">{children}</p>;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-1.5 text-text-muted">{label}</label>
+            {children}
+        </div>
+    );
+}
+
+function SaveButton({ onClick, loading, saved }: { onClick: () => void; loading: boolean; saved: boolean }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-50"
+            style={{ background: saved ? '#22c55e' : 'var(--text-primary)', color: 'var(--bg-surface)' }}
+        >
+            {!saved && <Save size={15} />}
+            {saved ? 'Gespeichert ✓' : 'Speichern'}
+        </button>
     );
 }

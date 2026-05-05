@@ -6,183 +6,125 @@ import { supabase } from '../supabaseClient';
 import { useApp } from '../context/AppContext';
 import ConfirmModal from '../components/Modals/ConfirmModal';
 
+type Status = 'checking' | 'linking' | 'idle' | 'submitted' | 'rejected';
+
 export default function OnboardingPage() {
     const router = useRouter();
     const { session, employees } = useApp();
 
-    // Form State
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [orgId, setOrgId] = useState('');
-
-    // Data
-    const [organizations, setOrganizations] = useState<{ id: string, name: string }[]>([]);
-
     const [loading, setLoading] = useState(false);
-    const [status, setStatus] = useState<'idle' | 'submitted' | 'checking' | 'rejected'>('checking');
+    const [status, setStatus] = useState<Status>('checking');
 
     const [confirmConfig, setConfirmConfig] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        type: 'danger' | 'info' | 'warning' | 'success';
-    }>({
-        isOpen: false,
-        title: '',
-        message: '',
-        type: 'danger'
-    });
+        isOpen: boolean; title: string; message: string; type: 'danger' | 'info' | 'warning' | 'success';
+    }>({ isOpen: false, title: '', message: '', type: 'danger' });
 
-    // Fetch Orgs
-    useEffect(() => {
-        const fetchOrgs = async () => {
-            const { data } = await supabase.from('organizations').select('id, name').order('name');
-            if (data) setOrganizations(data);
-        };
-        fetchOrgs();
-    }, []);
-
-    // Check if user is already approved (redirect to dashboard)
     useEffect(() => {
         if (!session?.user?.email) return;
 
-        // Optimization: Use the employees list from context if loaded
-        const checkApproval = async () => {
-            // If we have employees loaded, check locally first
+        const checkAndLink = async () => {
+            setStatus('checking');
+
+            // 1. Already in employees? → redirect
             const currentUser = employees.find(e => e.email === session.user.email);
-            if (currentUser) {
-                router.replace('/dashboard');
-                return;
-            }
+            if (currentUser) { router.replace('/dashboard'); return; }
 
-            // Also check DB directly to be sure (if context is stale or empty initially)
-            const { data } = await supabase.from('employees').select('id').eq('email', session.user.email).single();
-            if (data) {
-                router.replace('/dashboard');
-            } else {
-                // Check if there is a pending OR rejected request (fetch latest)
-                const { data: request } = await supabase.from('registration_requests')
-                    .select('status')
-                    .eq('email', session.user.email)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
+            const { data: empData } = await supabase
+                .from('employees').select('id, user_id').eq('email', session.user.email).maybeSingle();
 
-                if (request) {
-                    if (request.status === 'pending') {
-                        setStatus('submitted');
-                    } else if (request.status === 'rejected') {
-                        setStatus('rejected');
-                    } else {
-                        setStatus('idle');
-                    }
-                } else {
-                    setStatus('idle');
+            if (empData) {
+                if (empData.user_id) {
+                    // Already linked → redirect
+                    router.replace('/dashboard');
+                    return;
+                }
+                // Pre-created via invite, but user_id not yet linked
+                setStatus('linking');
+                const { data: linked } = await supabase.rpc('link_invited_employee');
+                if (linked) {
+                    router.replace('/dashboard');
+                    return;
                 }
             }
+
+            // 2. Check for pending/rejected registration request
+            const { data: request } = await supabase
+                .from('registration_requests')
+                .select('status')
+                .eq('email', session.user.email)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (request?.status === 'pending') setStatus('submitted');
+            else if (request?.status === 'rejected') setStatus('rejected');
+            else setStatus('idle');
         };
 
-        checkApproval();
+        checkAndLink();
     }, [session, employees, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!session?.user?.email) return;
-
         setLoading(true);
+
         const fullName = `${firstName} ${lastName}`.trim();
 
-        // 1. Check if email is already in ANY organization
-        const { data: existingUser } = await supabase.from('employees').select('id, organization_id').eq('email', session.user.email).maybeSingle();
+        const { data: existingUser } = await supabase
+            .from('employees').select('id').eq('email', session.user.email).maybeSingle();
 
         if (existingUser) {
-            setConfirmConfig({
-                isOpen: true,
-                title: 'Konto bereits vorhanden',
-                message: 'Du bist bereits Teil einer Organisation! Bitte melde dich direkt mit deinen Zugangsdaten an.',
-                type: 'info'
-            });
+            setConfirmConfig({ isOpen: true, title: 'Konto bereits vorhanden', message: 'Du bist bereits Teil einer Organisation.', type: 'info' });
             setLoading(false);
             return;
         }
 
-        // 2. Check for existing request to Update vs Insert
-        const { data: existingReq } = await supabase.from('registration_requests')
-            .select('id, status')
-            .eq('email', session.user.email)
-            .maybeSingle();
+        const { data: existingReq } = await supabase
+            .from('registration_requests').select('id').eq('email', session.user.email).maybeSingle();
 
-        if (existingReq) {
-            // Update existing request
-            const { error } = await supabase.from('registration_requests').update({
-                name: fullName,
-                organization_id: orgId || null,
-                status: 'pending' // Reset to pending if it was rejected or anything else
-            }).eq('id', existingReq.id);
+        const payload = { name: fullName, organization_id: null as any, status: 'pending' };
 
-            if (error) {
-                console.error(error);
-                setConfirmConfig({
-                    isOpen: true,
-                    title: 'Fehler',
-                    message: `Die Anfrage konnte nicht aktualisiert werden: ${error.message}`,
-                    type: 'danger'
-                });
-            } else {
-                setStatus('submitted');
-            }
+        const { error } = existingReq
+            ? await supabase.from('registration_requests').update(payload).eq('id', existingReq.id)
+            : await supabase.from('registration_requests').insert([{ ...payload, email: session.user.email }]);
+
+        if (error) {
+            setConfirmConfig({ isOpen: true, title: 'Fehler', message: error.message, type: 'danger' });
         } else {
-            // Insert new request
-            const { error } = await supabase.from('registration_requests').insert([{
-                email: session.user.email,
-                name: fullName,
-                organization_id: orgId || null,
-                status: 'pending'
-            }]);
-
-            if (error) {
-                console.error(error);
-                setConfirmConfig({
-                    isOpen: true,
-                    title: 'Fehler',
-                    message: `Die Anfrage konnte nicht gesendet werden: ${error.message}`,
-                    type: 'danger'
-                });
-            } else {
-                setStatus('submitted');
-            }
+            setStatus('submitted');
         }
-
         setLoading(false);
     };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push('/'); // Login screen
+        router.push('/');
     };
 
-    if (status === 'checking') {
-        return <div className="min-h-screen flex items-center justify-center bg-subtle text-text-muted">Lade Status...</div>;
+    if (status === 'checking' || status === 'linking') {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-subtle gap-3">
+                <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                <p className="text-sm text-text-muted">{status === 'linking' ? 'Konto wird verknüpft…' : 'Lade Status…'}</p>
+            </div>
+        );
     }
 
     if (status === 'rejected') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-subtle p-4">
-                <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl text-center">
+                <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl text-center border border-default">
                     <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </div>
                     <h1 className="text-2xl font-bold text-text-primary mb-2">Anfrage abgelehnt</h1>
-                    <p className="text-text-muted mb-8">
-                        Deine Beitrittsanfrage wurde leider abgelehnt. Bitte wende dich an einen Administrator oder versuche es erneut.
-                    </p>
+                    <p className="text-text-muted mb-8">Deine Beitrittsanfrage wurde abgelehnt. Wende dich an einen Admin oder versuche es erneut.</p>
                     <div className="flex gap-4 justify-center">
-                        <button onClick={handleLogout} className="text-sm text-text-placeholder hover:text-text-primary font-medium">
-                            Abmelden
-                        </button>
-                        <button onClick={() => setStatus('idle')} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition">
-                            Erneut versuchen
-                        </button>
+                        <button onClick={handleLogout} className="text-sm text-text-placeholder hover:text-text-primary font-medium">Abmelden</button>
+                        <button onClick={() => setStatus('idle')} className="bg-accent text-surface px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition">Erneut versuchen</button>
                     </div>
                 </div>
             </div>
@@ -192,21 +134,16 @@ export default function OnboardingPage() {
     if (status === 'submitted') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-subtle p-4">
-                <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl text-center">
-                    <div className="w-16 h-16 bg-accent-subtle text-accent rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl text-center border border-default">
+                    <div className="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <h1 className="text-2xl font-bold text-text-primary mb-2">Anfrage gesendet</h1>
-                    <p className="text-text-muted mb-8">
-                        Deine Beitrittsanfrage wird geprüft. Sobald dein Admin dich freischaltet, erhältst du Zugriff auf das Dashboard.
-                    </p>
-                    <button onClick={handleLogout} className="text-sm text-text-placeholder hover:text-text-primary font-medium">
-                        Abmelden
-                    </button>
-                    {/* Poll/Refresh button just in case? Or rely on reload */}
-                    <button onClick={() => window.location.reload()} className="block mx-auto mt-4 text-xs text-accent hover:underline">
-                        Status prüfen
-                    </button>
+                    <p className="text-text-muted mb-8">Dein Admin wird dich freischalten. Du erhältst dann automatisch Zugriff.</p>
+                    <div className="flex flex-col gap-3 items-center">
+                        <button onClick={() => window.location.reload()} className="px-5 py-2 bg-accent text-surface rounded-xl text-sm font-bold hover:opacity-90 transition">Status prüfen</button>
+                        <button onClick={handleLogout} className="text-xs text-text-placeholder hover:text-text-primary font-medium">Abmelden</button>
+                    </div>
                 </div>
             </div>
         );
@@ -214,71 +151,50 @@ export default function OnboardingPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-subtle p-4">
-            <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl">
+            <div className="bg-surface max-w-md w-full p-8 rounded-2xl shadow-xl border border-default">
                 <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-text-primary mb-2">Profil einrichten</h1>
-                    <p className="text-text-muted">Bitte wähle deine Organisation und gib deinen Namen ein.</p>
+                    <div className="w-12 h-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-5">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    </div>
+                    <h1 className="text-2xl font-bold text-text-primary mb-1">Profil einrichten</h1>
+                    <p className="text-text-muted text-sm">Gib deinen Namen ein — dein Admin schaltet dich dann frei.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-2">Organisation / Firma</label>
-                        <select
-                            required
-                            className="w-full p-3 border border-default rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition bg-surface"
-                            value={orgId}
-                            onChange={e => setOrgId(e.target.value)}
-                        >
-                            <option value="">Bitte wählen...</option>
-                            {organizations.map(org => (
-                                <option key={org.id} value={org.id}>{org.name}</option>
-                            ))}
-                        </select>
-                        <p className="text-[10px] text-text-placeholder mt-1">Du musst einer bestehenden Organisation beitreten.</p>
-                    </div>
-
-                    {orgId && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Vorname</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="w-full p-3 border border-default rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
-                                        placeholder="Max"
-                                        value={firstName}
-                                        onChange={e => setFirstName(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Nachname</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="w-full p-3 border border-default rounded-lg focus:ring-2 focus:ring-gray-900 outline-none transition"
-                                        placeholder="Mustermann"
-                                        value={lastName}
-                                        onChange={e => setLastName(e.target.value)}
-                                    />
-                                </div>
-                            </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2">Vorname</label>
+                            <input
+                                type="text" required
+                                className="w-full p-3 border border-border-strong rounded-xl text-sm bg-subtle text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                placeholder="Max"
+                                value={firstName}
+                                onChange={e => setFirstName(e.target.value)}
+                            />
                         </div>
-                    )}
-
+                        <div>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-2">Nachname</label>
+                            <input
+                                type="text" required
+                                className="w-full p-3 border border-border-strong rounded-xl text-sm bg-subtle text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                placeholder="Mustermann"
+                                value={lastName}
+                                onChange={e => setLastName(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <p className="text-xs text-text-muted">Angemeldet als: <span className="font-medium text-text-secondary">{session?.user?.email}</span></p>
                     <button
                         type="submit"
-                        disabled={loading || !orgId || !firstName || !lastName}
-                        className="w-full bg-gray-900 text-white p-3 rounded-lg font-bold hover:bg-gray-800 transition disabled:opacity-50 mt-6"
+                        disabled={loading || !firstName || !lastName}
+                        className="w-full bg-accent text-surface p-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 mt-2"
                     >
-                        {loading ? 'Sende...' : 'Speichern und anfragen'}
+                        {loading ? 'Sende…' : 'Zugang anfragen'}
                     </button>
                 </form>
 
                 <div className="mt-6 text-center">
-                    <button onClick={handleLogout} className="text-xs text-text-placeholder hover:text-text-secondary">
-                        Abmelden
-                    </button>
+                    <button onClick={handleLogout} className="text-xs text-text-placeholder hover:text-text-secondary">Abmelden</button>
                 </div>
             </div>
 

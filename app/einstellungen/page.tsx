@@ -8,7 +8,7 @@ export default function EinstellungenPage() {
     const { session, employees, departments, fetchData } = useApp();
 
     return (
-        <div className="p-4 md:p-8 h-full">
+        <div className="h-full">
             <Settings
                 session={session}
                 employees={employees}

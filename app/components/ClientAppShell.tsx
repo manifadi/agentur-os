@@ -8,6 +8,7 @@ import { AppContext } from '../context/AppContext';
 import MainSidebar from './MainSidebar';
 import LoginScreen from './LoginScreen';
 import GlobalSearch from './GlobalSearch';
+import WelcomeModal from './UI/WelcomeModal';
 import { Toaster } from 'sonner';
 import { useTheme } from '../hooks/useTheme';
 
@@ -29,6 +30,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [timeEntries, setTimeEntries] = useState<any[]>([]);
     const [personalTodos, setPersonalTodos] = useState<Todo[]>([]);
     const [agencySettings, setAgencySettings] = useState<any>(null);
+    const [showWelcome, setShowWelcome] = useState(false);
 
     // Resolve current user after employees load
     const currentUser = employees.find(e => e.email === session?.user?.email);
@@ -114,7 +116,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     .eq('employee_id', currentUserData.id)
                     .gte('date', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString())
                     .order('date', { ascending: false }),
-                supabase.from('todos').select(`*, employees(id, name, initials, avatar_url)`).is('project_id', null).eq('organization_id', orgId).order('created_at', { ascending: false }),
+                supabase.from('todos').select(`*, employees(id, name, initials, avatar_url)`).is('project_id', null).eq('organization_id', orgId).eq('assigned_to', currentUserData.id).order('created_at', { ascending: false }),
                 supabase.from('agency_settings').select('*').eq('organization_id', orgId).single()
             ]);
 
@@ -161,11 +163,29 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     // GATEKEEPER: Check if user is approved
     useEffect(() => {
-        if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password') {
+        if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password' && pathname !== '/auth/callback') {
             const found = employees.find(e => e.email === session.user.email);
             if (!found) router.replace('/onboarding');
         }
     }, [loadingSession, session, loading, pathname, router, employees]);
+
+    // Welcome modal: show once for users who haven't seen it
+    useEffect(() => {
+        if (currentUser && !currentUser.dashboard_config?.has_seen_welcome) {
+            setShowWelcome(true);
+        }
+    }, [currentUser?.id]);
+
+    const handleWelcomeDismiss = async () => {
+        setShowWelcome(false);
+        if (!currentUser) return;
+        const newConfig = {
+            ...currentUser.dashboard_config,
+            widgets: currentUser.dashboard_config?.widgets || [],
+            has_seen_welcome: true,
+        };
+        await supabase.from('employees').update({ dashboard_config: newConfig }).eq('id', currentUser.id);
+    };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -181,7 +201,8 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             Lade App Session...
         </div>
     );
-    if (!session && !isResetPassword) return <LoginScreen />;
+    const isAuthCallback = pathname === '/auth/callback';
+    if (!session && !isResetPassword && !isAuthCallback) return <LoginScreen />;
 
     return (
         <AppContext.Provider value={{
@@ -213,7 +234,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 className="flex h-screen w-screen overflow-hidden antialiased"
                 style={{ background: 'var(--bg-app)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}
             >
-                {!['/login', '/onboarding', '/reset-password'].includes(pathname || '') && (
+                {!['/login', '/onboarding', '/reset-password', '/auth/callback'].includes(pathname || '') && (
                     <MainSidebar
                         currentView={getSidebarView()}
                         onLogout={handleLogout}
@@ -227,6 +248,9 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
                 <GlobalSearch />
                 <Toaster position="bottom-right" richColors duration={3500} closeButton toastOptions={{ style: { fontFamily: 'var(--font-family)', fontSize: '13px', fontWeight: '500' } }} />
+                {showWelcome && currentUser && (
+                    <WelcomeModal userName={currentUser.name} onDismiss={handleWelcomeDismiss} />
+                )}
 
                 <main
                     className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}

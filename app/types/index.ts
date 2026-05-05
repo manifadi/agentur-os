@@ -48,6 +48,7 @@ export interface DashboardWidgetConfig {
 export interface DashboardConfig {
     widgets: DashboardWidgetConfig[];
     favoriteProjectIds?: string[];
+    has_seen_welcome?: boolean;
 }
 
 export interface Employee {
@@ -59,10 +60,11 @@ export interface Employee {
     email?: string;
     role?: 'admin' | 'user';
     organization_id?: string;
-    hourly_rate?: number; // [NEW]
-    phone?: string; // [NEW]
-    avatar_url?: string | null; // [NEW] Avatar support
-    dashboard_config?: DashboardConfig; // [NEW] Phase 2
+    user_id?: string;
+    hourly_rate?: number;
+    phone?: string;
+    avatar_url?: string | null;
+    dashboard_config?: DashboardConfig;
 }
 
 export interface Department {
@@ -257,9 +259,9 @@ export interface AgencySettings {
     organization_id: string;
     company_name: string;
     address: string;
-    website?: string; // NEW
-    general_email?: string; // NEW
-    general_phone?: string; // NEW
+    website?: string;
+    general_email?: string;
+    general_phone?: string;
     tax_id: string;
     bank_name: string;
     iban: string;
@@ -269,6 +271,8 @@ export interface AgencySettings {
     logo_url: string;
     document_header_url?: string;
     resource_planner_departments?: string[];
+    default_tax_rate?: number;
+    invoice_number_prefix?: string;
 }
 
 export interface OrganizationTemplate {
