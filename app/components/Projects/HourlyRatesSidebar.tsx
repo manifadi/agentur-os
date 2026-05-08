@@ -38,14 +38,17 @@ export default function HourlyRatesSidebar({ isOpen, onClose, organizationId }: 
                 onClick={onClose}
             />
 
-            <div className="fixed inset-y-0 right-0 w-80 bg-surface shadow-2xl z-[60] flex flex-col animate-in slide-in-from-right duration-300 border-l border-default">
-                <div className="flex items-center justify-between p-4 border-b border-default shrink-0">
-                    <h2 className="text-base font-bold text-text-primary">Stundensätze</h2>
+            <div className="fixed inset-y-0 right-0 w-[480px] bg-surface shadow-2xl z-[60] flex flex-col animate-in slide-in-from-right duration-300 border-l border-default">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-default shrink-0">
+                    <div>
+                        <h2 className="text-base font-bold text-text-primary">Stundensätze</h2>
+                        <p className="text-xs text-text-muted mt-0.5">Agenturpositionen &amp; interne Verrechnungssätze</p>
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-hover transition"
                     >
-                        <X size={16} />
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -54,36 +57,46 @@ export default function HourlyRatesSidebar({ isOpen, onClose, organizationId }: 
                         <div className="flex items-center justify-center py-16">
                             <div className="text-sm text-text-placeholder animate-pulse">Lädt...</div>
                         </div>
+                    ) : positions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center px-8 gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-subtle border border-default flex items-center justify-center text-text-placeholder">
+                                <X size={20} />
+                            </div>
+                            <p className="text-sm font-medium text-text-muted">Keine Stundensätze hinterlegt.</p>
+                            <p className="text-xs text-text-placeholder">Stundensätze können in den Einstellungen unter „Agentur" angelegt werden.</p>
+                        </div>
                     ) : (
-                        <table className="w-full text-sm">
-                            <thead className="bg-subtle text-xs text-text-muted uppercase font-semibold border-b border-default sticky top-0">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Position</th>
-                                    <th className="px-4 py-3 text-left">Kategorie</th>
-                                    <th className="px-4 py-3 text-right">€/h</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-default">
-                                {positions.map((p) => (
-                                    <tr key={p.id} className="hover:bg-subtle/50 transition">
-                                        <td className="px-4 py-3 font-bold text-text-primary">{p.title}</td>
-                                        <td className="px-4 py-3 text-text-muted text-xs">{p.category || '-'}</td>
-                                        <td className="px-4 py-3 text-right font-mono text-text-primary">
-                                            {Number(p.hourly_rate).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {positions.length === 0 && (
-                                    <tr>
-                                        <td colSpan={3} className="px-4 py-10 text-center text-text-placeholder text-xs">
-                                            Keine Stundensätze gefunden.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                        <div className="p-4 space-y-2">
+                            {positions.map((p) => (
+                                <div key={p.id} className="flex items-center gap-4 px-4 py-3 rounded-xl bg-subtle border border-default hover:border-accent/30 transition-colors">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-bold text-text-primary truncate">{p.title}</div>
+                                        {p.category && (
+                                            <div className="text-xs text-text-muted mt-0.5">{p.category}</div>
+                                        )}
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <div className="text-sm font-black font-mono text-text-primary">
+                                            {Number(p.hourly_rate).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €
+                                        </div>
+                                        <div className="text-[10px] text-text-placeholder font-medium">pro Stunde</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
+
+                {positions.length > 0 && (
+                    <div className="px-6 py-4 border-t border-default bg-subtle/50 shrink-0">
+                        <div className="flex items-center justify-between text-xs text-text-muted">
+                            <span>{positions.length} {positions.length === 1 ? 'Position' : 'Positionen'}</span>
+                            <span className="font-medium">
+                                Ø {(positions.reduce((s, p) => s + Number(p.hourly_rate), 0) / positions.length).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €/h
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
         </>
     );

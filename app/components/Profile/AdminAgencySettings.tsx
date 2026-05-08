@@ -4,6 +4,7 @@ import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { AgencySettings, OrganizationTemplate } from '../../types';
 import { Plus, Trash2, Save, Upload } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
+import { SettingsFormSkeleton } from '../UI/Skeleton';
 
 interface Props {
     section?: 'company' | 'branding' | 'templates';
@@ -175,9 +176,7 @@ export default function AdminAgencySettings({ section }: Props) {
         setLoading(false);
     };
 
-    if (loading && !settings) return (
-        <div className="flex items-center justify-center py-16 text-text-muted text-sm">Lade Einstellungen…</div>
-    );
+    if (loading && !settings) return <SettingsFormSkeleton />;
 
     if (errorMsg) return (
         <div className="p-6 text-center rounded-2xl border border-red-500/20 bg-red-500/10">

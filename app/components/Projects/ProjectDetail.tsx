@@ -889,25 +889,34 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             {/* ── Kalkulation Tab ──────────────────────────────────────────────── */}
             {activeTab === 'kalkulation' && (
                 <div>
-                    {/* Sub-navigation pills */}
-                    <div className="flex gap-1.5 mb-6 p-1 bg-subtle rounded-xl w-fit border border-default">
-                        {([
-                            { id: 'leistungen', label: 'Leistungen' },
-                            { id: 'angebot', label: 'Angebot' },
-                            { id: 'rechnung', label: 'Rechnung' },
-                        ] as const).map(({ id, label }) => (
-                            <button
-                                key={id}
-                                onClick={() => setKalkulationView(id)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                    kalkulationView === id
-                                        ? 'bg-surface text-text-primary shadow-sm border border-default'
-                                        : 'text-text-muted hover:text-text-primary'
-                                }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                    {/* Sub-navigation pills + Stundensätze trigger */}
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex gap-1.5 p-1 bg-subtle rounded-xl w-fit border border-default">
+                            {([
+                                { id: 'leistungen', label: 'Leistungen' },
+                                { id: 'angebot', label: 'Angebot' },
+                                { id: 'rechnung', label: 'Rechnung' },
+                            ] as const).map(({ id, label }) => (
+                                <button
+                                    key={id}
+                                    onClick={() => setKalkulationView(id)}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        kalkulationView === id
+                                            ? 'bg-surface text-text-primary shadow-sm border border-default'
+                                            : 'text-text-muted hover:text-text-primary'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setShowRatesSidebar(true)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-default bg-surface text-xs font-bold text-text-secondary hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all shadow-sm"
+                        >
+                            <Calculator size={13} />
+                            Stundensätze
+                        </button>
                     </div>
 
                     {kalkulationView === 'leistungen' && (

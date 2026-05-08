@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
 import ConfirmModal from '../Modals/ConfirmModal';
+import { DashboardSkeleton } from '../UI/Skeleton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -106,7 +107,7 @@ function migrateConfig(savedWidgets: any[]): DashboardWidgetConfig[] {
 // ─── Component ────────────────────────────────────────────────────
 export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
     const router = useRouter();
-    const { currentUser, employees, projects, allocations, members, timeEntries, fetchData } = useApp();
+    const { currentUser, employees, projects, allocations, members, timeEntries, fetchData, loading } = useApp();
     const [showAddTimeModal, setShowAddTimeModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [showGallery, setShowGallery] = useState(false); // Widget gallery
@@ -605,6 +606,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
     };
 
     // ─── Render ───────────────────────────────────────────────────
+    if (loading && !currentUser) return <DashboardSkeleton />;
     if (!currentUser) return null;
 
     return (
