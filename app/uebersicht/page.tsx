@@ -80,6 +80,14 @@ export default function UebersichtPage() {
             return;
         }
 
+        const action = searchParams.get('action');
+        if (action === 'create') {
+            setCreateProjectOpen(true);
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('action');
+            router.replace(`/uebersicht${params.toString() ? '?' + params.toString() : ''}`);
+        }
+
         const pId = searchParams.get('project_id') || searchParams.get('projectId');
         if (pId && projects.length > 0) {
             const found = projects.find(p => p.id === pId);
@@ -162,9 +170,9 @@ export default function UebersichtPage() {
     };
 
     // Projects
-    const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
+    const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string; deadline?: string }) => {
         const { data: newProject, error } = await supabase.from('projects').insert([{
-            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', organization_id: activeUser?.organization_id
+            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', deadline: data.deadline || null, organization_id: activeUser?.organization_id
         }]).select().single();
 
         if (error) { toast.error('Projekt konnte nicht erstellt werden.'); return; }

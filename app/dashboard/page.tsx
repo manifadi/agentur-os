@@ -29,9 +29,9 @@ export default function DashboardPage() {
         fetchData();
     };
 
-    const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string }) => {
+    const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string; deadline?: string }) => {
         const { data: newProject } = await supabase.from('projects').insert([{
-            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', organization_id: currentUser?.organization_id
+            title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', deadline: data.deadline || null, organization_id: currentUser?.organization_id
         }]).select().single();
 
         if (newProject && currentUser) {

@@ -181,7 +181,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (!currentUser) return;
         const newConfig = {
             ...currentUser.dashboard_config,
-            widgets: currentUser.dashboard_config?.widgets || [],
             has_seen_welcome: true,
         };
         await supabase.from('employees').update({ dashboard_config: newConfig }).eq('id', currentUser.id);

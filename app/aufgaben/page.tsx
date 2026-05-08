@@ -49,7 +49,7 @@ export default function AufgabenPage() {
                     onUpdate={async (id, updates) => {
                         const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name)`);
                         if (data) {
-                            setSelectedTask(data[0] as any);
+                            setSelectedTask(prev => prev ? data[0] as any : null);
                             fetchData();
                         }
                     }}

@@ -52,9 +52,28 @@ const DEFAULT_WIDGETS: DashboardWidgetConfig[] = [
 const MIN_W = 2;
 const MIN_H = 3;
 
+// ─── Helpers ──────────────────────────────────────────────────────
+function getGreeting(): string {
+    const h = new Date().getHours();
+    if (h < 12) return 'Guten Morgen';
+    if (h < 18) return 'Guten Tag';
+    return 'Guten Abend';
+}
+
+function getISOWeek(date: Date): { year: number; week: number } {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return {
+        year: d.getUTCFullYear(),
+        week: Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+    };
+}
+
 // ─── Migration Helper ─────────────────────────────────────────────
 function migrateConfig(savedWidgets: any[]): DashboardWidgetConfig[] {
-    if (!Array.isArray(savedWidgets)) return DEFAULT_WIDGETS;
+    if (!Array.isArray(savedWidgets) || savedWidgets.length === 0) return DEFAULT_WIDGETS;
 
     // Check if completely new schema (x, y, w, h) or old (position, size)
     const isNewSchema = savedWidgets.every(w => 'x' in w && 'y' in w && 'w' in w && 'h' in w);
@@ -244,8 +263,9 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
     // ─── Config & Layout ──────────────────────────────────────────
     const currentWidgets = useMemo(() => {
-        if (!currentUser?.dashboard_config?.widgets) return DEFAULT_WIDGETS;
-        return migrateConfig(currentUser.dashboard_config.widgets);
+        const widgets = currentUser?.dashboard_config?.widgets;
+        if (!widgets || !Array.isArray(widgets) || widgets.length === 0) return DEFAULT_WIDGETS;
+        return migrateConfig(widgets);
     }, [currentUser]);
 
     // Sync layoutState with currentWidgets on load/change
@@ -441,20 +461,67 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                         )}
                     </div>
                 );
-            case 'resource_planning':
+            case 'resource_planning': {
+                const { year: isoYear, week: isoWeek } = getISOWeek(new Date());
+                const weekAllocations = (allocations || []).filter(
+                    (a: any) => a.year === isoYear && a.week_number === isoWeek
+                );
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
+                const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+
+                if (weekAllocations.length === 0) {
+                    return (
+                        <div className="h-full flex flex-col items-center justify-center gap-3">
+                            <Calendar size={32} strokeWidth={1.5} className="text-text-placeholder opacity-40" />
+                            <span className="text-sm font-medium text-text-muted">Keine Einplanung diese Woche</span>
+                            <Link href="/ressourcen" className="text-xs font-bold text-accent hover:underline">Ressourcenplan öffnen →</Link>
+                        </div>
+                    );
+                }
+
+                const totalHours = weekAllocations.reduce((sum: number, a: any) =>
+                    sum + days.reduce((s, d) => s + (Number(a[d]) || 0), 0), 0
+                );
+
                 return (
-                    <div className="h-full flex items-center justify-center text-text-placeholder">
-                        {/* Placeholder for weekly plan visualization */}
-                        <div className="w-full grid grid-cols-6 text-[10px] font-bold text-text-placeholder uppercase tracking-widest text-center opacity-50">
-                            <span>Projekt</span>
-                            <span>Mo</span>
-                            <span>Di</span>
-                            <span>Mi</span>
-                            <span>Do</span>
-                            <span>Fr</span>
+                    <div className="h-full flex flex-col">
+                        <div className="grid grid-cols-6 gap-1 text-[10px] font-bold text-text-placeholder uppercase tracking-widest text-center pb-2 mb-2 border-b border-default">
+                            <span className="text-left">Projekt</span>
+                            {dayLabels.map(d => <span key={d}>{d}</span>)}
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
+                            {weekAllocations.map((a: any) => {
+                                const proj = projects.find(p => p.id === a.project_id);
+                                const rowTotal = days.reduce((s, d) => s + (Number(a[d]) || 0), 0);
+                                return (
+                                    <div key={a.id} className="grid grid-cols-6 gap-1 items-center py-2 px-1 rounded-xl hover:bg-hover transition-colors group">
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-xs font-semibold text-text-primary truncate leading-tight">{proj?.title || '—'}</span>
+                                            <span className="text-[10px] text-text-placeholder font-medium">{rowTotal}h</span>
+                                        </div>
+                                        {days.map(day => {
+                                            const h = Number(a[day]) || 0;
+                                            return (
+                                                <div key={day} className="flex items-center justify-center">
+                                                    {h > 0 ? (
+                                                        <span className="text-xs font-bold text-accent bg-accent/10 rounded-lg px-1.5 py-0.5 min-w-[28px] text-center">{h}h</span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-text-placeholder opacity-30">–</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="pt-3 mt-2 border-t border-default flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest">{totalHours}h diese Woche</span>
+                            <Link href="/ressourcen" className="text-[10px] font-bold text-accent hover:underline uppercase tracking-widest">Ressourcenplan →</Link>
                         </div>
                     </div>
                 );
+            }
             case 'favorite_projects':
                 return (
                     <div className="h-full flex flex-col gap-3">
@@ -546,7 +613,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             {/* Header */}
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-text-primary tracking-tight leading-none">Guten Morgen, {currentUser.name.split(' ')[0]}.</h1>
+                    <h1 className="text-3xl md:text-4xl font-black text-text-primary tracking-tight leading-none">{getGreeting()}, {currentUser.name.split(' ')[0]}.</h1>
                     <p className="text-text-secondary font-medium mt-2">Hier ist dein Überblick für heute.</p>
                 </div>
 
@@ -724,11 +791,22 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     })}
                 </ResponsiveGridLayout>
 
-                {/* Empty State / Add Widget Button (if no widgets) */}
+                {/* Empty State — shown only when user has explicitly removed every widget */}
                 {currentWidgets.length === 0 && (
-                    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-default rounded-[32px]">
-                        <p className="text-text-muted font-medium mb-4">Dein Dashboard ist leer.</p>
-                        <button onClick={() => setShowGallery(true)} className="bg-accent text-accent-text px-6 py-2 rounded-xl text-sm font-bold">Variablen hinzufügen</button>
+                    <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-default rounded-[32px] gap-6 animate-in fade-in duration-300">
+                        <div className="w-16 h-16 rounded-3xl bg-subtle border border-default flex items-center justify-center">
+                            <Layout size={28} className="text-text-placeholder" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-base font-bold text-text-primary mb-1">Dashboard ist leer</p>
+                            <p className="text-sm text-text-muted">Füge Widgets hinzu um deinen Arbeitsbereich zu gestalten.</p>
+                        </div>
+                        <button
+                            onClick={() => { setIsEditMode(true); setShowGallery(true); }}
+                            className="flex items-center gap-2 bg-accent text-accent-text px-6 py-3 rounded-xl text-sm font-bold hover:brightness-110 transition-all shadow-sm"
+                        >
+                            <Plus size={16} strokeWidth={3} /> Widgets hinzufügen
+                        </button>
                     </div>
                 )}
             </div>

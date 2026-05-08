@@ -1,60 +1,64 @@
-import React, { useState, useMemo } from 'react';
-import { X, Search, Filter, Plus, Check } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Search, Plus, Check, Edit3 } from 'lucide-react';
 import { Client, Employee, Project } from '../../types';
 
 interface CreateProjectModalProps {
     isOpen: boolean;
     clients: Client[];
     employees: Employee[];
-    projects: Project[]; // All available projects to join
-    joinedProjectIds: string[]; // IDs of projects the user is already a member of
+    projects: Project[];
+    joinedProjectIds: string[];
     currentUserId: string;
     onClose: () => void;
-    onCreate: (data: { title: string; jobNr: string; clientId: string; pmId: string }) => Promise<void>;
+    onCreate: (data: { title: string; jobNr: string; clientId: string; pmId: string; deadline?: string }) => Promise<void>;
     onJoin: (projectId: string) => Promise<void>;
+}
+
+function generateJobNumber(existingProjects: Project[]): string {
+    const yearShort = new Date().getFullYear().toString().slice(-2);
+    const prefix = `${yearShort}_`;
+    const maxNum = existingProjects
+        .filter(p => p.job_number?.startsWith(prefix))
+        .reduce((max, p) => {
+            const parts = p.job_number.split('_');
+            const n = parts.length === 2 ? parseInt(parts[1]) || 0 : 0;
+            return n > max ? n : max;
+        }, 0);
+    return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
 }
 
 export default function CreateProjectModal({ isOpen, clients, employees, projects, joinedProjectIds, currentUserId, onClose, onCreate, onJoin }: CreateProjectModalProps) {
     const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing');
-
-    // Create Mode State
-    const [data, setData] = useState({ title: '', jobNr: '', clientId: '', pmId: '' });
-
-    // Join Mode State
+    const [data, setData] = useState({ title: '', jobNr: '', clientId: '', pmId: '', deadline: '' });
+    const [editingJobNr, setEditingJobNr] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState('');
     const [clientFilter, setClientFilter] = useState('');
 
+    useEffect(() => {
+        if (isOpen && activeTab === 'new') {
+            setData(prev => ({ ...prev, jobNr: generateJobNumber(projects) }));
+        }
+    }, [isOpen, activeTab, projects]);
+
     if (!isOpen) return null;
 
-    // Filter projects for Join List
-    // - Exclude projects where user is already PM (already matches) ?? 
-    // - Actually, we should check against "project_members" which is not passed here directly, 
-    //   BUT the `projects` list might be the GLOBAL list? 
-    //   Wait, AppContext passes `projects`. Is it ALL projects or just user projects?
-    //   In ClientAppShell, `projects` state contains ALL projects (fetch `select *`).
-    //   So we can filter.
-    //   However, we need to know if I am ALREADY a member.
-    //   For now, show all projects matching filter. The UserDashboard logic hides them if not joined.
-    //   Better: Hide projects I am already a member of? 
-    //   I don't have the "members" list here easily unless I pass it or derive it.
-    //   Let's just show all projects for now, maybe mark joined ones?
-
-    //   The UserDashboard logic: `isPM || hasTasks`. 
-    //   We want to ADD to that list.
-
     const filteredProjects = projects.filter(p => {
-        // We now want to SHOW joined projects to display the checkmark
-        // if (joinedProjectIds.includes(p.id)) return false; 
-        // if (p.project_manager_id === currentUserId) return false;
-
         const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase()) ||
             p.job_number.toLowerCase().includes(search.toLowerCase());
         const matchesClient = clientFilter ? p.client_id === clientFilter : true;
         return matchesSearch && matchesClient;
     });
 
-    const isJoined = (project: Project) => {
-        return joinedProjectIds.includes(project.id) || project.project_manager_id === currentUserId;
+    const isJoined = (project: Project) =>
+        joinedProjectIds.includes(project.id) || project.project_manager_id === currentUserId;
+
+    const handleCreate = async () => {
+        if (!data.title.trim() || !data.clientId) return;
+        setSaving(true);
+        await onCreate(data);
+        setSaving(false);
+        setData({ title: '', jobNr: '', clientId: '', pmId: '', deadline: '' });
     };
 
     return (
@@ -69,42 +73,44 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                             Bestehendes Projekt
                         </button>
                         <button
-                            onClick={() => setActiveTab('new')}
+                            onClick={() => {
+                                setActiveTab('new');
+                                setData(prev => ({ ...prev, jobNr: generateJobNumber(projects) }));
+                            }}
                             className={`pb-2 text-sm font-bold transition relative ${activeTab === 'new' ? 'text-text-primary border-b-2 border-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                         >
-                            Neues Projekt erstellen
+                            Neues Projekt
                         </button>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-hover rounded-full transition"><X size={24} className="text-text-muted hover:text-text-primary" /></button>
+                    <button onClick={onClose} className="p-1 hover:bg-hover rounded-full transition">
+                        <X size={24} className="text-text-muted hover:text-text-primary" />
+                    </button>
                 </div>
 
                 <div className="p-6 flex-1 overflow-y-auto">
                     {activeTab === 'existing' ? (
                         <div className="space-y-4">
-                            <div className="flex gap-4">
+                            <div className="flex gap-3">
                                 <div className="flex-1 relative">
-                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                                     <input
                                         type="text"
-                                        placeholder="Suchen nach Titel oder Job Nr..."
-                                        className="w-full pl-10 pr-4 py-2 bg-subtle focus:bg-surface border border-transparent focus:border-default text-text-primary rounded-xl text-sm transition focus:outline-none"
+                                        placeholder="Titel oder Job-Nr..."
+                                        className="w-full pl-9 pr-4 py-2 bg-subtle border border-transparent focus:border-default text-text-primary rounded-xl text-sm focus:outline-none"
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         autoFocus
                                     />
                                 </div>
-                                <div className="w-48">
-                                    <select
-                                        className="w-full px-3 py-2 bg-subtle focus:bg-surface border border-transparent focus:border-default text-text-primary rounded-xl text-sm transition focus:outline-none"
-                                        value={clientFilter}
-                                        onChange={e => setClientFilter(e.target.value)}
-                                    >
-                                        <option value="">Alle Kunden</option>
-                                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
+                                <select
+                                    className="w-44 px-3 py-2 bg-subtle border border-transparent focus:border-default text-text-primary rounded-xl text-sm focus:outline-none"
+                                    value={clientFilter}
+                                    onChange={e => setClientFilter(e.target.value)}
+                                >
+                                    <option value="">Alle Kunden</option>
+                                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
                             </div>
-                            {/* List */}
                             <div className="border border-default rounded-xl overflow-hidden max-h-[400px] overflow-y-auto">
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-subtle text-xs uppercase text-text-secondary font-semibold sticky top-0">
@@ -118,10 +124,10 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                         {filteredProjects.map(p => {
                                             const joined = isJoined(p);
                                             return (
-                                                <tr key={p.id} className="hover:bg-hover transition group">
+                                                <tr key={p.id} className="hover:bg-hover transition">
                                                     <td className="px-4 py-3">
                                                         <div className="font-bold text-text-primary">{p.title}</div>
-                                                        <div className="text-xs text-text-secondary">{p.job_number} • {p.clients?.name}</div>
+                                                        <div className="text-xs text-text-secondary">{p.job_number} · {p.clients?.name}</div>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <span className="px-2 py-0.5 bg-subtle border border-default rounded text-xs text-text-secondary">{p.status}</span>
@@ -130,11 +136,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                                         <button
                                                             onClick={() => !joined && onJoin(p.id)}
                                                             disabled={joined}
-                                                            title={joined ? "Bereits hinzugefügt" : "Hinzufügen"}
-                                                            className={`p-1.5 rounded-xl transition inline-flex items-center justify-center ${joined
-                                                                ? 'bg-green-500/10 text-green-600 dark:text-green-400 cursor-default'
-                                                                : 'bg-accent text-accent-text hover:brightness-110'
-                                                                }`}
+                                                            className={`p-1.5 rounded-xl transition inline-flex items-center justify-center ${joined ? 'bg-green-500/10 text-green-600 cursor-default' : 'bg-accent text-accent-text hover:brightness-110'}`}
                                                         >
                                                             {joined ? <Check size={16} /> : <Plus size={16} />}
                                                         </button>
@@ -143,9 +145,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                             );
                                         })}
                                         {filteredProjects.length === 0 && (
-                                            <tr>
-                                                <td colSpan={3} className="px-4 py-8 text-center text-text-muted">Keine Projekte gefunden.</td>
-                                            </tr>
+                                            <tr><td colSpan={3} className="px-4 py-8 text-center text-text-muted text-sm">Keine Projekte gefunden.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -153,38 +153,99 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                         </div>
                     ) : (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            {/* Advanced Option */}
-                            <div className="bg-accent-subtle/50 p-4 rounded-xl border border-accent/20 flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 className="text-sm font-bold text-text-primary">Detailliertes Projekt anlegen</h3>
-                                    <p className="text-xs text-text-secondary mt-1">Mit Kalkulation, Positionen und Vertragstexten.</p>
-                                </div>
-                                <button
-                                    onClick={() => window.location.href = '/projekte/erstellen'}
-                                    className="px-4 py-2 bg-accent hover:brightness-110 text-accent-text text-sm font-medium rounded-xl transition shadow-sm"
+                            <div>
+                                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Kunde *</label>
+                                <select
+                                    className="w-full rounded-xl border border-default text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    value={data.clientId}
+                                    onChange={e => setData({ ...data, clientId: e.target.value })}
+                                    autoFocus
                                 >
-                                    Zum Wizard
+                                    <option value="">Bitte wählen...</option>
+                                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Projekt Titel *</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-xl border border-default text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    value={data.title}
+                                    onChange={e => setData({ ...data, title: e.target.value })}
+                                    placeholder="z.B. Website Relaunch 2025"
+                                    onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Projektmanager</label>
+                                    <select
+                                        className="w-full rounded-xl border border-default text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                        value={data.pmId}
+                                        onChange={e => setData({ ...data, pmId: e.target.value })}
+                                    >
+                                        <option value="">Kein PM</option>
+                                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Deadline</label>
+                                    <input
+                                        type="date"
+                                        className="w-full rounded-xl border border-default text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                        value={data.deadline}
+                                        onChange={e => setData({ ...data, deadline: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Projektnummer</label>
+                                <div className="flex items-center gap-2">
+                                    {editingJobNr ? (
+                                        <input
+                                            type="text"
+                                            className="flex-1 rounded-xl border border-accent text-sm py-2.5 px-3 bg-subtle text-text-primary focus:ring-1 focus:ring-accent outline-none font-mono"
+                                            value={data.jobNr}
+                                            onChange={e => setData({ ...data, jobNr: e.target.value })}
+                                            autoFocus
+                                            onBlur={() => setEditingJobNr(false)}
+                                            onKeyDown={e => e.key === 'Enter' && setEditingJobNr(false)}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-subtle border border-default flex-1">
+                                            <span className="font-mono text-sm text-text-primary font-bold flex-1">{data.jobNr}</span>
+                                            <button
+                                                onClick={() => setEditingJobNr(true)}
+                                                className="p-1 text-text-placeholder hover:text-accent rounded transition"
+                                                title="Nummer anpassen"
+                                            >
+                                                <Edit3 size={13} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-[11px] text-text-placeholder mt-1">Automatisch generiert · zum Ändern auf ✎ klicken</p>
+                            </div>
+
+                            <div className="pt-2 flex gap-3">
+                                <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-default text-sm text-text-secondary hover:bg-hover transition">
+                                    Abbrechen
+                                </button>
+                                <button
+                                    onClick={handleCreate}
+                                    disabled={saving || !data.title.trim() || !data.clientId}
+                                    className="flex-1 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-bold hover:brightness-110 transition disabled:opacity-50"
+                                >
+                                    {saving ? 'Erstelle...' : 'Projekt anlegen'}
                                 </button>
                             </div>
-
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                    <div className="w-full border-t border-default" />
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="bg-surface px-2 text-xs text-text-muted uppercase tracking-wider">Oder Schnellstart</span>
-                                </div>
-                            </div>
-
-                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Kunde</label><select className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.clientId} onChange={(e) => setData({ ...data, clientId: e.target.value })}><option value="">Bitte wählen...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                            <div className="grid grid-cols-3 gap-4"><div className="col-span-1"><label className="text-xs font-semibold text-text-secondary uppercase">Job Nr.</label><input type="text" className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.jobNr} onChange={(e) => setData({ ...data, jobNr: e.target.value })} /></div><div className="col-span-2"><label className="text-xs font-semibold text-text-secondary uppercase">Projekt Titel</label><input type="text" className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })} /></div></div>
-                            <div><label className="text-xs font-semibold text-text-secondary uppercase">Projektmanager</label><select className="w-full rounded-lg border border-default text-sm py-2 px-3 bg-subtle text-text-primary focus:border-accent outline-none" value={data.pmId} onChange={(e) => setData({ ...data, pmId: e.target.value })}><option value="">Kein PM zugewiesen</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                            <div className="pt-4 flex gap-3"><button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-default text-sm text-text-secondary hover:bg-hover">Abbrechen</button><button onClick={() => onCreate(data)} className="flex-1 py-2.5 rounded-lg bg-accent text-accent-text text-sm hover:brightness-110">Projekt erstellen</button></div>
                         </div>
                     )}
                 </div>
             </div>
         </div>
-
     );
 }

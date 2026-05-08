@@ -109,6 +109,14 @@ export interface ProjectLog {
     employees?: Employee; // [NEW] Joined author
 }
 
+export interface ProjectLink {
+    id: string;
+    name: string;
+    url: string;
+    type: 'pdf' | 'image' | 'video' | 'google_drive' | 'google_doc' | 'server' | 'link' | 'other';
+    created_at: string;
+}
+
 export interface Project {
     id: string;
     created_at: string;
@@ -121,6 +129,7 @@ export interface Project {
     google_doc_url?: string | null;
     offer_pdf_url?: string | null;
     organization_id: string;
+    project_links?: ProjectLink[];
     contract_intro?: string; // NEW
     contract_outro?: string; // NEW
     invoice_contact_id?: string | null; // NEW // NEW

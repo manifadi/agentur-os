@@ -33,7 +33,8 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
     const [isSaving, setIsSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
-    const [pendingCompletions, setPendingCompletions] = useState<Record<string, NodeJS.Timeout>>({});
+    const pendingCompletionsRef = useRef<Record<string, { timeout: NodeJS.Timeout; flush: () => Promise<void> }>>({});
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
     const [subtaskToDelete, setSubtaskToDelete] = useState<string | null>(null);
 
     const sensors = useSensors(
@@ -43,9 +44,23 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
 
     useEffect(() => {
         return () => {
-            Object.values(pendingCompletions).forEach(clearTimeout);
+            Object.values(pendingCompletionsRef.current).forEach(({ timeout, flush }) => {
+                clearTimeout(timeout);
+                flush();
+            });
+            pendingCompletionsRef.current = {};
         };
-    }, [pendingCompletions]);
+    }, []);
+
+    const handleClose = () => {
+        Object.values(pendingCompletionsRef.current).forEach(({ timeout, flush }) => {
+            clearTimeout(timeout);
+            flush();
+        });
+        pendingCompletionsRef.current = {};
+        setPendingIds(new Set());
+        onClose();
+    };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -204,26 +219,23 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
     const handleToggleSubtaskWithDelay = async (id: string, currentStatus: boolean, e: React.MouseEvent) => {
         e.stopPropagation();
         if (!currentStatus) {
-            if (pendingCompletions[id]) return;
+            if (pendingCompletionsRef.current[id]) return;
             setSubtasks(prev => prev.map(t => t.id === id ? { ...t, is_done: true } : t));
-            const timeout = setTimeout(async () => {
+            setPendingIds(prev => { const n = new Set(prev); n.add(id); return n; });
+
+            const flush = async () => {
                 await supabase.from('todos').update({ is_done: true }).eq('id', id);
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[id];
-                    return next;
-                });
-            }, 3000);
-            setPendingCompletions(prev => ({ ...prev, [id]: timeout }));
+                delete pendingCompletionsRef.current[id];
+                setPendingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+            };
+            const timeout = setTimeout(flush, 3000);
+            pendingCompletionsRef.current[id] = { timeout, flush };
         } else {
-            if (pendingCompletions[id]) {
-                clearTimeout(pendingCompletions[id]);
+            if (pendingCompletionsRef.current[id]) {
+                clearTimeout(pendingCompletionsRef.current[id].timeout);
+                delete pendingCompletionsRef.current[id];
                 setSubtasks(prev => prev.map(t => t.id === id ? { ...t, is_done: false } : t));
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[id];
-                    return next;
-                });
+                setPendingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
             } else {
                 setSubtasks(prev => prev.map(t => t.id === id ? { ...t, is_done: false } : t));
                 await supabase.from('todos').update({ is_done: false }).eq('id', id);
@@ -232,27 +244,24 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
     };
 
     const handleToggleMainTaskWithDelay = async () => {
-        const currentIsDone = task.is_done || !!pendingCompletions[task.id];
+        const isPending = !!pendingCompletionsRef.current[task.id];
+        const currentIsDone = task.is_done || isPending;
         if (!currentIsDone) {
-            if (pendingCompletions[task.id]) return;
-            // Optimistically show done in UI
-            const timeout = setTimeout(async () => {
+            if (isPending) return;
+            setPendingIds(prev => { const n = new Set(prev); n.add(task.id); return n; });
+
+            const flush = async () => {
                 await onUpdate(task.id, { is_done: true });
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[task.id];
-                    return next;
-                });
-            }, 3000);
-            setPendingCompletions(prev => ({ ...prev, [task.id]: timeout }));
+                delete pendingCompletionsRef.current[task.id];
+                setPendingIds(prev => { const n = new Set(prev); n.delete(task.id); return n; });
+            };
+            const timeout = setTimeout(flush, 3000);
+            pendingCompletionsRef.current[task.id] = { timeout, flush };
         } else {
-            if (pendingCompletions[task.id]) {
-                clearTimeout(pendingCompletions[task.id]);
-                setPendingCompletions(prev => {
-                    const next = { ...prev };
-                    delete next[task.id];
-                    return next;
-                });
+            if (isPending) {
+                clearTimeout(pendingCompletionsRef.current[task.id].timeout);
+                delete pendingCompletionsRef.current[task.id];
+                setPendingIds(prev => { const n = new Set(prev); n.delete(task.id); return n; });
             } else {
                 await onUpdate(task.id, { is_done: false });
             }
@@ -264,7 +273,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/5 z-[55] animate-in fade-in duration-300"
-                onClick={onClose}
+                onClick={handleClose}
             />
 
             <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-surface shadow-2xl z-[60] flex flex-col animate-in slide-in-from-right duration-300 border-l border-default">
@@ -272,18 +281,18 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                 <div className="flex items-center justify-between p-4 border-b border-default">
                     <button
                         onClick={handleToggleMainTaskWithDelay}
-                        className={`group/check flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition duration-200 ${task.is_done || pendingCompletions[task.id] ? 'bg-accent border-accent text-white' : 'bg-surface border-default text-text-secondary hover:border-accent'}`}
+                        className={`group/check flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition duration-200 ${task.is_done || pendingIds.has(task.id) ? 'bg-accent border-accent text-white' : 'bg-surface border-default text-text-secondary hover:border-accent'}`}
                     >
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${task.is_done || pendingCompletions[task.id] ? 'bg-surface/20 border-white/40' : 'border-default group-hover/check:border-accent'}`}>
-                            <Check size={12} className={`transition-opacity ${task.is_done || pendingCompletions[task.id] ? 'opacity-100' : 'opacity-0'}`} />
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${task.is_done || pendingIds.has(task.id) ? 'bg-surface/20 border-white/40' : 'border-default group-hover/check:border-accent'}`}>
+                            <Check size={12} className={`transition-opacity ${task.is_done || pendingIds.has(task.id) ? 'opacity-100' : 'opacity-0'}`} />
                         </div>
-                        {task.is_done || pendingCompletions[task.id] ? 'Erledigt' : 'Als erledigt markieren'}
+                        {task.is_done || pendingIds.has(task.id) ? 'Erledigt' : 'Als erledigt markieren'}
                     </button>
                     <div className="flex items-center gap-2">
                         <button onClick={() => onDelete(task.id)} className="p-2 text-text-placeholder hover:text-red-500 transition-colors">
                             <Trash2 size={20} />
                         </button>
-                        <button onClick={onClose} className="p-2 text-text-placeholder hover:text-text-primary transition-colors">
+                        <button onClick={handleClose} className="p-2 text-text-placeholder hover:text-text-primary transition-colors">
                             <X size={24} />
                         </button>
                     </div>
@@ -459,7 +468,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                             key={subtask.id}
                                             subtask={subtask}
                                             editingSubtaskId={editingSubtaskId}
-                                            pendingCompletions={pendingCompletions}
+                                            pendingIds={pendingIds}
                                             onTaskClick={onTaskClick}
                                             handleToggleSubtaskWithDelay={handleToggleSubtaskWithDelay}
                                             setSubtasks={setSubtasks}
@@ -502,7 +511,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
 function SortableSubtask({
     subtask,
     editingSubtaskId,
-    pendingCompletions,
+    pendingIds,
     onTaskClick,
     handleToggleSubtaskWithDelay,
     setSubtasks,
@@ -512,7 +521,7 @@ function SortableSubtask({
 }: {
     subtask: any;
     editingSubtaskId: string | null;
-    pendingCompletions: Record<string, NodeJS.Timeout>;
+    pendingIds: Set<string>;
     onTaskClick?: (task: Todo) => void;
     handleToggleSubtaskWithDelay: (id: string, currentStatus: boolean, e: React.MouseEvent) => void;
     setSubtasks: React.Dispatch<React.SetStateAction<Todo[]>>;
@@ -547,17 +556,17 @@ function SortableSubtask({
             </div>
 
             <button
-                onClick={(e) => handleToggleSubtaskWithDelay(subtask.id, subtask.is_done || !!pendingCompletions[subtask.id], e)}
-                className={`w-5 h-5 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check_sub ${subtask.is_done || pendingCompletions[subtask.id] ? 'bg-accent border-accent' : 'border-default hover:border-accent'}`}
+                onClick={(e) => handleToggleSubtaskWithDelay(subtask.id, subtask.is_done || pendingIds.has(subtask.id), e)}
+                className={`w-5 h-5 rounded-full border-2 transform active:scale-95 transition-all duration-200 flex items-center justify-center flex-shrink-0 group/check_sub ${subtask.is_done || pendingIds.has(subtask.id) ? 'bg-accent border-accent' : 'border-default hover:border-accent'}`}
             >
-                <Check size={10} className={`text-white transition-opacity ${subtask.is_done || pendingCompletions[subtask.id] ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
+                <Check size={10} className={`text-white transition-opacity ${subtask.is_done || pendingIds.has(subtask.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
             </button>
 
             <div className="flex-1 min-w-0">
                 {editingSubtaskId === subtask.id ? (
                     <input
                         type="text"
-                        className={`w-full bg-surface border border-accent rounded px-1 text-sm focus:ring-1 focus:ring-accent p-0 ${subtask.is_done ? 'text-text-placeholder line-through' : 'text-text-secondary'}`}
+                        className={`w-full bg-surface border border-accent rounded px-1 text-sm focus:ring-1 focus:ring-accent p-0 ${subtask.is_done || pendingIds.has(subtask.id) ? 'text-text-placeholder line-through' : 'text-text-secondary'}`}
                         value={subtask.title}
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
@@ -577,7 +586,7 @@ function SortableSubtask({
                         }}
                     />
                 ) : (
-                    <span className={`text-sm truncate block ${subtask.is_done ? 'text-text-placeholder line-through' : 'text-text-secondary'}`}>
+                    <span className={`text-sm truncate block ${subtask.is_done || pendingIds.has(subtask.id) ? 'text-text-placeholder line-through' : 'text-text-secondary'}`}>
                         {subtask.title}
                     </span>
                 )}

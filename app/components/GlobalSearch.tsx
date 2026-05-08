@@ -288,7 +288,7 @@ export default function GlobalSearch() {
                             <div className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Vorschläge</div>
                             <div className="grid grid-cols-1 gap-1">
                                 <button
-                                    onClick={() => handleSelect('/projekte/erstellen')}
+                                    onClick={() => handleSelect('/uebersicht?action=create')}
                                     className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                 >
                                     <div className="w-10 h-10 rounded-xl bg-text-primary text-surface flex items-center justify-center shadow-default group-hover:scale-110 transition-transform">

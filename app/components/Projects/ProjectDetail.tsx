@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder } from 'lucide-react';
-import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate } from '../../types';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder, BarChart3, ExternalLink } from 'lucide-react';
+import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate, ProjectLink } from '../../types';
 import { getStatusStyle, getStatusDot, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import { toast } from 'sonner';
 import UserAvatar from '../UI/UserAvatar';
@@ -15,6 +15,9 @@ import ContractPDF from '../Contracts/ContractPDF';
 import ProjectContractTab from './ProjectContractTab';
 import ProjectInvoiceTab from './ProjectInvoiceTab';
 import ProjectDocumentsTab from './ProjectDocumentsTab';
+import ProjectLeistungenTab from './ProjectLeistungenTab';
+import ProjectReportingTab from './ProjectReportingTab';
+import HourlyRatesSidebar from './HourlyRatesSidebar';
 import CalculationImportModal from '../Modals/CalculationImportModal';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
@@ -62,8 +65,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
     // Tab navigation
-    const [activeTab, setActiveTab] = useState<'uebersicht' | 'aufgaben' | 'kalkulation' | 'dokumente'>('uebersicht');
-    const [kalkulationView, setKalkulationView] = useState<'angebot' | 'rechnung'>('angebot');
+    const [activeTab, setActiveTab] = useState<'uebersicht' | 'aufgaben' | 'kalkulation' | 'reporting' | 'dokumente'>('uebersicht');
+    const [kalkulationView, setKalkulationView] = useState<'leistungen' | 'angebot' | 'rechnung'>('leistungen');
+    const [showRatesSidebar, setShowRatesSidebar] = useState(false);
     const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
     const [contractIntro, setContractIntro] = useState('');
@@ -93,14 +97,15 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     // Sync Tab with URL
     useEffect(() => {
         const tab = searchParams.get('tab');
-        const map: Record<string, 'uebersicht' | 'aufgaben' | 'kalkulation' | 'dokumente'> = {
-            uebersicht: 'uebersicht', aufgaben: 'aufgaben', kalkulation: 'kalkulation', dokumente: 'dokumente',
+        const map: Record<string, 'uebersicht' | 'aufgaben' | 'kalkulation' | 'reporting' | 'dokumente'> = {
+            uebersicht: 'uebersicht', aufgaben: 'aufgaben', kalkulation: 'kalkulation',
+            reporting: 'reporting', dokumente: 'dokumente',
             details: 'uebersicht', contract: 'kalkulation', invoice: 'kalkulation', documents: 'dokumente',
         };
         if (tab && map[tab]) setActiveTab(map[tab]);
     }, [searchParams]);
 
-    const handleTabChange = (tab: 'uebersicht' | 'aufgaben' | 'kalkulation' | 'dokumente') => {
+    const handleTabChange = (tab: 'uebersicht' | 'aufgaben' | 'kalkulation' | 'reporting' | 'dokumente') => {
         setActiveTab(tab);
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
@@ -462,9 +467,8 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 }
             }
 
-            // 4. Redirect to new project in edit mode (Step 1)
             toast.success(`„${project.title}" wurde dupliziert.`);
-            router.push(`/projekte/erstellen?edit=${newProject.id}&step=1`);
+            router.push(`/uebersicht?project_id=${newProject.id}`);
             setShowDuplicateModal(false);
 
         } catch (err: any) {
@@ -596,7 +600,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         {showActionsMenu && (
                             <div className="absolute top-full right-0 mt-2 w-60 bg-surface rounded-2xl shadow-xl border border-default py-2 z-[100] animate-in fade-in slide-in-from-top-1">
                                 <button
-                                    onClick={() => { router.push(`/projekte/erstellen?edit=${project.id}&step=1`); setShowActionsMenu(false); }}
+                                    onClick={() => { setIsEditing(true); setShowActionsMenu(false); }}
                                     className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
                                     <div className="w-7 h-7 rounded-lg bg-accent-subtle text-accent flex items-center justify-center shrink-0">
@@ -605,7 +609,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                     Grunddaten bearbeiten
                                 </button>
                                 <button
-                                    onClick={() => { router.push(`/projekte/erstellen?edit=${project.id}&step=2`); setShowActionsMenu(false); }}
+                                    onClick={() => { handleTabChange('kalkulation'); setKalkulationView('leistungen'); setShowActionsMenu(false); }}
                                     className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
                                     <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
@@ -739,6 +743,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     { id: 'uebersicht', label: 'Übersicht', icon: Layout },
                     { id: 'aufgaben', label: 'Aufgaben', icon: CheckSquare },
                     { id: 'kalkulation', label: 'Kalkulation', icon: Calculator },
+                    { id: 'reporting', label: 'Reporting', icon: BarChart3 },
                     { id: 'dokumente', label: 'Dokumente', icon: Folder },
                 ] as const).map(({ id, label, icon: Icon }) => (
                     <button
@@ -757,76 +762,93 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             </div>
 
             {/* ── Übersicht Tab ────────────────────────────────────────────────── */}
-            {activeTab === 'uebersicht' && (
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    {/* LEFT: Resources card (2/5) */}
-                    <div className="col-span-2 flex flex-col gap-4">
-                        <div className="bg-surface rounded-2xl border border-default shadow-sm p-5">
-                            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 flex items-center gap-1.5">
-                                <FileText size={13} /> Ressourcen
-                            </h2>
-                            <div className="space-y-2">
-                                {project.offer_pdf_url ? (
-                                    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-subtle border border-default group hover:border-accent/30 transition-colors">
-                                        <a href={project.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs font-semibold text-text-primary hover:text-accent transition truncate flex-1">
-                                            <div className="w-6 h-6 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 text-[9px] font-black">PDF</div>
-                                            Angebot.pdf
-                                        </a>
-                                        <button onClick={() => pdfInputRef.current?.click()} className="text-text-muted hover:text-accent opacity-0 group-hover:opacity-100 transition p-1 rounded" title="Ersetzen">
-                                            <Edit3 size={12} />
-                                        </button>
-                                    </div>
-                                ) : (
+            {activeTab === 'uebersicht' && (() => {
+                const projectLinks: ProjectLink[] = (project as any).project_links || [];
+                const quickLinks = projectLinks.slice(0, 4);
+                return (
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        {/* LEFT: Quick resources (2/5) */}
+                        <div className="col-span-2 flex flex-col gap-4">
+                            <div className="bg-surface rounded-2xl border border-default shadow-sm p-5">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                                        <FileText size={13} /> Ressourcen
+                                    </h2>
                                     <button
-                                        onClick={() => pdfInputRef.current?.click()}
-                                        className="w-full border-2 border-dashed border-default hover:border-accent hover:bg-accent/5 rounded-xl p-4 flex items-center justify-center gap-2 transition-all group"
+                                        onClick={() => handleTabChange('dokumente')}
+                                        className="text-[10px] text-text-placeholder hover:text-accent transition font-medium"
                                     >
-                                        {uploadingPdf ? (
-                                            <span className="text-xs text-text-muted animate-pulse">Lädt hoch...</span>
-                                        ) : (
-                                            <>
-                                                <Upload size={14} className="text-text-placeholder group-hover:text-accent transition-colors" />
-                                                <span className="text-xs font-medium text-text-muted group-hover:text-accent transition-colors">PDF Angebot hochladen</span>
-                                            </>
-                                        )}
+                                        Alle verwalten →
                                     </button>
-                                )}
-                                <input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} />
-
-                                {project.google_doc_url ? (
-                                    <a href={project.google_doc_url} target="_blank" rel="noreferrer"
-                                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-subtle border border-default hover:border-accent/30 hover:text-accent text-xs font-semibold text-text-primary transition truncate">
-                                        <div className="w-6 h-6 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
-                                            <FileText size={11} />
+                                </div>
+                                <div className="space-y-2">
+                                    {project.offer_pdf_url ? (
+                                        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-subtle border border-default group hover:border-accent/30 transition-colors">
+                                            <a href={project.offer_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs font-semibold text-text-primary hover:text-accent transition truncate flex-1">
+                                                <div className="w-6 h-6 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 text-[9px] font-black">PDF</div>
+                                                Angebot.pdf
+                                            </a>
+                                            <button onClick={() => pdfInputRef.current?.click()} className="text-text-muted hover:text-accent opacity-0 group-hover:opacity-100 transition p-1 rounded" title="Ersetzen">
+                                                <Edit3 size={12} />
+                                            </button>
                                         </div>
-                                        Google Doc Concept
-                                    </a>
-                                ) : (
-                                    <button
-                                        onClick={() => router.push(`/projekte/erstellen?edit=${project.id}&step=1`)}
-                                        className="w-full border-2 border-dashed border-default hover:border-blue-400 hover:bg-blue-400/5 rounded-xl p-3 flex items-center justify-center gap-2 transition-all group"
-                                    >
-                                        <Plus size={13} className="text-text-placeholder group-hover:text-blue-500 transition-colors" />
-                                        <span className="text-xs font-medium text-text-muted group-hover:text-blue-500 transition-colors">Google Doc verknüpfen</span>
-                                    </button>
-                                )}
+                                    ) : (
+                                        <button
+                                            onClick={() => pdfInputRef.current?.click()}
+                                            className="w-full border-2 border-dashed border-default hover:border-accent hover:bg-accent/5 rounded-xl p-3 flex items-center justify-center gap-2 transition-all group"
+                                        >
+                                            {uploadingPdf ? (
+                                                <span className="text-xs text-text-muted animate-pulse">Lädt hoch...</span>
+                                            ) : (
+                                                <>
+                                                    <Upload size={14} className="text-text-placeholder group-hover:text-accent transition-colors" />
+                                                    <span className="text-xs font-medium text-text-muted group-hover:text-accent transition-colors">PDF Angebot hochladen</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                    <input type="file" accept="application/pdf" ref={pdfInputRef} className="hidden" onChange={handlePdfUpload} />
+
+                                    {quickLinks.map(link => (
+                                        <a
+                                            key={link.id}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-subtle border border-default hover:border-accent/30 hover:text-accent text-xs font-semibold text-text-primary transition"
+                                        >
+                                            <ExternalLink size={12} className="text-text-placeholder shrink-0" />
+                                            <span className="truncate flex-1">{link.name}</span>
+                                        </a>
+                                    ))}
+
+                                    {quickLinks.length === 0 && !project.offer_pdf_url && (
+                                        <button
+                                            onClick={() => handleTabChange('dokumente')}
+                                            className="w-full border-2 border-dashed border-default hover:border-accent hover:bg-accent/5 rounded-xl p-3 flex items-center justify-center gap-2 transition-all group"
+                                        >
+                                            <Plus size={13} className="text-text-placeholder group-hover:text-accent transition-colors" />
+                                            <span className="text-xs font-medium text-text-muted group-hover:text-accent transition-colors">Dokumente & Links hinzufügen</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* RIGHT: Logbook (3/5) */}
-                    <div className="col-span-3">
-                        <Logbook
-                            logs={logs}
-                            onAdd={handleAddLog}
-                            onUpdate={handleUpdateLog}
-                            onDelete={handleDeleteLog}
-                            onUploadImage={(f) => uploadFileToSupabase(f, 'documents')}
-                            currentEmployeeId={currentEmployee?.id}
-                        />
+                        {/* RIGHT: Logbook (3/5) */}
+                        <div className="col-span-3">
+                            <Logbook
+                                logs={logs}
+                                onAdd={handleAddLog}
+                                onUpdate={handleUpdateLog}
+                                onDelete={handleDeleteLog}
+                                onUploadImage={(f) => uploadFileToSupabase(f, 'documents')}
+                                currentEmployeeId={currentEmployee?.id}
+                            />
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* ── Aufgaben Tab ─────────────────────────────────────────────────── */}
             {activeTab === 'aufgaben' && (
@@ -870,6 +892,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     {/* Sub-navigation pills */}
                     <div className="flex gap-1.5 mb-6 p-1 bg-subtle rounded-xl w-fit border border-default">
                         {([
+                            { id: 'leistungen', label: 'Leistungen' },
                             { id: 'angebot', label: 'Angebot' },
                             { id: 'rechnung', label: 'Rechnung' },
                         ] as const).map(({ id, label }) => (
@@ -887,6 +910,14 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         ))}
                     </div>
 
+                    {kalkulationView === 'leistungen' && (
+                        <ProjectLeistungenTab
+                            projectId={project.id}
+                            organizationId={project.organization_id}
+                            initialSections={sections}
+                            onSaved={fetchDetails}
+                        />
+                    )}
                     {kalkulationView === 'angebot' && (
                         <ProjectContractTab
                             project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
@@ -904,6 +935,16 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         />
                     )}
                 </div>
+            )}
+
+            {/* ── Reporting Tab ────────────────────────────────────────────────── */}
+            {activeTab === 'reporting' && (
+                <ProjectReportingTab
+                    projectId={project.id}
+                    timeEntries={timeEntries}
+                    sections={sections}
+                    onOpenRatesSidebar={() => setShowRatesSidebar(true)}
+                />
             )}
 
             {/* ── Dokumente Tab ────────────────────────────────────────────────── */}
@@ -957,7 +998,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         const { data } = await supabase.from('todos').update(updates).eq('id', id).select(`*, employees(id, initials, name, avatar_url)`);
                         if (data) {
                             setTodos(prev => prev.map(t => t.id === id ? { ...t, ...data[0] } : t));
-                            setSelectedTask(data[0] as any);
+                            setSelectedTask(prev => prev ? data[0] as any : null);
                         }
                     }}
                     onDelete={async (id) => {
@@ -995,6 +1036,11 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 onConfirm={handleDuplicateProject}
                 clients={clients}
                 currentClientId={project.client_id}
+            />
+            <HourlyRatesSidebar
+                isOpen={showRatesSidebar}
+                onClose={() => setShowRatesSidebar(false)}
+                organizationId={project.organization_id}
             />
         </>
     );
