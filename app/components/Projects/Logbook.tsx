@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Clock, Plus, ImageIcon, X, Pencil, Trash2, Lock, Globe } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Clock, Plus, ImageIcon, X, Pencil, Trash2, Lock, Globe, List } from 'lucide-react';
 import { ProjectLog } from '../../types';
 import ConfirmModal from '../Modals/ConfirmModal';
 import UserAvatar from '../UI/UserAvatar';
@@ -14,6 +14,25 @@ interface LogbookProps {
 }
 
 export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage, currentEmployeeId }: LogbookProps) {
+    // View mode
+    const [viewMode, setViewMode] = useState<'date' | 'all'>('date');
+
+    // Sorted unique dates (newest first)
+    const sortedDates = useMemo(() => {
+        const dates = Array.from(new Set(logs.map(l => l.entry_date.split('T')[0])));
+        return dates.sort((a, b) => b.localeCompare(a));
+    }, [logs]);
+
+    const latestDate = sortedDates[0] ?? null;
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const effectiveDate = selectedDate ?? latestDate;
+
+    const visibleLogs = useMemo(() => {
+        if (viewMode === 'all') return logs;
+        if (!effectiveDate) return logs;
+        return logs.filter(l => l.entry_date.split('T')[0] === effectiveDate);
+    }, [logs, viewMode, effectiveDate]);
+
     // Add State
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
@@ -120,7 +139,41 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
 
     return (
         <div className="flex flex-col h-[500px] lg:h-full bg-surface rounded-2xl p-4 md:p-6 shadow-sm border border-default overflow-hidden order-2 lg:order-1">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Clock size={20} className="text-text-muted" /> Logbuch</h2>
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold flex items-center gap-2"><Clock size={20} className="text-text-muted" /> Logbuch</h2>
+                {logs.length > 0 && (
+                    <button
+                        onClick={() => setViewMode(v => v === 'date' ? 'all' : 'date')}
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-xl border transition ${viewMode === 'all' ? 'bg-subtle border-accent/30 text-accent' : 'border-default text-text-muted hover:text-text-primary'}`}
+                    >
+                        <List size={12} /> Alle
+                    </button>
+                )}
+            </div>
+
+            {/* Date chips */}
+            {viewMode === 'date' && sortedDates.length > 0 && (
+                <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none">
+                    {sortedDates.map(date => {
+                        const label = new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+                        const isSelected = date === effectiveDate;
+                        return (
+                            <button
+                                key={date}
+                                onClick={() => setSelectedDate(date)}
+                                className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-xl border transition font-medium ${
+                                    isSelected
+                                        ? 'bg-text-primary text-surface border-text-primary'
+                                        : 'border-default text-text-secondary hover:border-accent/40 hover:text-text-primary'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
 
             {isAdding && (
                 <div className="mb-4 bg-subtle p-3 rounded-xl border border-default">
@@ -182,7 +235,7 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                     </div>
                 )}
 
-                {logs.map((log) => {
+                {visibleLogs.map((log) => {
                     const isOwner = log.employee_id === currentEmployeeId || (!log.employee_id && currentEmployeeId);
                     return (
                         <div key={log.id} className="relative pl-6 pb-2 group">

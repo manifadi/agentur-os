@@ -283,6 +283,17 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
         setLayoutState(initialLayout);
     }, [currentWidgets]);
 
+    // Persist default config for users with no saved layout
+    useEffect(() => {
+        if (!currentUser) return;
+        const hasConfig = Array.isArray(currentUser.dashboard_config?.widgets) && currentUser.dashboard_config!.widgets!.length > 0;
+        if (hasConfig) return;
+        supabase
+            .from('employees')
+            .update({ dashboard_config: { ...currentUser.dashboard_config, widgets: DEFAULT_WIDGETS } })
+            .eq('id', currentUser.id);
+    }, [currentUser?.id]);
+
     // ─── Handlers ─────────────────────────────────────────────────
     const handleLayoutChange = (newLayout: RGLLayoutItem[]) => {
         setLayoutState(newLayout); // Update local state immediately for smoothness

@@ -7,7 +7,7 @@ import {
     Users,
     LogOut,
     Settings as SettingsIcon,
-    Clock,
+    CalendarRange,
     Timer,
     ChevronsLeft,
     ChevronsRight,
@@ -97,18 +97,20 @@ export default function MainSidebar({
             {/* Header / Profile Switcher */}
             <div className="p-4 mb-2 shrink-0" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
                 <div className={`flex items-center ${isSidebarExpanded ? 'gap-3 px-2' : 'justify-center'}`}>
-                    <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-sm relative group cursor-pointer"
-                        style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}
-                    >
-                        {agencySettings?.logo_url ? (
-                            <img src={agencySettings.logo_url} alt="Logo" className="w-full h-full object-contain p-1.5" />
-                        ) : (
-                            <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
-                                {agencySettings?.company_name?.[0] || 'A'}
-                            </div>
-                        )}
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 rounded-full" style={{ borderColor: 'var(--sidebar-bg)' }}></div>
+                    <div className="relative w-10 h-10 shrink-0">
+                        <div
+                            className="w-full h-full rounded-xl flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}
+                        >
+                            {agencySettings?.logo_url ? (
+                                <img src={agencySettings.logo_url} alt="Logo" className="w-full h-full object-contain p-1.5" />
+                            ) : (
+                                <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
+                                    {agencySettings?.company_name?.[0] || 'A'}
+                                </div>
+                            )}
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 rounded-full" style={{ borderColor: 'var(--sidebar-bg)' }}></div>
                     </div>
 
                     {isSidebarExpanded && (
@@ -222,7 +224,7 @@ export default function MainSidebar({
                 <NavItem view="dashboard" href="/dashboard" icon={LayoutGrid} label="Mein Bereich" />
                 <NavItem view="projects_overview" href="/uebersicht" icon={FolderKanban} label="Projekte" />
                 <NavItem view="global_tasks" href="/aufgaben" icon={Globe} label="Alle Aufgaben" />
-                <NavItem view="resource_planning" href="/ressourcen" icon={Clock} label="Ressourcen" />
+                <NavItem view="resource_planning" href="/ressourcen" icon={CalendarRange} label="Ressourcen" />
                 <NavItem view="time_tracking" href="/zeiterfassung" icon={Timer} label="Zeiterfassung" />
                 <NavItem view="kalender" href="/kalender" icon={CalendarDays} label="Kalender" />
             </div>

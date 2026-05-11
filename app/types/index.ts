@@ -209,10 +209,11 @@ export interface ResourceAllocation {
     thursday: number;
     friday: number;
     comment?: string;
-    task_description?: string; // New field
-    position_id?: string | null; // [NEW] Link to specific position
+    task_description?: string;
+    allocation_status?: string;
+    position_id?: string | null;
     projects?: Project;
-    positions?: ProjectPosition; // [NEW] Joined data
+    positions?: ProjectPosition;
     organization_id: string;
 }
 

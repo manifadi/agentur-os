@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarRange, Trash2, LayoutGrid, Table2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { Employee, Project, ResourceAllocation, AllocationRow, Client } from '../../types';
-import { getStatusStyle } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import ResourceGrid from './ResourceGrid';
+import ResourceCards from './ResourceCards';
 
 interface ResourcePlannerProps {
     employees: Employee[];
@@ -18,6 +18,7 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
     const [selectedDeptId, setSelectedDeptId] = useState<string>(currentUser?.department_id || '');
     const [allocations, setAllocations] = useState<ResourceAllocation[]>([]);
     const [loading, setLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
     // Custom Modal State
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string | null; open: boolean }>({ id: null, open: false });
@@ -133,7 +134,28 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
         if (data.type === 'existing') {
             projectId = data.projectId;
         } else {
-            const { clientName, projectTitle, jobNr } = data;
+            const { clientName, projectTitle } = data;
+
+            // Auto-generate job number: YY-NNN (e.g. 26-007)
+            const year2d = new Date().getFullYear().toString().slice(2);
+            const { data: existingJobNrs } = await supabase
+                .from('projects')
+                .select('job_number')
+                .eq('organization_id', currentUser?.organization_id)
+                .like('job_number', `${year2d}-%`);
+
+            let nextNum = 1;
+            if (existingJobNrs && existingJobNrs.length > 0) {
+                const nums = existingJobNrs
+                    .map((p: any) => {
+                        const parts = (p.job_number || '').split('-');
+                        return parseInt(parts[parts.length - 1] || '0', 10);
+                    })
+                    .filter((n: number) => !isNaN(n) && n > 0);
+                if (nums.length > 0) nextNum = Math.max(...nums) + 1;
+            }
+            const autoJobNr = `${year2d}-${String(nextNum).padStart(3, '0')}`;
+
             let clientId = null;
             if (clientName) {
                 const { data: existingClient } = await supabase.from('clients').select('id').ilike('name', clientName).single();
@@ -147,9 +169,10 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                     if (newClient) clientId = newClient.id;
                 }
             }
+
             const { data: newProj, error: projError } = await supabase.from('projects').insert([{
                 title: projectTitle || 'Neues Projekt',
-                job_number: jobNr || '',
+                job_number: autoJobNr,
                 client_id: clientId,
                 organization_id: currentUser?.organization_id,
                 status: 'Bearbeitung'
@@ -203,35 +226,64 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 px-4">
+            <header className="flex flex-wrap justify-between items-center mb-6 gap-3 px-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight mb-1 flex items-center gap-2 text-text-primary"><Calendar size={24} /> Ressourcenplanung</h1>
-                    <p className="text-text-secondary text-sm">Kapazitäten verwalten</p>
+                    <h1 className="text-2xl font-bold tracking-tight mb-0.5 flex items-center gap-2 text-text-primary"><CalendarRange size={24} /> Wochenplan</h1>
+                    <p className="text-text-secondary text-sm">Stunden pro Mitarbeiter & Projekt planen</p>
                 </div>
 
-                <div className="flex items-center gap-4 bg-surface p-1 rounded-xl border border-default shadow-sm">
-                    <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronLeft size={18} /></button>
-                    <div className="text-sm font-bold w-32 text-center select-none text-text-primary leading-none">KW {currentWeek} <span className="text-text-muted font-normal ml-1">| {currentYear}</span></div>
-                    <button onClick={() => changeWeek(1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronRight size={18} /></button>
-                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                    {/* Week navigation */}
+                    <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-default shadow-sm">
+                        <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronLeft size={16} /></button>
+                        <div className="text-sm font-bold w-28 text-center select-none text-text-primary">KW {currentWeek} <span className="text-text-muted font-normal">· {currentYear}</span></div>
+                        <button onClick={() => changeWeek(1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronRight size={16} /></button>
+                    </div>
 
-                <div className="relative group">
-                    <select
-                        className="appearance-none bg-surface border border-default text-text-primary text-sm font-bold rounded-xl pl-4 pr-10 py-2.5 min-w-[160px] focus:ring-2 focus:ring-accent focus:border-accent outline-none shadow-sm cursor-pointer transition-all hover:border-default"
-                        value={selectedDeptId}
-                        onChange={(e) => setSelectedDeptId(e.target.value)}
-                    >
-                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted group-hover:text-text-secondary transition-colors">
-                        <ChevronRight size={14} className="rotate-90" />
+                    {/* Department filter */}
+                    <div className="relative group">
+                        <select
+                            className="appearance-none bg-surface border border-default text-text-primary text-sm font-bold rounded-xl pl-4 pr-8 py-2.5 min-w-[140px] focus:ring-2 focus:ring-accent outline-none shadow-sm cursor-pointer"
+                            value={selectedDeptId}
+                            onChange={(e) => setSelectedDeptId(e.target.value)}
+                        >
+                            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
+                            <ChevronRight size={13} className="rotate-90" />
+                        </div>
+                    </div>
+
+                    {/* View toggle */}
+                    <div className="flex bg-subtle rounded-xl p-1 border border-default gap-0.5">
+                        <button
+                            onClick={() => setViewMode('cards')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'cards' ? 'bg-surface shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
+                        >
+                            <LayoutGrid size={13} /> Karten
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'table' ? 'bg-surface shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
+                        >
+                            <Table2 size={13} /> Tabelle
+                        </button>
                     </div>
                 </div>
             </header>
 
-            <div className="flex-1 overflow-auto bg-surface rounded-lg shadow-sm border border-default">
+            <div className={`flex-1 overflow-auto rounded-xl shadow-sm border border-default ${viewMode === 'cards' ? 'bg-subtle/30' : 'bg-surface'}`}>
                 {loading && allocations.length === 0 ? (
-                    <div className="flex h-64 items-center justify-center text-text-muted">Lade Plan...</div>
+                    <div className="flex h-64 items-center justify-center text-text-muted text-sm">Lade Plan...</div>
+                ) : viewMode === 'cards' ? (
+                    <ResourceCards
+                        rows={gridData}
+                        projects={projects}
+                        allClients={clients}
+                        onUpdateAllocation={handleUpdateAllocation}
+                        onCreateAllocation={handleCreateAllocation}
+                        onDeleteAllocation={(id) => setDeleteConfirm({ id, open: true })}
+                    />
                 ) : (
                     <ResourceGrid
                         rows={gridData}
@@ -243,8 +295,6 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                         onUpdateAllocation={handleUpdateAllocation}
                         onCreateAllocation={handleCreateAllocation}
                         onDeleteAllocation={(id) => setDeleteConfirm({ id, open: true })}
-                        onUpdateProject={handleUpdateProject}
-                        getStatusStyle={getStatusStyle}
                     />
                 )}
             </div>
