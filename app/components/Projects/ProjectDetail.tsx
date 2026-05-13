@@ -952,6 +952,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     projectId={project.id}
                     timeEntries={timeEntries}
                     sections={sections}
+                    deadline={project.deadline}
                     onOpenRatesSidebar={() => setShowRatesSidebar(true)}
                 />
             )}

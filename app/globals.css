@@ -226,6 +226,46 @@ html[data-accent="slate"] {
   --sidebar-active-text: #ffffff;
 }
 
+html[data-accent="teal"] {
+  --accent: #14B8A6;
+  --accent-hover: #0D9488;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(20, 184, 166, 0.1);
+  --accent-subtle-hover: rgba(20, 184, 166, 0.15);
+  --sidebar-active-bg: #14B8A6;
+  --sidebar-active-text: #ffffff;
+}
+
+html[data-accent="indigo"] {
+  --accent: #6366F1;
+  --accent-hover: #4F46E5;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(99, 102, 241, 0.1);
+  --accent-subtle-hover: rgba(99, 102, 241, 0.15);
+  --sidebar-active-bg: #6366F1;
+  --sidebar-active-text: #ffffff;
+}
+
+html[data-accent="orange"] {
+  --accent: #F97316;
+  --accent-hover: #EA580C;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(249, 115, 22, 0.1);
+  --accent-subtle-hover: rgba(249, 115, 22, 0.15);
+  --sidebar-active-bg: #F97316;
+  --sidebar-active-text: #ffffff;
+}
+
+html[data-accent="pink"] {
+  --accent: #EC4899;
+  --accent-hover: #DB2777;
+  --accent-text: #ffffff;
+  --accent-subtle: rgba(236, 72, 153, 0.1);
+  --accent-subtle-hover: rgba(236, 72, 153, 0.15);
+  --sidebar-active-bg: #EC4899;
+  --sidebar-active-text: #ffffff;
+}
+
 /* ============================================================
    BASE STYLES
    ============================================================ */

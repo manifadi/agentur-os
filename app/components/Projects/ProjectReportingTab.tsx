@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Euro, Timer } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Clock, Download, PackageOpen } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import UserAvatar from '../UI/UserAvatar';
 
@@ -7,384 +7,270 @@ interface ProjectReportingTabProps {
     projectId: string;
     timeEntries: any[];
     sections: any[];
+    deadline?: string | null;
     onOpenRatesSidebar: () => void;
 }
 
-type AmpelStatus = 'green' | 'amber' | 'red';
-
-function getAmpel(usagePct: number): AmpelStatus {
-    if (usagePct >= 100) return 'red';
-    if (usagePct >= 80) return 'amber';
-    return 'green';
-}
-
-const AMPEL_STYLES: Record<AmpelStatus, { bar: string; bg: string; border: string; text: string; badge: string; label: string; icon: React.ElementType }> = {
-    green: {
-        bar: 'bg-green-500',
-        bg: 'bg-green-500/8',
-        border: 'border-green-500/20',
-        text: 'text-green-600 dark:text-green-400',
-        badge: 'bg-green-500/10 text-green-700 dark:text-green-300',
-        label: 'Im Budget',
-        icon: CheckCircle,
-    },
-    amber: {
-        bar: 'bg-amber-500',
-        bg: 'bg-amber-500/8',
-        border: 'border-amber-500/20',
-        text: 'text-amber-600 dark:text-amber-400',
-        badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-        label: 'Aufmerksamkeit',
-        icon: AlertTriangle,
-    },
-    red: {
-        bar: 'bg-red-500',
-        bg: 'bg-red-500/8',
-        border: 'border-red-500/20',
-        text: 'text-red-600 dark:text-red-400',
-        badge: 'bg-red-500/10 text-red-700 dark:text-red-300',
-        label: 'Budget überschritten',
-        icon: AlertTriangle,
-    },
-};
-
-function fmt(val: number) {
-    return val.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+function fmt(v: number) {
+    return v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 }
 
 export default function ProjectReportingTab({ projectId, sections, onOpenRatesSidebar }: ProjectReportingTabProps) {
-    const [timeEntries, setTimeEntries] = useState<any[]>([]);
+    const [entries, setEntries] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-    useEffect(() => {
-        if (projectId) fetchTimeEntries();
-    }, [projectId]);
+    useEffect(() => { if (projectId) load(); }, [projectId]);
 
-    const fetchTimeEntries = async () => {
+    const load = async () => {
         setLoading(true);
         const { data } = await supabase
             .from('time_entries')
             .select(`*, employees(id, name, initials, avatar_url, hourly_rate), agency_positions(id, title, hourly_rate)`)
             .eq('project_id', projectId)
             .order('date', { ascending: false });
-        if (data) setTimeEntries(data);
+        if (data) setEntries(data);
         setLoading(false);
     };
 
-    // ── Calculations ─────────────────────────────────────────────
-    const totalRevenue = sections.reduce((sum: number, s: any) =>
-        sum + (s.positions || []).reduce((ps: number, p: any) =>
-            ps + (Number(p.quantity) || 0) * (Number(p.unit_price) || 0), 0), 0);
+    const rate = (t: any) => Number(t.agency_positions?.hourly_rate) || Number(t.employees?.hourly_rate) || 0;
 
-    const totalPlannedHours = sections.reduce((sum: number, s: any) =>
-        sum + (s.positions || []).reduce((ps: number, p: any) =>
-            ps + (Number(p.hours_sold) || 0), 0), 0);
+    const totalBudget = useMemo(() =>
+        sections.reduce((s: number, sec: any) =>
+            s + (sec.positions || []).reduce((ps: number, p: any) =>
+                ps + (p.quantity || 0) * (p.unit_price || 0), 0), 0),
+    [sections]);
 
-    const positionGroups = timeEntries.reduce((acc: any[], t: any) => {
-        const key = t.agency_positions?.title || t.employees?.job_title || 'Ohne Position';
-        let g = acc.find(x => x.title === key);
-        if (!g) {
-            g = { title: key, entries: [], totalHours: 0, totalCost: 0, rate: 0 };
-            acc.push(g);
-        }
-        const h = Number(t.hours) || 0;
-        const rate = Number(t.agency_positions?.hourly_rate) || Number(t.employees?.hourly_rate) || 0;
-        g.entries.push({ ...t, cost: h * rate, rate });
-        g.totalHours += h;
-        g.totalCost += h * rate;
-        g.rate = rate;
-        return acc;
-    }, []);
+    const totalCost = useMemo(() => entries.reduce((s, t) => s + (Number(t.hours) || 0) * rate(t), 0), [entries]);
+    const totalH    = useMemo(() => entries.reduce((s, t) => s + (Number(t.hours) || 0), 0), [entries]);
 
-    const totalActualHours = timeEntries.reduce((s: number, t: any) => s + (Number(t.hours) || 0), 0);
-    const totalCost = positionGroups.reduce((s: number, g: any) => s + g.totalCost, 0);
-    const margin = totalRevenue - totalCost;
-    const marginPct = totalRevenue > 0 ? (margin / totalRevenue) * 100 : 0;
-    const budgetUsagePct = totalRevenue > 0 ? Math.min((totalCost / totalRevenue) * 100, 150) : 0;
-    const hoursUsagePct = totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0;
+    const margin    = totalBudget - totalCost;
+    const budgetPct = totalBudget > 0 ? Math.min((totalCost / totalBudget) * 100, 100) : 0;
 
-    const ampel = getAmpel(totalRevenue > 0 ? (totalCost / totalRevenue) * 100 : 0);
-    const styles = AMPEL_STYLES[ampel];
-    const AmpelIcon = styles.icon;
+    const externalPositions = useMemo(() =>
+        sections.flatMap((sec: any) =>
+            (sec.positions || []).filter((p: any) => p.is_external).map((p: any) => ({
+                title: p.title || '—',
+                qty: p.quantity || 0,
+                unit: p.unit || '',
+                ek: (p.quantity || 0) * (p.purchase_price || 0),
+                vk: (p.quantity || 0) * (p.unit_price || 0),
+            }))
+        ),
+    [sections]);
 
-    const toggleGroup = (key: string) => {
-        setExpandedGroups(prev => {
-            const n = new Set(prev);
-            n.has(key) ? n.delete(key) : n.add(key);
-            return n;
-        });
+    const totalEK = useMemo(() => externalPositions.reduce((s, p) => s + p.ek, 0), [externalPositions]);
+    const totalVK = useMemo(() => externalPositions.reduce((s, p) => s + p.vk, 0), [externalPositions]);
+    const externalMargin = totalVK - totalEK;
+
+    const barColor = budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
+    const marginColor = margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500';
+
+    const exportCSV = () => {
+        const rows = [
+            ['Datum', 'Mitarbeiter', 'Position', 'Beschreibung', 'Stunden', 'Stundensatz', 'Kosten'],
+            ...entries.map(t => {
+                const h = Number(t.hours) || 0;
+                const r = rate(t);
+                return [
+                    new Date(t.date).toLocaleDateString('de-DE'),
+                    t.employees?.name || '',
+                    t.agency_positions?.title || '',
+                    t.description || '',
+                    h.toFixed(2).replace('.', ','),
+                    r.toFixed(2).replace('.', ','),
+                    (h * r).toFixed(2).replace('.', ','),
+                ];
+            }),
+        ];
+        const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `reporting-${projectId}.csv`; a.click();
+        URL.revokeObjectURL(url);
     };
 
-    // ── Render ────────────────────────────────────────────────────
     return (
-        <div className="space-y-6 pb-8">
+        <div className="space-y-8 pb-12">
 
-            {/* ── Budget-Ampel Hero ─────────────────────────── */}
-            <div className={`rounded-2xl border p-6 ${styles.bg} ${styles.border}`}>
-                <div className="flex items-start justify-between gap-4 mb-5">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <AmpelIcon size={16} className={styles.text} />
-                            <span className={`text-xs font-bold uppercase tracking-widest ${styles.text}`}>
-                                {styles.label}
-                            </span>
-                        </div>
-                        <div className="text-2xl font-black text-text-primary">
-                            {totalRevenue > 0
-                                ? `${Math.round((totalCost / totalRevenue) * 100)} % Budget verbraucht`
-                                : 'Noch kein Budget kalkuliert'}
-                        </div>
-                        {totalRevenue > 0 && (
-                            <p className="text-sm text-text-secondary mt-1">
-                                {fmt(totalCost)} von {fmt(totalRevenue)} · {fmt(Math.abs(margin))} {margin >= 0 ? 'Puffer verbleibend' : 'Überzug'}
-                            </p>
-                        )}
+            {/* ── Soll / Ist ── */}
+            {totalBudget > 0 && (
+                <div className="bg-surface border border-default rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-5">
+                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">Soll / Ist</h3>
+                        <button
+                            onClick={onOpenRatesSidebar}
+                            className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition px-3 py-1.5 rounded-lg border border-default bg-subtle"
+                        >
+                            <Clock size={12} /> Stundensätze
+                        </button>
                     </div>
-                    <button
-                        onClick={onOpenRatesSidebar}
-                        className="flex items-center gap-2 px-3 py-2 bg-surface border border-default rounded-xl text-xs font-bold text-text-secondary hover:text-text-primary hover:border-accent/40 transition shrink-0 shadow-sm"
-                    >
-                        <Clock size={13} />
-                        Stundensätze
-                    </button>
-                </div>
 
-                {/* Progress bar */}
-                {totalRevenue > 0 && (
-                    <div className="w-full h-3 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all duration-700 ${styles.bar}`}
-                            style={{ width: `${Math.min(budgetUsagePct, 100)}%` }}
-                        />
-                    </div>
-                )}
-            </div>
-
-            {/* ── 4 KPI Cards ──────────────────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Geplant */}
-                <div className="bg-surface rounded-2xl border border-default p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                            <Euro size={14} />
+                    <div className="grid grid-cols-3 gap-6 mb-5">
+                        <div>
+                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">Soll (Budget)</div>
+                            <div className="text-2xl font-black text-text-primary tabular-nums">{fmt(totalBudget)}</div>
                         </div>
-                        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Geplant</span>
-                    </div>
-                    <div className="text-xl font-black text-text-primary">{fmt(totalRevenue)}</div>
-                    {totalPlannedHours > 0 && (
-                        <div className="text-xs text-text-placeholder mt-1">{totalPlannedHours.toFixed(0)} h geplant</div>
-                    )}
-                </div>
-
-                {/* Kosten Ist */}
-                <div className="bg-surface rounded-2xl border border-default p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                            <Timer size={14} />
+                        <div>
+                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">Ist (Kosten)</div>
+                            <div className="text-2xl font-black text-text-primary tabular-nums">{fmt(totalCost)}</div>
+                            <div className="text-xs text-text-placeholder mt-0.5">{totalH % 1 === 0 ? totalH.toFixed(0) : totalH.toFixed(1)} h gebucht</div>
                         </div>
-                        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Kosten Ist</span>
-                    </div>
-                    <div className="text-xl font-black text-text-primary">{fmt(totalCost)}</div>
-                    <div className="text-xs text-text-placeholder mt-1">{totalActualHours.toFixed(1)} h gebucht</div>
-                </div>
-
-                {/* Marge */}
-                <div className="bg-surface rounded-2xl border border-default p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${margin >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {margin >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                        </div>
-                        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Marge</span>
-                    </div>
-                    <div className={`text-xl font-black ${margin >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                        {margin >= 0 ? '+' : ''}{fmt(margin)}
-                    </div>
-                    {totalRevenue > 0 && (
-                        <div className="text-xs text-text-placeholder mt-1">{marginPct.toFixed(1)} % Marge</div>
-                    )}
-                </div>
-
-                {/* Stunden */}
-                <div className="bg-surface rounded-2xl border border-default p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center">
-                            <Clock size={14} />
-                        </div>
-                        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Stunden</span>
-                    </div>
-                    <div className="text-xl font-black text-text-primary">
-                        {totalActualHours.toFixed(1)} h
-                    </div>
-                    {totalPlannedHours > 0 && (
-                        <>
-                            <div className="text-xs text-text-placeholder mt-1">von {totalPlannedHours.toFixed(0)} h geplant</div>
-                            <div className="w-full h-1.5 bg-hover rounded-full overflow-hidden mt-2">
-                                <div
-                                    className={`h-full rounded-full ${getAmpel(hoursUsagePct) === 'green' ? 'bg-green-500' : getAmpel(hoursUsagePct) === 'amber' ? 'bg-amber-500' : 'bg-red-500'}`}
-                                    style={{ width: `${Math.min(hoursUsagePct, 100)}%` }}
-                                />
+                        <div>
+                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">Differenz</div>
+                            <div className={`text-2xl font-black tabular-nums ${marginColor}`}>
+                                {margin >= 0 ? '+' : ''}{fmt(margin)}
                             </div>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            {/* ── Position Groups ───────────────────────────── */}
-            <div>
-                <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">Zeiterfassung nach Position</h3>
-                <div className="space-y-3">
-                    {loading ? (
-                        <div className="flex flex-col gap-3">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="h-16 bg-subtle rounded-2xl border border-default animate-pulse" />
-                            ))}
+                            <div className="text-xs text-text-placeholder mt-0.5">{Math.round(budgetPct)} % verbraucht</div>
                         </div>
-                    ) : positionGroups.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 bg-subtle rounded-2xl border border-dashed border-default gap-3">
-                            <Clock size={28} strokeWidth={1.5} className="text-text-placeholder opacity-50" />
-                            <p className="text-sm font-medium text-text-muted">Noch keine Zeiten erfasst.</p>
-                        </div>
-                    ) : (
-                        positionGroups.map((group: any) => {
-                            const isExpanded = expandedGroups.has(group.title);
-                            const groupBudgetUsage = totalRevenue > 0
-                                ? Math.round((group.totalCost / totalRevenue) * 100)
-                                : 0;
+                    </div>
 
-                            return (
-                                <div key={group.title} className="bg-surface rounded-2xl border border-default overflow-hidden shadow-sm">
-                                    <button
-                                        className="w-full p-4 flex items-center gap-4 hover:bg-subtle/50 transition text-left"
-                                        onClick={() => toggleGroup(group.title)}
-                                    >
-                                        <div className={`text-text-muted transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
-                                            <ChevronRight size={16} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold text-text-primary text-sm">{group.title}</span>
-                                                {group.rate > 0 && (
-                                                    <span className="text-[10px] text-text-placeholder font-mono bg-subtle border border-default rounded px-1.5 py-0.5">
-                                                        {Number(group.rate).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €/h
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-xs text-text-muted">
-                                                {group.totalHours.toFixed(1)} h · {group.entries.length} {group.entries.length === 1 ? 'Eintrag' : 'Einträge'}
-                                            </div>
-                                        </div>
-                                        <div className="text-right shrink-0">
-                                            <div className="font-black font-mono text-text-primary text-sm">{fmt(group.totalCost)}</div>
-                                            {totalRevenue > 0 && (
-                                                <div className="text-[10px] text-text-placeholder mt-0.5">{groupBudgetUsage} % des Budgets</div>
-                                            )}
-                                        </div>
-                                    </button>
-
-                                    {isExpanded && (
-                                        <div className="border-t border-default overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-subtle/60 text-[10px] text-text-placeholder uppercase tracking-widest font-semibold">
-                                                    <tr>
-                                                        <th className="px-5 py-2.5 text-left font-semibold w-28">Datum</th>
-                                                        <th className="px-5 py-2.5 text-left font-semibold">Mitarbeiter</th>
-                                                        <th className="px-5 py-2.5 text-left font-semibold">Beschreibung</th>
-                                                        <th className="px-5 py-2.5 text-right font-semibold w-20">Stunden</th>
-                                                        <th className="px-5 py-2.5 text-right font-semibold w-28">Kosten</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-default">
-                                                    {group.entries.map((entry: any) => (
-                                                        <tr key={entry.id} className="hover:bg-subtle/30 transition">
-                                                            <td className="px-5 py-3 text-xs font-mono text-text-muted whitespace-nowrap">
-                                                                {new Date(entry.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                                                            </td>
-                                                            <td className="px-5 py-3">
-                                                                <div className="flex items-center gap-2">
-                                                                    <UserAvatar
-                                                                        src={entry.employees?.avatar_url}
-                                                                        name={entry.employees?.name}
-                                                                        initials={entry.employees?.initials}
-                                                                        size="xs"
-                                                                    />
-                                                                    <span className="text-xs font-medium text-text-secondary whitespace-nowrap">{entry.employees?.name}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-5 py-3 text-xs text-text-secondary max-w-xs truncate" title={entry.description}>
-                                                                {entry.description || <span className="text-text-placeholder italic">–</span>}
-                                                            </td>
-                                                            <td className="px-5 py-3 text-right font-mono text-xs text-text-primary font-bold">
-                                                                {Number(entry.hours).toFixed(2)} h
-                                                            </td>
-                                                            <td className="px-5 py-3 text-right font-mono text-xs text-text-muted">
-                                                                {fmt(entry.cost)}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                                <tfoot className="bg-subtle/40 border-t border-default">
-                                                    <tr>
-                                                        <td colSpan={3} className="px-5 py-2.5 text-[10px] font-bold text-text-placeholder uppercase tracking-widest">Gesamt</td>
-                                                        <td className="px-5 py-2.5 text-right font-mono text-xs font-bold text-text-primary">{group.totalHours.toFixed(2)} h</td>
-                                                        <td className="px-5 py-2.5 text-right font-mono text-xs font-bold text-text-primary">{fmt(group.totalCost)}</td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })
-                    )}
+                    <div className="w-full h-2 bg-hover rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${budgetPct}%` }} />
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* ── Kalkulations-Positionen ───────────────────── */}
-            {sections.length > 0 && (
-                <div>
-                    <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">Kalkulation (Angebot)</h3>
-                    <div className="bg-surface rounded-2xl border border-default overflow-hidden shadow-sm">
+            {/* ── Fremdleistungen ── */}
+            {externalPositions.length > 0 && (
+                <div className="bg-surface border border-orange-200 dark:border-orange-800 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-5">
+                        <div className="w-6 h-6 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                            <PackageOpen size={13} />
+                        </div>
+                        <h3 className="text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-widest">Fremdleistungen</h3>
+                    </div>
+
+                    <div className="rounded-xl border border-orange-100 dark:border-orange-900 overflow-hidden mb-5">
                         <table className="w-full text-sm">
-                            <thead className="bg-subtle/60 text-[10px] text-text-placeholder uppercase tracking-widest font-semibold">
+                            <thead className="bg-orange-50 dark:bg-orange-950/30 text-[10px] text-orange-600 dark:text-orange-400 uppercase tracking-widest font-semibold border-b border-orange-100 dark:border-orange-900">
                                 <tr>
-                                    <th className="px-5 py-2.5 text-left font-semibold">Sektion / Position</th>
-                                    <th className="px-5 py-2.5 text-right font-semibold w-24">Menge</th>
-                                    <th className="px-5 py-2.5 text-right font-semibold w-28">Einzelpreis</th>
-                                    <th className="px-5 py-2.5 text-right font-semibold w-28">Gesamt</th>
+                                    <th className="px-4 py-3 text-left">Position</th>
+                                    <th className="px-4 py-3 text-right w-32 hidden sm:table-cell">Menge</th>
+                                    <th className="px-4 py-3 text-right w-32">EK gesamt</th>
+                                    <th className="px-4 py-3 text-right w-32">VK gesamt</th>
+                                    <th className="px-4 py-3 text-right w-28 hidden sm:table-cell">Marge</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {sections.map((section: any) => (
-                                    <React.Fragment key={section.id}>
-                                        <tr className="bg-subtle/40">
-                                            <td colSpan={4} className="px-5 py-2 text-xs font-bold text-text-secondary uppercase tracking-wider">
-                                                {section.title}
+                            <tbody className="divide-y divide-orange-50 dark:divide-orange-900/40">
+                                {externalPositions.map((p, i) => {
+                                    const m = p.vk - p.ek;
+                                    return (
+                                        <tr key={i} className="hover:bg-orange-50/40 dark:hover:bg-orange-950/10 transition">
+                                            <td className="px-4 py-3 font-medium text-text-primary">{p.title}</td>
+                                            <td className="px-4 py-3 text-right text-text-muted font-mono text-xs hidden sm:table-cell">
+                                                {p.qty % 1 === 0 ? p.qty.toFixed(0) : p.qty.toFixed(2)} {p.unit}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-mono text-text-muted">{fmt(p.ek)}</td>
+                                            <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">{fmt(p.vk)}</td>
+                                            <td className={`px-4 py-3 text-right font-mono text-sm hidden sm:table-cell ${m >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                                                {m >= 0 ? '+' : ''}{fmt(m)}
                                             </td>
                                         </tr>
-                                        {(section.positions || []).map((pos: any) => (
-                                            <tr key={pos.id} className="hover:bg-subtle/20 transition divide-y divide-default border-t border-default/50">
-                                                <td className="px-5 py-3 text-text-primary">{pos.title}</td>
-                                                <td className="px-5 py-3 text-right font-mono text-xs text-text-muted">{pos.quantity} {pos.unit}</td>
-                                                <td className="px-5 py-3 text-right font-mono text-xs text-text-muted">{fmt(pos.unit_price)}</td>
-                                                <td className="px-5 py-3 text-right font-mono text-sm font-bold text-text-primary">
-                                                    {fmt((pos.quantity || 0) * (pos.unit_price || 0))}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </React.Fragment>
-                                ))}
+                                    );
+                                })}
                             </tbody>
-                            <tfoot className="border-t-2 border-default bg-subtle/60">
+                            <tfoot className="border-t-2 border-orange-100 dark:border-orange-900 bg-orange-50/60 dark:bg-orange-950/20">
                                 <tr>
-                                    <td colSpan={3} className="px-5 py-3 font-bold text-text-primary text-sm">Angebotssumme</td>
-                                    <td className="px-5 py-3 text-right font-black font-mono text-text-primary">{fmt(totalRevenue)}</td>
+                                    <td colSpan={2} className="px-4 py-3 text-xs font-bold text-orange-700 dark:text-orange-400 hidden sm:table-cell">Gesamt</td>
+                                    <td colSpan={2} className="px-4 py-3 text-xs font-bold text-orange-700 dark:text-orange-400 sm:hidden">Gesamt</td>
+                                    <td className="px-4 py-3 text-right font-mono font-black text-text-muted text-sm">{fmt(totalEK)}</td>
+                                    <td className="px-4 py-3 text-right font-mono font-black text-text-primary text-sm">{fmt(totalVK)}</td>
+                                    <td className={`px-4 py-3 text-right font-mono font-black text-sm hidden sm:table-cell ${externalMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                                        {externalMargin >= 0 ? '+' : ''}{fmt(externalMargin)}
+                                    </td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </div>
             )}
+
+            {/* ── Zeiteinträge ── */}
+            <div>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                        Zeiteinträge {entries.length > 0 && <span className="font-normal normal-case text-text-placeholder ml-1">({entries.length})</span>}
+                    </h3>
+                    {entries.length > 0 && (
+                        <button
+                            onClick={exportCSV}
+                            className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition"
+                        >
+                            <Download size={12} /> CSV exportieren
+                        </button>
+                    )}
+                </div>
+
+                {loading ? (
+                    <div className="space-y-2">
+                        {[1, 2, 3].map(i => <div key={i} className="h-12 bg-subtle rounded-xl animate-pulse" />)}
+                    </div>
+                ) : entries.length === 0 ? (
+                    <div className="flex flex-col items-center py-16 gap-3 text-text-muted">
+                        <Clock size={28} strokeWidth={1.5} className="opacity-30" />
+                        <p className="text-sm">Noch keine Zeiten erfasst.</p>
+                    </div>
+                ) : (
+                    <div className="rounded-xl border border-default overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-subtle text-[10px] text-text-placeholder uppercase tracking-widest font-semibold border-b border-default">
+                                <tr>
+                                    <th className="px-4 py-3 text-left w-28">Datum</th>
+                                    <th className="px-4 py-3 text-left">Mitarbeiter</th>
+                                    <th className="px-4 py-3 text-left hidden md:table-cell">Position</th>
+                                    <th className="px-4 py-3 text-left hidden lg:table-cell">Beschreibung</th>
+                                    <th className="px-4 py-3 text-right w-20">Stunden</th>
+                                    <th className="px-4 py-3 text-right w-28 hidden sm:table-cell">Kosten</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-default">
+                                {entries.map((t: any) => {
+                                    const h = Number(t.hours) || 0;
+                                    const r = rate(t);
+                                    return (
+                                        <tr key={t.id} className="hover:bg-subtle/40 transition">
+                                            <td className="px-4 py-3 font-mono text-xs text-text-muted whitespace-nowrap">
+                                                {new Date(t.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2.5">
+                                                    <UserAvatar src={t.employees?.avatar_url} name={t.employees?.name} initials={t.employees?.initials} size="xs" />
+                                                    <span className="text-sm font-medium text-text-primary">{t.employees?.name || '—'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-text-muted hidden md:table-cell">
+                                                {t.agency_positions?.title || <span className="opacity-40">—</span>}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-text-muted max-w-[240px] truncate hidden lg:table-cell">
+                                                {t.description || <span className="italic opacity-40">—</span>}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-mono font-bold text-text-primary text-sm">
+                                                {h % 1 === 0 ? h.toFixed(0) : h.toFixed(2)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-mono text-sm text-text-muted hidden sm:table-cell">
+                                                {r > 0 ? fmt(h * r) : <span className="opacity-40">—</span>}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot className="border-t-2 border-default bg-subtle/60">
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-3 text-xs font-bold text-text-muted hidden lg:table-cell">Gesamt</td>
+                                    <td colSpan={4} className="px-4 py-3 text-xs font-bold text-text-muted lg:hidden">Gesamt</td>
+                                    <td className="px-4 py-3 text-right font-mono font-black text-text-primary text-sm">
+                                        {totalH % 1 === 0 ? totalH.toFixed(0) : totalH.toFixed(1)}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono font-black text-text-primary text-sm hidden sm:table-cell">
+                                        {totalCost > 0 ? fmt(totalCost) : ''}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

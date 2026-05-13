@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type AccentColor = 'default' | 'blue' | 'violet' | 'rose' | 'emerald' | 'amber' | 'cyan' | 'slate';
-export type FontFamily = 'inter' | 'outfit' | 'dm-sans' | 'playfair' | 'space-grotesk' | 'geist-mono';
+export type AccentColor = 'default' | 'blue' | 'violet' | 'rose' | 'emerald' | 'amber' | 'cyan' | 'slate' | 'teal' | 'indigo' | 'orange' | 'pink' | 'custom';
+export type FontFamily = 'inter' | 'outfit' | 'dm-sans' | 'playfair' | 'space-grotesk' | 'geist-mono' | 'manrope' | 'plus-jakarta' | 'figtree' | 'sora' | 'nunito' | 'cormorant' | 'fraunces' | 'italiana' | 'cinzel';
 export type BackgroundStyle = 'clean' | 'subtle' | 'canvas';
 
 export interface ThemePreferences {
     themeMode: ThemeMode;
     accentColor: AccentColor;
+    customAccentColor?: string;
     fontFamily: FontFamily;
     backgroundStyle: BackgroundStyle;
     isSidebarExpanded: boolean;
@@ -20,8 +21,17 @@ const FONT_MAP: Record<FontFamily, string> = {
     'inter': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     'outfit': "'Outfit', -apple-system, sans-serif",
     'dm-sans': "'DM Sans', -apple-system, sans-serif",
-    'playfair': "'Playfair Display', Georgia, serif",
+    'manrope': "'Manrope', -apple-system, sans-serif",
+    'plus-jakarta': "'Plus Jakarta Sans', -apple-system, sans-serif",
+    'figtree': "'Figtree', -apple-system, sans-serif",
+    'sora': "'Sora', -apple-system, sans-serif",
+    'nunito': "'Nunito', -apple-system, sans-serif",
     'space-grotesk': "'Space Grotesk', -apple-system, sans-serif",
+    'playfair': "'Playfair Display', Georgia, serif",
+    'cormorant': "'Cormorant Garamond', Georgia, serif",
+    'fraunces': "'Fraunces', Georgia, serif",
+    'italiana': "'Italiana', Georgia, serif",
+    'cinzel': "'Cinzel', Georgia, serif",
     'geist-mono': "'Geist Mono', 'SF Mono', 'Monaco', monospace",
 };
 
@@ -63,9 +73,26 @@ function applyTheme(prefs: ThemePreferences) {
         html.classList.remove('dark');
     }
 
-    // Accent color
+    // Accent color — clear any previously inlined custom vars first
+    html.style.removeProperty('--accent');
+    html.style.removeProperty('--accent-hover');
+    html.style.removeProperty('--accent-text');
+    html.style.removeProperty('--accent-subtle');
+    html.style.removeProperty('--accent-subtle-hover');
+
     if (prefs.accentColor === 'default') {
         html.removeAttribute('data-accent');
+    } else if (prefs.accentColor === 'custom') {
+        const hex = prefs.customAccentColor || '#3B82F6';
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        html.setAttribute('data-accent', 'custom');
+        html.style.setProperty('--accent', hex);
+        html.style.setProperty('--accent-hover', hex);
+        html.style.setProperty('--accent-text', '#ffffff');
+        html.style.setProperty('--accent-subtle', `rgba(${r},${g},${b},0.1)`);
+        html.style.setProperty('--accent-subtle-hover', `rgba(${r},${g},${b},0.15)`);
     } else {
         html.setAttribute('data-accent', prefs.accentColor);
     }

@@ -191,10 +191,12 @@ export interface ProjectPosition {
     quantity: number;
     unit: string;
     unit_price: number;
-    hourly_rate: number; // For PDF
-    hours_sold: number; // For PDF
+    hourly_rate: number;
+    hours_sold: number;
     total_price: number;
     order_index: number;
+    is_external?: boolean;
+    purchase_price?: number;
 }
 
 export interface ResourceAllocation {

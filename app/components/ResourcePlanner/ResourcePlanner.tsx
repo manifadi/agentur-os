@@ -18,7 +18,10 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
     const [selectedDeptId, setSelectedDeptId] = useState<string>(currentUser?.department_id || '');
     const [allocations, setAllocations] = useState<ResourceAllocation[]>([]);
     const [loading, setLoading] = useState(false);
-    const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+    const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => {
+        if (typeof window === 'undefined') return 'cards';
+        return (localStorage.getItem('resourcePlanner.viewMode') as 'cards' | 'table') || 'cards';
+    });
 
     // Custom Modal State
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string | null; open: boolean }>({ id: null, open: false });
@@ -257,13 +260,13 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                     {/* View toggle */}
                     <div className="flex bg-subtle rounded-xl p-1 border border-default gap-0.5">
                         <button
-                            onClick={() => setViewMode('cards')}
+                            onClick={() => { setViewMode('cards'); localStorage.setItem('resourcePlanner.viewMode', 'cards'); }}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'cards' ? 'bg-surface shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
                         >
                             <LayoutGrid size={13} /> Karten
                         </button>
                         <button
-                            onClick={() => setViewMode('table')}
+                            onClick={() => { setViewMode('table'); localStorage.setItem('resourcePlanner.viewMode', 'table'); }}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'table' ? 'bg-surface shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
                         >
                             <Table2 size={13} /> Tabelle

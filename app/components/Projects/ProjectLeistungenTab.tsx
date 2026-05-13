@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Copy, Save, Edit2, Download } from 'lucide-react';
+import { Plus, X, Copy, Save, Edit2, Download, PackageOpen } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import PositionEditModal from '../Modals/PositionEditModal';
 import CalculationImportModal from '../Modals/CalculationImportModal';
@@ -18,6 +18,8 @@ interface WizardPosition {
     quantity: number;
     unit: string;
     unitPrice: number;
+    isExternal: boolean;
+    purchasePrice: number;
 }
 
 interface ProjectLeistungenTabProps {
@@ -52,6 +54,8 @@ export default function ProjectLeistungenTab({ projectId, organizationId, initia
                     quantity: p.quantity || 0,
                     unit: p.unit || 'Stunden',
                     unitPrice: p.unit_price || 0,
+                    isExternal: p.is_external || false,
+                    purchasePrice: p.purchase_price || 0,
                 })),
         }));
 
@@ -98,6 +102,8 @@ export default function ProjectLeistungenTab({ projectId, organizationId, initia
             quantity: 0,
             unit: 'Stunden',
             unitPrice: 100,
+            isExternal: false,
+            purchasePrice: 0,
         });
         setSections(next);
     };
@@ -198,6 +204,8 @@ export default function ProjectLeistungenTab({ projectId, organizationId, initia
                         quantity: p.quantity,
                         unit: p.unit,
                         unit_price: p.unitPrice,
+                        is_external: p.isExternal,
+                        purchase_price: p.purchasePrice,
                         order_index: idx,
                         position_nr: `${i + 1}.${idx + 1}`,
                     }));
@@ -280,15 +288,25 @@ export default function ProjectLeistungenTab({ projectId, organizationId, initia
                                         <th className="text-left py-2">Beschreibung</th>
                                         <th className="text-right py-2 w-20">Menge</th>
                                         <th className="text-left py-2 w-24 pl-2">Einheit</th>
-                                        <th className="text-right py-2 w-24">Einzel (€)</th>
+                                        <th className="text-right py-2 w-24">EK (€)</th>
+                                        <th className="text-right py-2 w-24">VK (€)</th>
                                         <th className="text-right py-2 w-24">Gesamt</th>
                                         <th className="w-8"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {section.positions.map((pos, pIdx) => (
-                                        <tr key={pos.id} className="group hover:bg-subtle/50">
-                                            <td className="py-2 pl-2 text-text-placeholder font-mono text-xs">{sIdx + 1}.{pIdx + 1}</td>
+                                        <tr key={pos.id} className={`group hover:bg-subtle/50 ${pos.isExternal ? 'bg-orange-50/40 dark:bg-orange-950/10' : ''}`}>
+                                            <td className="py-2 pl-2">
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <span className="text-text-placeholder font-mono text-xs">{sIdx + 1}.{pIdx + 1}</span>
+                                                    {pos.isExternal && (
+                                                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-1.5 py-0.5 rounded-md leading-none">
+                                                            <PackageOpen size={8} /> FL
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="py-2">
                                                 <input
                                                     type="text"
@@ -327,6 +345,21 @@ export default function ProjectLeistungenTab({ projectId, organizationId, initia
                                                     <option>Stk.</option>
                                                 </select>
                                             </td>
+                                            {/* EK — only editable for Fremdleistungen */}
+                                            <td className="py-2 text-right">
+                                                {pos.isExternal ? (
+                                                    <input
+                                                        type="number"
+                                                        className="w-full bg-transparent border-none p-1 focus:bg-surface focus:ring-1 focus:ring-orange-400 rounded text-right font-mono text-orange-600 dark:text-orange-400"
+                                                        value={pos.purchasePrice}
+                                                        onChange={(e) => updatePosition(sIdx, pIdx, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                                                        placeholder="0"
+                                                    />
+                                                ) : (
+                                                    <span className="text-text-placeholder/30 text-xs">—</span>
+                                                )}
+                                            </td>
+                                            {/* VK */}
                                             <td className="py-2 text-right">
                                                 <input
                                                     type="number"
