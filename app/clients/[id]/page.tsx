@@ -8,6 +8,7 @@ import { Client, ClientContact, ClientLog, Project } from '../../types';
 import { ArrowLeft, Phone, Mail, Globe, MapPin, Building, Trash, Edit2, Plus, User, Save, X, Briefcase, FileText, Send, Calendar, MoreHorizontal } from 'lucide-react';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
 import ContactModal from '../../components/Modals/ContactModal';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 export default function ClientDetailPage() {
     const params = useParams();
@@ -16,6 +17,7 @@ export default function ClientDetailPage() {
     const clientId = params.id as string;
 
     const [client, setClient] = useState<Client | null>(null);
+    usePageTitle(client?.name || 'Kunde');
     const [contacts, setContacts] = useState<ClientContact[]>([]);
     const [logs, setLogs] = useState<ClientLog[]>([]); // New Log State
     const [projects, setProjects] = useState<Project[]>([]);

@@ -117,7 +117,7 @@ export default function MainSidebar({
                         <div className="flex items-center justify-between flex-1 min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
                             <div className="flex flex-col min-w-0">
                                 <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
-                                    {agencySettings?.company_name || 'Agentur OS'}
+                                    {agencySettings?.company_name || 'Vela'}
                                 </span>
                                 <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
                                     {session?.user?.email}

@@ -342,7 +342,7 @@ export default function GlobalSearch() {
 
                 {/* Footer Tip */}
                 <div className="bg-subtle p-4 border-t border-default flex justify-center">
-                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em]">Agentur OS • Spotlight Search</p>
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em]">Vela • Spotlight Search</p>
                 </div>
             </div>
         </div>

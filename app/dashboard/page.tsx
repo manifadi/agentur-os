@@ -8,8 +8,10 @@ import { Project, Todo } from '../types';
 import { supabase } from '../supabaseClient';
 import CreateProjectModal from '../components/Modals/CreateProjectModal';
 import ClientModal from '../components/Modals/ClientModal';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function DashboardPage() {
+    usePageTitle('Dashboard');
     const router = useRouter();
     const { session, employees, projects, allocations, clients, members, fetchData, setClients, currentUser } = useApp();
 

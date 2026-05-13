@@ -10,8 +10,10 @@ import TimeEntryModal from '../components/Modals/TimeEntryModal';
 import ConfirmModal from '../components/Modals/ConfirmModal';
 import { Plus } from 'lucide-react';
 import { TimeEntry } from '../types';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function ZeiterfassungPage() {
+    usePageTitle('Zeiterfassung');
     const { session, employees, projects } = useApp();
     const currentUser = employees.find(e => e.email === session?.user?.email);
 

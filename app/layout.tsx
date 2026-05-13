@@ -3,8 +3,12 @@ import type { Metadata } from 'next';
 import ClientAppShell from './components/ClientAppShell';
 
 export const metadata: Metadata = {
-  title: 'Agentur OS',
-  description: 'A Software that helps with project organisation in agencies.',
+  title: 'Vela',
+  description: 'Das Betriebssystem für Kreativagenturen — Projekte, Zeiterfassung, Kalkulation und Ressourcen in einem Werkzeug.',
+  icons: {
+    icon: '/vela-logo.svg',
+    apple: '/vela-logo.png',
+  },
 };
 
 export default function RootLayout({

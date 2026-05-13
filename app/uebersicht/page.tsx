@@ -14,6 +14,7 @@ import { supabase } from '../supabaseClient';
 import { Project, Client, Employee } from '../types';
 import { deleteFileFromSupabase, uploadFileToSupabase } from '../utils/supabaseUtils';
 import { toast } from 'sonner';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function UebersichtPage() {
     const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees, setProjects } = useApp();
@@ -28,6 +29,7 @@ export default function UebersichtPage() {
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    usePageTitle(selectedProject ? selectedProject.title : 'Projekte');
 
     // Filter state — lifted here so it persists when opening a project detail and returning
     const [activeStatus, setActiveStatus] = useState<string[]>([]);

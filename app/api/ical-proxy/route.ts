@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         const res = await fetch(normalized, {
             headers: {
                 'Accept': 'text/calendar, application/ics, text/plain',
-                'User-Agent': 'AgenturOS/1.0 (CalendarSync)',
+                'User-Agent': 'Vela/1.0 (CalendarSync)',
             },
             next: { revalidate: 300 }, // cache for 5 minutes
         });

@@ -8,8 +8,10 @@ import TaskDetailSidebar from '../components/Tasks/TaskDetailSidebar';
 import { supabase } from '../supabaseClient';
 import ConfirmModal from '../components/Modals/ConfirmModal';
 import { Todo } from '../types';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function AufgabenPage() {
+    usePageTitle('Aufgaben');
     const { projects, personalTodos, employees, fetchData, currentUser } = useApp();
     const router = useRouter();
     const [selectedTask, setSelectedTask] = useState<Todo | null>(null);

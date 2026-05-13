@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { Lock, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
@@ -66,12 +66,10 @@ export default function LoginScreen() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-subtle font-sans p-4">
             <div className="bg-surface p-8 rounded-2xl shadow-xl w-full max-w-sm border border-default">
-                <div className="flex justify-center mb-5">
-                    <div className="w-12 h-12 bg-text-primary rounded-xl flex items-center justify-center text-surface">
-                        <Lock size={24} />
-                    </div>
+                <div className="flex flex-col items-center gap-2 mb-7">
+                    <img src="/vela-logo.svg" alt="Vela" className="w-11 h-11 dark:invert" />
+                    <span className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Vela</span>
                 </div>
-                <h1 className="text-2xl font-bold text-center mb-6 text-text-primary">Agentur OS</h1>
 
                 {mode === 'forgot' ? (
                     <>
