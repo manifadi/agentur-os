@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MapPin, FileText, Clock, Users, Palette, Trash2, Plus } from 'lucide-react';
-import { CalendarEvent, CalendarAttendee, EventColor, Employee } from '../../types';
+import { X, MapPin, FileText, Clock, Users, Palette, Trash2, Plus, Globe, Lock, Video, Calendar, EyeOff } from 'lucide-react';
+import { CalendarEvent, CalendarAttendee, EventColor, Employee, ExternalCalendar, CalendarEventVisibility } from '../../types';
 import { supabase } from '../../supabaseClient';
 import UserAvatar from '../UI/UserAvatar';
 
@@ -38,12 +38,14 @@ interface Props {
     currentUser: Employee;
     employees: Employee[];
     organizationId: string;
+    externalCalendars?: ExternalCalendar[];
     onClose: () => void;
     onSaved: () => void;
     onDeleted?: () => void;
+    onHidden?: (eventId: string) => void;
 }
 
-export default function EventModal({ event, defaultStart, defaultEnd, defaultAllDay, currentUser, employees, organizationId, onClose, onSaved, onDeleted }: Props) {
+export default function EventModal({ event, defaultStart, defaultEnd, defaultAllDay, currentUser, employees, organizationId, externalCalendars = [], onClose, onSaved, onDeleted, onHidden }: Props) {
     const isEdit = !!event;
 
     const defaultStartStr = (defaultStart || new Date()).toISOString();
@@ -52,8 +54,12 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     const [title, setTitle] = useState(event?.title || '');
     const [description, setDesc] = useState(event?.description || '');
     const [location, setLocation] = useState(event?.location || '');
+    const [meetingUrl, setMeetingUrl] = useState(event?.meeting_url || '');
     const [color, setColor] = useState<EventColor>(event?.color || 'blue');
     const [allDay, setAllDay] = useState(event?.all_day ?? defaultAllDay ?? false);
+    const [visibility, setVisibility] = useState<CalendarEventVisibility>(event?.visibility || 'public');
+    const [targetCalendarId, setTargetCalendarId] = useState<string>(event?.target_calendar_id || '');
+
     const dStart = new Date(event?.start_at || defaultStartStr);
     const dEnd = new Date(event?.end_at || defaultEndDate.toISOString());
     const formatTimeStr = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 15) * 15).padStart(2, '0')}`;
@@ -65,36 +71,32 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     const [attendees, setAttendees] = useState<CalendarAttendee[]>(event?.attendees || []);
     const [loading, setSaving] = useState(false);
 
-    // Initial state reflection to detect dirty form
     const [initialState] = useState({
-        title: title, desc: description, loc: location, col: color, ad: allDay,
+        title, desc: description, loc: location, mtg: meetingUrl, col: color, ad: allDay, vis: visibility, target: targetCalendarId,
         sd: toLocalDateString(dStart.toISOString()), ed: toLocalDateString(dEnd.toISOString()),
         st: formatTimeStr(dStart), et: formatTimeStr(dEnd), att: JSON.stringify(event?.attendees || [])
     });
 
     const isDirty = title !== initialState.title || description !== initialState.desc || location !== initialState.loc ||
-        color !== initialState.col || allDay !== initialState.ad || startDateStr !== initialState.sd ||
-        endDateStr !== initialState.ed || startTimeStr !== initialState.st || endTimeStr !== initialState.et ||
+        meetingUrl !== initialState.mtg || color !== initialState.col || allDay !== initialState.ad ||
+        visibility !== initialState.vis || targetCalendarId !== initialState.target ||
+        startDateStr !== initialState.sd || endDateStr !== initialState.ed ||
+        startTimeStr !== initialState.st || endTimeStr !== initialState.et ||
         JSON.stringify(attendees) !== initialState.att;
 
-    // Sub-modals
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showHideConfirm, setShowHideConfirm] = useState(false);
 
-    // Escape key
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                handleCloseIntent();
-            }
+            if (e.key === 'Escape') { e.preventDefault(); handleCloseIntent(); }
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDirty]);
 
-    // Attendee adder
     const [attendeeInput, setAttendeeInput] = useState('');
     const [attendeeName, setAttendeeName] = useState('');
     const [showEmpDropdown, setShowEmpDropdown] = useState(false);
@@ -152,17 +154,50 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
             title: title.trim(),
             description: description || null,
             location: location || null,
+            meeting_url: meetingUrl || null,
             start_at: start.toISOString(),
             end_at: end.toISOString(),
             all_day: allDay,
             color,
             attendees,
+            visibility,
+            target_calendar_id: targetCalendarId || null,
         };
+
+        let savedEventId = event?.id;
+
         if (isEdit) {
             await supabase.from('calendar_events').update(payload).eq('id', event!.id);
         } else {
-            await supabase.from('calendar_events').insert(payload);
+            const { data } = await supabase.from('calendar_events').insert(payload).select().single();
+            savedEventId = data?.id;
         }
+
+        // Push to external calendar if target is set
+        if (targetCalendarId && savedEventId) {
+            const targetCal = externalCalendars.find(c => c.id === targetCalendarId);
+            if (targetCal?.is_writable) {
+                const eventPayload = { title: title.trim(), description, location, start_at: start.toISOString(), end_at: end.toISOString(), all_day: allDay, attendees };
+                try {
+                    if (targetCal.provider_type === 'google') {
+                        await fetch('/api/google-calendar/events', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ calendarId: targetCalendarId, event: eventPayload }),
+                        });
+                    } else if (targetCal.provider_type === 'outlook' || targetCal.provider_type === 'teams') {
+                        await fetch('/api/microsoft/events', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ calendarId: targetCalendarId, event: eventPayload }),
+                        });
+                    }
+                } catch (err) {
+                    console.warn('[EventModal] Failed to push to external calendar:', err);
+                }
+            }
+        }
+
         setSaving(false);
         onSaved();
         onClose();
@@ -176,10 +211,25 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
         onClose();
     };
 
+    const handleHide = async () => {
+        if (!event) return;
+        setSaving(true);
+        await fetch('/api/calendar/hidden-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeId: currentUser.id, organizationId, eventId: event.id }),
+        });
+        setSaving(false);
+        onHidden?.(event.id);
+        onClose();
+    };
+
     const handleCloseIntent = () => {
         if (isDirty) setShowCancelConfirm(true);
         else onClose();
     };
+
+    const writableCalendars = externalCalendars.filter(c => c.is_writable);
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
@@ -195,32 +245,20 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                     {/* Title */}
-                    <div>
-                        <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: COLOR_HEX[color] }} />
-                            <input
-                                autoFocus
-                                placeholder="Titel"
-                                value={title}
-                                onChange={e => setTitle(e.target.value)}
-                                className="flex-1 bg-transparent text-sm font-semibold outline-none"
-                                style={{ color: 'var(--text-primary)' }}
-                            />
-                        </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ background: COLOR_HEX[color] }} />
+                        <input autoFocus placeholder="Titel" value={title} onChange={e => setTitle(e.target.value)}
+                            className="flex-1 bg-transparent text-sm font-semibold outline-none" style={{ color: 'var(--text-primary)' }} />
                     </div>
 
-                    {/* All Day toggle + dates */}
+                    {/* All Day + Dates */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Clock size={15} style={{ color: 'var(--text-muted)' }} />
                                 <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Ganztägig</span>
                             </div>
-                            <button
-                                onClick={() => setAllDay(!allDay)}
-                                className="relative w-9 h-5 rounded-full transition-colors"
-                                style={{ background: allDay ? 'var(--accent)' : 'var(--border-strong)' }}
-                            >
+                            <button onClick={() => setAllDay(!allDay)} className="relative w-9 h-5 rounded-full transition-colors" style={{ background: allDay ? 'var(--accent)' : 'var(--border-strong)' }}>
                                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-surface shadow transition-transform ${allDay ? 'translate-x-4' : 'translate-x-0.5'}`} />
                             </button>
                         </div>
@@ -251,30 +289,80 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                         </div>
                     </div>
 
+                    {/* Visibility toggle */}
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                        <button
+                            onClick={() => setVisibility('public')}
+                            className="flex items-center gap-1.5 flex-1 px-2 py-1 rounded-lg text-xs font-medium transition-all"
+                            style={visibility === 'public' ? { background: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--text-muted)' }}
+                        >
+                            <Globe size={12} />
+                            Öffentlich
+                        </button>
+                        <button
+                            onClick={() => setVisibility('private')}
+                            className="flex items-center gap-1.5 flex-1 px-2 py-1 rounded-lg text-xs font-medium transition-all"
+                            style={visibility === 'private' ? { background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: 'var(--text-muted)' }}
+                        >
+                            <Lock size={12} />
+                            Privat
+                        </button>
+                        <span className="text-[10px] shrink-0 hidden sm:block" style={{ color: 'var(--text-muted)' }}>
+                            {visibility === 'private' ? 'Nur du siehst diesen Termin' : 'Team kann sehen'}
+                        </span>
+                    </div>
+
                     {/* Location */}
                     <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                         <MapPin size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
+                        <input placeholder="Ort hinzufügen" value={location} onChange={e => setLocation(e.target.value)}
+                            className="flex-1 bg-transparent text-xs outline-none" style={{ color: 'var(--text-primary)' }} />
+                    </div>
+
+                    {/* Meeting URL */}
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                        <Video size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
                         <input
-                            placeholder="Ort hinzufügen"
-                            value={location}
-                            onChange={e => setLocation(e.target.value)}
+                            placeholder="Meeting-Link (Teams, Zoom, Google Meet…)"
+                            value={meetingUrl}
+                            onChange={e => setMeetingUrl(e.target.value)}
                             className="flex-1 bg-transparent text-xs outline-none"
                             style={{ color: 'var(--text-primary)' }}
                         />
+                        {meetingUrl && (
+                            <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0" style={{ background: '#5059C9', color: '#fff' }}>
+                                Beitreten
+                            </a>
+                        )}
                     </div>
 
                     {/* Description */}
                     <div className="flex gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                         <FileText size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0 mt-0.5" />
-                        <textarea
-                            placeholder="Notizen hinzufügen..."
-                            rows={2}
-                            value={description}
-                            onChange={e => setDesc(e.target.value)}
-                            className="flex-1 bg-transparent text-xs outline-none resize-none"
-                            style={{ color: 'var(--text-primary)' }}
-                        />
+                        <textarea placeholder="Notizen hinzufügen..." rows={2} value={description} onChange={e => setDesc(e.target.value)}
+                            className="flex-1 bg-transparent text-xs outline-none resize-none" style={{ color: 'var(--text-primary)' }} />
                     </div>
+
+                    {/* Target calendar (only shown if writable calendars exist) */}
+                    {writableCalendars.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>In Kalender synchronisieren</span>
+                            </div>
+                            <select
+                                value={targetCalendarId}
+                                onChange={e => setTargetCalendarId(e.target.value)}
+                                className="w-full p-2 rounded-xl text-xs outline-none"
+                                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                            >
+                                <option value="">Nur intern speichern</option>
+                                {writableCalendars.map(cal => (
+                                    <option key={cal.id} value={cal.id}>{cal.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     {/* Color */}
                     <div>
@@ -299,8 +387,6 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                             <Users size={14} style={{ color: 'var(--text-muted)' }} />
                             <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Teilnehmer</span>
                         </div>
-
-                        {/* Current attendees */}
                         {attendees.length > 0 && (
                             <div className="space-y-1.5 mb-3">
                                 {attendees.map((a, i) => {
@@ -321,8 +407,6 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                                 })}
                             </div>
                         )}
-
-                        {/* Add attendee */}
                         <div className="relative" ref={attRef}>
                             <div className="flex gap-2">
                                 <input
@@ -363,11 +447,20 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
 
                 {/* Footer */}
                 <div className="flex items-center justify-between p-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                    {isEdit ? (
-                        <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors" style={{ color: '#EF4444' }}>
-                            <Trash2 size={13} /> Löschen
-                        </button>
-                    ) : <div />}
+                    <div className="flex gap-1">
+                        {isEdit && (
+                            <>
+                                <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors" style={{ color: '#EF4444' }}>
+                                    <Trash2 size={13} /> Löschen
+                                </button>
+                                <button onClick={() => setShowHideConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
+                                    title="Termin ausblenden (bleibt erhalten, wird nur versteckt)"
+                                >
+                                    <EyeOff size={13} /> Ausblenden
+                                </button>
+                            </>
+                        )}
+                    </div>
                     <div className="flex gap-2">
                         <button onClick={handleCloseIntent} className="text-xs font-medium px-4 py-2 rounded-xl transition-colors" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>
                             Abbrechen
@@ -379,36 +472,46 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                 </div>
             </div>
 
-            {/* Cancel Confirm Sub-Modal */}
+            {/* Cancel Confirm */}
             {showCancelConfirm && (
                 <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}>
                     <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                         <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Wirklich verwerfen?</h3>
-                        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Du hast ungespeicherte Änderungen vorgenommen. Möchtest du diese wirklich verwerfen?</p>
+                        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Du hast ungespeicherte Änderungen. Möchtest du diese wirklich verwerfen?</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setShowCancelConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium transition-colors" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
-                                Nein, bearbeiten
-                            </button>
-                            <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold transition-all" style={{ background: '#EF4444', color: '#fff' }}>
-                                Ja, verwerfen
-                            </button>
+                            <button onClick={() => setShowCancelConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>Nein, bearbeiten</button>
+                            <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background: '#EF4444', color: '#fff' }}>Ja, verwerfen</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Delete Confirm Sub-Modal */}
+            {/* Delete Confirm */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}>
                     <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                         <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Termin löschen?</h3>
                         <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Möchtest du diesen Termin wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium transition-colors" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
-                                Abbrechen
-                            </button>
-                            <button onClick={handleDelete} disabled={loading} className="px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50" style={{ background: '#EF4444', color: '#fff' }}>
+                            <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>Abbrechen</button>
+                            <button onClick={handleDelete} disabled={loading} className="px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50" style={{ background: '#EF4444', color: '#fff' }}>
                                 {loading ? 'Lösche...' : 'Löschen'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Hide Confirm */}
+            {showHideConfirm && (
+                <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}>
+                    <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                        <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Termin ausblenden?</h3>
+                        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Der Termin bleibt erhalten, wird aber in deinem Kalender nicht mehr angezeigt. Nützlich um Duplikate zu verbergen.</p>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setShowHideConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>Abbrechen</button>
+                            <button onClick={handleHide} disabled={loading} className="px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>
+                                {loading ? '...' : 'Ausblenden'}
                             </button>
                         </div>
                     </div>

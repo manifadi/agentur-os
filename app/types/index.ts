@@ -301,6 +301,10 @@ export type CalendarView = 'day' | 'week' | 'month';
 
 export type EventColor = 'blue' | 'violet' | 'rose' | 'green' | 'amber' | 'cyan' | 'slate' | 'red' | 'orange';
 
+export type CalendarEventVisibility = 'public' | 'private';
+
+export type CalendarProviderType = 'ical' | 'google' | 'outlook' | 'apple' | 'troi' | 'teams';
+
 export interface CalendarAttendee {
     name: string;
     email: string;
@@ -319,6 +323,10 @@ export interface CalendarEvent {
     all_day: boolean;
     color: EventColor;
     attendees: CalendarAttendee[];
+    visibility?: CalendarEventVisibility;   // 'public' | 'private'
+    meeting_url?: string | null;            // Teams / Zoom / Meet link
+    source_external_id?: string | null;     // original provider event ID
+    target_calendar_id?: string | null;     // push to this external calendar
     created_at?: string;
     // Joined
     employees?: Employee;
@@ -332,6 +340,10 @@ export interface ExternalCalendar {
     url: string;
     color: string;
     is_visible: boolean;
+    provider_type: CalendarProviderType;
+    is_writable: boolean;
+    external_calendar_id?: string | null;
+    caldav_username?: string | null;
     last_synced_at?: string | null;
     created_at?: string;
 }
@@ -347,4 +359,16 @@ export interface ParsedExternalEvent {
     calendarName: string;
     description?: string;
     location?: string;
+    meeting_url?: string;
+    uid?: string;
+}
+
+export interface HiddenCalendarEvent {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    event_id?: string | null;
+    external_event_uid?: string | null;
+    external_calendar_id?: string | null;
+    created_at: string;
 }

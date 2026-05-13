@@ -1,7 +1,3 @@
-/**
- * Minimal iCal (RFC 5545) parser — no external dependencies.
- * Parses VEVENT entries from raw iCal text into ParsedExternalEvent objects.
- */
 import { ParsedExternalEvent } from '../types';
 
 function parseICalDate(raw: string): Date {
@@ -19,6 +15,29 @@ function parseICalDate(raw: string): Date {
 
 function unfold(raw: string): string {
     return raw.replace(/\r\n[ \t]/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+function extractMeetingUrl(lines: string[], description: string): string | undefined {
+    // Teams: X-MICROSOFT-SKYPETEAMSMEETINGURL
+    const teamsLine = lines.find(l => l.startsWith('X-MICROSOFT-SKYPETEAMSMEETINGURL'));
+    if (teamsLine) return teamsLine.substring(teamsLine.indexOf(':') + 1).trim();
+
+    // Google Meet: X-GOOGLE-CONFERENCE
+    const meetLine = lines.find(l => l.startsWith('X-GOOGLE-CONFERENCE'));
+    if (meetLine) return meetLine.substring(meetLine.indexOf(':') + 1).trim();
+
+    // Generic CONFERENCE property
+    const confLine = lines.find(l => l.startsWith('CONFERENCE:') || l.startsWith('CONFERENCE;'));
+    if (confLine) {
+        const val = confLine.substring(confLine.indexOf(':') + 1).trim();
+        if (val.startsWith('http')) return val;
+    }
+
+    // Extract Teams/Meet/Zoom URL from description
+    const urlMatch = description?.match(/https:\/\/(?:teams\.microsoft\.com\/l\/meetup-join|meet\.google\.com|[\w-]+\.zoom\.us\/j)\/[^\s<>"]+/i);
+    if (urlMatch) return urlMatch[0];
+
+    return undefined;
 }
 
 export function parseICalText(
@@ -49,12 +68,15 @@ export function parseICalText(
         if (!dtstart) continue;
 
         const allDay = !dtstart.includes('T');
+        const meetingUrl = extractMeetingUrl(lines, desc);
+
         try {
             const startDate = parseICalDate(dtstart);
             const endDate = parseICalDate(dtend || dtstart);
 
             events.push({
                 id: `ext-${externalCalendarId}-${uid}`,
+                uid,
                 externalCalendarId,
                 title: summary,
                 start_at: startDate.toISOString(),
@@ -64,6 +86,7 @@ export function parseICalText(
                 calendarName,
                 description: desc || undefined,
                 location: location || undefined,
+                meeting_url: meetingUrl,
             });
         } catch {
             // skip unparseable events

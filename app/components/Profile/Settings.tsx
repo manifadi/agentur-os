@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     User, Palette, Building2, Users, Banknote, Image as ImageIcon,
-    FileText, Lock, Camera
+    FileText, Lock, Camera, CalendarDays
 } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
@@ -11,10 +11,11 @@ import AdminUserManagement from './AdminUserManagement';
 import AdminRateManagement from './AdminRateManagement';
 import AdminAgencySettings from './AdminAgencySettings';
 import AppearanceSettings from './AppearanceSettings';
+import CalendarConnectionsSettings from './CalendarConnectionsSettings';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 
-type Section = 'profil' | 'design' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
+type Section = 'profil' | 'design' | 'kalender' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
 
 const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none text-sm transition';
 
@@ -25,6 +26,7 @@ const NAV: { group: string; adminOnly: boolean; items: { id: Section; label: str
         items: [
             { id: 'profil', label: 'Profil', icon: User },
             { id: 'design', label: 'Design & Thema', icon: Palette },
+            { id: 'kalender', label: 'Kalender', icon: CalendarDays },
         ],
     },
     {
@@ -229,6 +231,22 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                         ? `Eingeloggt als ${currentUser?.name} · ${session?.user?.email}`
                                         : `Login (${session?.user?.email}) stimmt nicht mit Profil-E-Mail überein.`}
                                 </div>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* ── KALENDER ── */}
+                    {section === 'kalender' && currentUser && (
+                        <div className="max-w-2xl space-y-5">
+                            <SectionHeader
+                                title="Kalender-Verbindungen"
+                                subtitle="Verbinde Google Kalender, Outlook, Troi oder Apple iCloud — jeder Nutzer verwaltet seine eigenen Verbindungen."
+                            />
+                            <Card>
+                                <CalendarConnectionsSettings
+                                    currentUser={currentUser}
+                                    organizationId={(currentUser as any).organization_id}
+                                />
                             </Card>
                         </div>
                     )}

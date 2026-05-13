@@ -57,6 +57,7 @@ function useCurrentMinute(): number {
 type AnyEvent = {
     id: string; title: string; start_at: string; end_at: string; all_day: boolean; color: string;
     employee_id?: string; calendarName?: string; location?: string | null; description?: string | null;
+    meeting_url?: string | null; uid?: string; externalCalendarId?: string;
     attendees?: any[]; _type: 'own' | 'team' | 'ext';
 };
 
@@ -69,9 +70,10 @@ interface WeekViewProps {
     externalEvents: ParsedExternalEvent[];
     onSlotClick: (date: Date) => void;
     onEventClick: (event: CalendarEvent) => void;
+    onHideExternal?: (uid: string, externalCalendarId: string) => void;
 }
 
-export default function WeekView({ days, currentUser, employees, ownEvents, teamEvents, externalEvents, onSlotClick, onEventClick }: WeekViewProps) {
+export default function WeekView({ days, currentUser, employees, ownEvents, teamEvents, externalEvents, onSlotClick, onEventClick, onHideExternal }: WeekViewProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const currentMins = useCurrentMinute();
     const today = new Date();
@@ -116,6 +118,7 @@ export default function WeekView({ days, currentUser, employees, ownEvents, team
                 isOwn={isOwn}
                 isExternal={isExt}
                 onEventClick={() => isOwn && onEventClick(e as any)}
+                onHideExternal={isExt ? onHideExternal : undefined}
             >
                 <div
                     className="absolute overflow-hidden rounded-lg px-1.5 py-1 group transition-all duration-100"
@@ -193,7 +196,7 @@ export default function WeekView({ days, currentUser, employees, ownEvents, team
                                     const isOwn = e._type === 'own';
                                     const isExt = e._type === 'ext';
                                     return (
-                                        <EventTooltip key={e.id} event={e as any} employees={employees} isOwn={isOwn} isExternal={isExt} onEventClick={() => isOwn && onEventClick(e as any)}>
+                                        <EventTooltip key={e.id} event={e as any} employees={employees} isOwn={isOwn} isExternal={isExt} onEventClick={() => isOwn && onEventClick(e as any)} onHideExternal={isExt ? onHideExternal : undefined}>
                                             <div className="relative text-[10px] font-medium px-1.5 py-0.5 rounded-md truncate cursor-pointer flex items-center gap-1"
                                                 style={{ background: hex + '22', color: hex, border: `1px solid ${hex}44`, borderStyle: isExt ? 'dashed' : undefined }}>
                                                 {isExt && <ExternalLink size={8} />}

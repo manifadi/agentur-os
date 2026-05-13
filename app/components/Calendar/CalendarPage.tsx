@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
-import { Employee, CalendarEvent, ExternalCalendar, ParsedExternalEvent, CalendarView } from '../../types';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Employee, CalendarEvent, ExternalCalendar, ParsedExternalEvent, CalendarView, HiddenCalendarEvent } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { useApp } from '../../context/AppContext';
 import { getWeekDays, isSameDay } from './views/WeekView';
@@ -28,28 +28,28 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const organizationId = (currentUser as any).organization_id as string;
 
-    // ── View state ──────────────────────────────────────────────────
     const [view, setView] = useState<CalendarView>('week');
     const [anchor, setAnchor] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
 
-    // ── Modal state ─────────────────────────────────────────────────
     const [showModal, setShowModal] = useState(false);
     const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
     const [modalDefaultStart, setModalDefaultStart] = useState<Date | undefined>();
     const [modalDefaultEnd, setModalDefaultEnd] = useState<Date | undefined>();
     const [modalAllDay, setModalAllDay] = useState(false);
 
-    // ── Data ────────────────────────────────────────────────────────
     const [ownEvents, setOwnEvents] = useState<CalendarEvent[]>([]);
     const [teamEvents, setTeamEvents] = useState<CalendarEvent[]>([]);
     const [externalCalendars, setExternals] = useState<ExternalCalendar[]>([]);
     const [externalEvents, setExternalEvents] = useState<ParsedExternalEvent[]>([]);
     const [visibleEmployeeIds, setVisibleEmployeeIds] = useState<string[]>([]);
+    const [showOwnEvents, setShowOwnEvents] = useState(true);
 
-    // ── Helpers ─────────────────────────────────────────────────────
+    // Hidden events
+    const [hiddenEventIds, setHiddenEventIds] = useState<Set<string>>(new Set());
+    const [hiddenExternalKeys, setHiddenExternalKeys] = useState<Set<string>>(new Set()); // uid|calendarId
+
     const weekDays = getWeekDays(anchor);
-    const today = new Date();
 
     const getDateRange = useCallback(() => {
         if (view === 'day') {
@@ -63,13 +63,11 @@ export default function CalendarPage({ employees, currentUser }: Props) {
             const e = new Date(days[6]); e.setHours(23, 59, 59, 999);
             return { from: s, to: e };
         }
-        // month
         const s = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 0, 0, 0, 0);
         const e = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 23, 59, 59, 999);
         return { from: s, to: e };
     }, [view, anchor]);
 
-    // ── Fetch own events ─────────────────────────────────────────────
     const fetchOwnEvents = useCallback(async () => {
         const { from, to } = getDateRange();
         const { data } = await supabase.from('calendar_events')
@@ -81,20 +79,20 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         if (data) setOwnEvents(data as CalendarEvent[]);
     }, [currentUser.id, getDateRange]);
 
-    // ── Fetch team events ────────────────────────────────────────────
     const fetchTeamEvents = useCallback(async () => {
         if (visibleEmployeeIds.length === 0) { setTeamEvents([]); return; }
         const { from, to } = getDateRange();
+        // Only fetch public events from team members
         const { data } = await supabase.from('calendar_events')
             .select('*, employees(id, name, initials, avatar_url)')
             .in('employee_id', visibleEmployeeIds)
+            .eq('visibility', 'public')
             .gte('start_at', from.toISOString())
             .lte('start_at', to.toISOString())
             .order('start_at');
         if (data) setTeamEvents(data as CalendarEvent[]);
     }, [visibleEmployeeIds, getDateRange]);
 
-    // ── Fetch external calendars ─────────────────────────────────────
     const fetchExternalCalendars = useCallback(async () => {
         const { data } = await supabase.from('external_calendars')
             .select('*')
@@ -103,38 +101,80 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         if (data) setExternals(data as ExternalCalendar[]);
     }, [currentUser.id]);
 
-    // ── Fetch & parse iCal feeds ──────────────────────────────────────
     const fetchExternalEvents = useCallback(async () => {
         const visibleCals = externalCalendars.filter(c => c.is_visible);
         if (visibleCals.length === 0) { setExternalEvents([]); return; }
 
+        const { from, to } = getDateRange();
         const allParsed: ParsedExternalEvent[] = [];
+
         await Promise.all(visibleCals.map(async cal => {
             try {
-                const proxied = `/api/ical-proxy?url=${encodeURIComponent(cal.url)}`;
-                const res = await fetch(proxied);
-                if (!res.ok) return;
-                const text = await res.text();
-                const parsed = parseICalText(text, cal.id, cal.name, cal.color);
-                allParsed.push(...parsed);
+                if (cal.provider_type === 'google') {
+                    const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
+                    const res = await fetch(`/api/google-calendar/events?${params}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        allParsed.push(...(data.events || []));
+                    }
+                } else if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
+                    const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
+                    const res = await fetch(`/api/microsoft/events?${params}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        allParsed.push(...(data.events || []));
+                    }
+                } else if ((cal.provider_type === 'troi' || cal.provider_type === 'apple') && cal.caldav_username) {
+                    // CalDAV providers (Troi, Apple) with credentials
+                    const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
+                    const res = await fetch(`/api/caldav/events?${params}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.ical) {
+                            const parsed = parseICalText(data.ical, cal.id, cal.name, cal.color);
+                            allParsed.push(...parsed);
+                        }
+                    }
+                } else {
+                    // ical — use iCal proxy for public URLs
+                    if (!cal.url) return;
+                    const proxied = `/api/ical-proxy?url=${encodeURIComponent(cal.url)}`;
+                    const res = await fetch(proxied);
+                    if (!res.ok) return;
+                    const text = await res.text();
+                    const parsed = parseICalText(text, cal.id, cal.name, cal.color);
+                    allParsed.push(...parsed);
+                }
             } catch (err) {
                 console.warn('[CalendarPage] Failed to fetch external cal:', cal.name, err);
             }
         }));
+
         setExternalEvents(allParsed);
-    }, [externalCalendars]);
+    }, [externalCalendars, getDateRange]);
+
+    const fetchHiddenEvents = useCallback(async () => {
+        const res = await fetch(`/api/calendar/hidden-events?employeeId=${currentUser.id}&organizationId=${organizationId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const hidden: HiddenCalendarEvent[] = data.hidden || [];
+        const eventIds = new Set(hidden.filter(h => h.event_id).map(h => h.event_id!));
+        const externalKeys = new Set(hidden.filter(h => h.external_event_uid && h.external_calendar_id).map(h => `${h.external_event_uid}|${h.external_calendar_id}`));
+        setHiddenEventIds(eventIds);
+        setHiddenExternalKeys(externalKeys);
+    }, [currentUser.id, organizationId]);
 
     useEffect(() => { fetchOwnEvents(); }, [fetchOwnEvents]);
     useEffect(() => { fetchTeamEvents(); }, [fetchTeamEvents]);
     useEffect(() => { fetchExternalCalendars(); }, [fetchExternalCalendars]);
     useEffect(() => { fetchExternalEvents(); }, [fetchExternalEvents]);
+    useEffect(() => { fetchHiddenEvents(); }, [fetchHiddenEvents]);
 
-    // ── Keyboard shortcuts ───────────────────────────────────────────
+    // Keyboard shortcuts
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            // Don't fire when typing in an input/textarea
             if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
-            if (showModal) return; // EventModal handles its own Escape
+            if (showModal) return;
             switch (e.key) {
                 case 'T': case 't': goToday(); break;
                 case 'W': case 'w': setView('week'); break;
@@ -150,7 +190,6 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showModal, view]);
 
-    // ── Navigation ──────────────────────────────────────────────────
     const navigate = (dir: -1 | 1) => {
         setAnchor(prev => {
             const d = new Date(prev);
@@ -169,7 +208,6 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         setView('day');
     };
 
-    // ── Header title ────────────────────────────────────────────────
     const headerTitle = () => {
         if (view === 'day') return anchor.toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         if (view === 'week') {
@@ -181,7 +219,6 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         return anchor.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
     };
 
-    // ── Open modal helpers ──────────────────────────────────────────
     const openCreate = (start?: Date, end?: Date, allDay?: boolean) => {
         setEditEvent(null);
         setModalDefaultStart(start);
@@ -209,12 +246,34 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         fetchExternalCalendars();
     };
 
-    // Filtered external events (only visible calendars)
-    const visibleExternal = externalEvents.filter(e =>
-        externalCalendars.find(c => c.id === e.externalCalendarId && c.is_visible)
-    );
+    const handleHideEvent = (eventId: string) => {
+        setHiddenEventIds(prev => new Set(Array.from(prev).concat(eventId)));
+    };
 
-    // Apply employee color to team events
+    const handleHideExternal = async (uid: string, externalCalendarId: string) => {
+        const key = `${uid}|${externalCalendarId}`;
+        setHiddenExternalKeys(prev => new Set(Array.from(prev).concat(key)));
+        // Persist to DB
+        const cal = externalCalendars.find(c => c.id === externalCalendarId);
+        await fetch('/api/calendar/hidden-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeId: currentUser.id, organizationId, externalEventUid: uid, externalCalendarId }),
+        });
+    };
+
+    // Filter events
+    const filteredOwnEvents = showOwnEvents
+        ? ownEvents.filter(e => !hiddenEventIds.has(e.id))
+        : [];
+
+    const visibleExternal = externalEvents.filter(e => {
+        if (!externalCalendars.find(c => c.id === e.externalCalendarId && c.is_visible)) return false;
+        const key = `${e.uid || ''}|${e.externalCalendarId}`;
+        if (hiddenExternalKeys.has(key)) return false;
+        return true;
+    });
+
     const coloredTeamEvents = teamEvents.map(e => ({
         ...e,
         color: getEmployeeColor(e.employee_id) as any,
@@ -222,7 +281,6 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     return (
         <div className="flex h-full overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-            {/* Left Sidebar */}
             <CalendarSidebar
                 currentUser={currentUser}
                 employees={employees}
@@ -235,36 +293,30 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                 onToggleExternal={toggleExternal}
                 onRefreshExternals={fetchExternalCalendars}
                 ownEvents={ownEvents}
+                showOwnEvents={showOwnEvents}
+                onToggleOwnEvents={() => setShowOwnEvents(x => !x)}
             />
 
-            {/* Main Area */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Top header bar */}
+                {/* Header */}
                 <div className="flex items-center gap-4 px-6 py-3 shrink-0" style={{ borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
-                    {/* Title block */}
                     <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{headerTitle()}</h1>
                         <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-muted)' }}>Kalender</p>
                     </div>
 
-                    {/* View switcher */}
                     <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)' }}>
                         {(['day', 'week', 'month'] as CalendarView[]).map(v => (
                             <button key={v} onClick={() => setView(v)}
                                 className="px-3 py-1.5 text-xs font-semibold transition-all"
-                                style={view === v
-                                    ? { background: 'var(--accent)', color: 'var(--accent-text)' }
-                                    : { color: 'var(--text-muted)' }
-                                }>
+                                style={view === v ? { background: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--text-muted)' }}>
                                 {VIEW_LABELS[v]}
                             </button>
                         ))}
                     </div>
 
-                    {/* Navigation */}
                     <div className="flex items-center gap-1">
-                        <button onClick={() => navigate(-1)} className="p-2 rounded-xl transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
+                        <button onClick={() => navigate(-1)} className="p-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                             onMouseLeave={e => (e.currentTarget.style.background = '')}
                         ><ChevronLeft size={18} /></button>
@@ -275,32 +327,30 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
                         >Heute</button>
 
-                        <button onClick={() => navigate(1)} className="p-2 rounded-xl transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
+                        <button onClick={() => navigate(1)} className="p-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                             onMouseLeave={e => (e.currentTarget.style.background = '')}
                         ><ChevronRight size={18} /></button>
                     </div>
 
-                    {/* New event button */}
                     <button onClick={() => openCreate()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
                         style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
                         <Plus size={14} /> Neuer Termin
                     </button>
                 </div>
 
-                {/* Calendar view */}
                 <div className="flex-1 overflow-hidden">
                     {view === 'week' && (
                         <WeekView
                             days={weekDays}
                             currentUser={currentUser}
                             employees={employees}
-                            ownEvents={ownEvents}
+                            ownEvents={filteredOwnEvents}
                             teamEvents={coloredTeamEvents}
                             externalEvents={visibleExternal}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
+                            onHideExternal={handleHideExternal}
                         />
                     )}
                     {view === 'day' && (
@@ -308,11 +358,12 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             day={anchor}
                             currentUser={currentUser}
                             employees={employees}
-                            ownEvents={ownEvents}
+                            ownEvents={filteredOwnEvents}
                             teamEvents={coloredTeamEvents}
                             externalEvents={visibleExternal}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
+                            onHideExternal={handleHideExternal}
                         />
                     )}
                     {view === 'month' && (
@@ -320,7 +371,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             anchor={anchor}
                             currentUser={currentUser}
                             employees={employees}
-                            ownEvents={ownEvents}
+                            ownEvents={filteredOwnEvents}
                             teamEvents={coloredTeamEvents}
                             externalEvents={visibleExternal}
                             onDayClick={onMonthDayClick}
@@ -330,7 +381,6 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                 </div>
             </div>
 
-            {/* Event Modal */}
             {showModal && (
                 <EventModal
                     event={editEvent}
@@ -340,9 +390,11 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                     currentUser={currentUser}
                     employees={employees}
                     organizationId={organizationId}
+                    externalCalendars={externalCalendars}
                     onClose={() => setShowModal(false)}
                     onSaved={() => { fetchOwnEvents(); fetchTeamEvents(); }}
                     onDeleted={() => { fetchOwnEvents(); fetchTeamEvents(); }}
+                    onHidden={handleHideEvent}
                 />
             )}
         </div>
