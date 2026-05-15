@@ -46,7 +46,6 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
     const handleFinalConfirm = async () => {
         if (!deletingId) return;
         setLoading(true);
-        console.log("Deleting client:", deletingId);
 
         // Supabase Delete (Cascade should handle projects if configured, or manual delete)
         // Assumption: Database has ON DELETE CASCADE for projects referencing clients.

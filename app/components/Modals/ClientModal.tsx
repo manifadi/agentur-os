@@ -107,7 +107,6 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
         const filePath = fileName;
 
         try {
-            console.log('Attempting upload to bucket: client-logos, path:', filePath);
             const { error: uploadError } = await supabase.storage
                 .from('client-logos')
                 .upload(filePath, file, {

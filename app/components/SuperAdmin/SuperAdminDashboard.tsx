@@ -27,10 +27,7 @@ export default function SuperAdminDashboard() {
         // Fetch ALL employees for Super Admin using RPC to bypass RLS
         const { data: emps, error } = await supabase.rpc('get_all_employees_super_admin');
         if (error) console.error('Error fetching employees:', error);
-        if (emps) {
-            console.log('Fetched Employees:', emps);
-            setEmployees(emps);
-        }
+        if (emps) setEmployees(emps);
     };
 
     const handleCreateOrg = async () => {
@@ -42,14 +39,9 @@ export default function SuperAdminDashboard() {
         }
     };
 
-    // Derived state
-    console.log('Selected Org ID:', selectedOrg?.id);
-    const currentOrgEmployees = selectedOrg ? employees.filter(e => {
-        const match = e.organization_id === selectedOrg.id;
-        if (!match && e.organization_id === selectedOrg.id) console.log('Mismatch check:', e.organization_id, selectedOrg.id); // Sanity check
-        return match;
-    }) : [];
-    console.log('Filtered Employees for Org:', currentOrgEmployees);
+    const currentOrgEmployees = selectedOrg
+        ? employees.filter(e => e.organization_id === selectedOrg.id)
+        : [];
 
     return (
         <div className="p-8 max-w-7xl mx-auto">

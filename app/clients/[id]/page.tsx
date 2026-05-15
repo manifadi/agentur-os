@@ -417,9 +417,6 @@ export default function ClientDetailPage() {
     const handleSaveContact = async (contactData: Partial<ClientContact>) => {
         if (!client) return;
 
-        // Debugging RLS
-        console.log("Saving Contact. User Org:", currentUser?.organization_id, "Client Org:", client.organization_id);
-
         const orgId = currentUser?.organization_id || client.organization_id;
 
         if (!orgId) {
@@ -498,8 +495,6 @@ export default function ClientDetailPage() {
         const filePath = fileName;
 
         try {
-            console.log('Attempting upload to bucket: client-logos, path:', filePath);
-            // 1. Upload to Storage
             const { error: uploadError } = await supabase.storage
                 .from('client-logos')
                 .upload(filePath, file, {
