@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, AlertCircle, X } from 'lucide-react';
 import { Employee, CalendarEvent, ExternalCalendar, ParsedExternalEvent, CalendarView, HiddenCalendarEvent } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { useApp } from '../../context/AppContext';
@@ -48,6 +48,15 @@ export default function CalendarPage({ employees, currentUser }: Props) {
     // Hidden events
     const [hiddenEventIds, setHiddenEventIds] = useState<Set<string>>(new Set());
     const [hiddenExternalKeys, setHiddenExternalKeys] = useState<Set<string>>(new Set()); // uid|calendarId
+
+    // Sync errors from external calendars
+    const [syncErrors, setSyncErrors] = useState<{ calendarName: string; message: string }[]>([]);
+    const [dismissedErrors, setDismissedErrors] = useState(false);
+
+    // Reset dismissed state when new errors appear
+    useEffect(() => {
+        if (syncErrors.length > 0) setDismissedErrors(false);
+    }, [syncErrors]);
 
     const weekDays = getWeekDays(anchor);
 
@@ -103,54 +112,63 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const fetchExternalEvents = useCallback(async () => {
         const visibleCals = externalCalendars.filter(c => c.is_visible);
-        if (visibleCals.length === 0) { setExternalEvents([]); return; }
+        if (visibleCals.length === 0) { setExternalEvents([]); setSyncErrors([]); return; }
 
         const { from, to } = getDateRange();
         const allParsed: ParsedExternalEvent[] = [];
+        const errors: { calendarName: string; message: string }[] = [];
+
+        const handleResponse = async (cal: ExternalCalendar, res: Response): Promise<any | null> => {
+            if (res.ok) return res.json();
+            let msg = `HTTP ${res.status}`;
+            try {
+                const data = await res.json();
+                if (data.error) msg = data.error;
+            } catch { /* ignore */ }
+            errors.push({ calendarName: cal.name, message: msg });
+            return null;
+        };
 
         await Promise.all(visibleCals.map(async cal => {
             try {
                 if (cal.provider_type === 'google') {
                     const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
                     const res = await fetch(`/api/google-calendar/events?${params}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        allParsed.push(...(data.events || []));
-                    }
+                    const data = await handleResponse(cal, res);
+                    if (data) allParsed.push(...(data.events || []));
                 } else if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
                     const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
                     const res = await fetch(`/api/microsoft/events?${params}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        allParsed.push(...(data.events || []));
-                    }
+                    const data = await handleResponse(cal, res);
+                    if (data) allParsed.push(...(data.events || []));
                 } else if ((cal.provider_type === 'troi' || cal.provider_type === 'apple') && cal.caldav_username) {
-                    // CalDAV providers (Troi, Apple) with credentials
                     const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
                     const res = await fetch(`/api/caldav/events?${params}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.ical) {
-                            const parsed = parseICalText(data.ical, cal.id, cal.name, cal.color);
-                            allParsed.push(...parsed);
-                        }
+                    const data = await handleResponse(cal, res);
+                    if (data?.ical) {
+                        const parsed = parseICalText(data.ical, cal.id, cal.name, cal.color);
+                        allParsed.push(...parsed);
                     }
                 } else {
-                    // ical — use iCal proxy for public URLs
                     if (!cal.url) return;
                     const proxied = `/api/ical-proxy?url=${encodeURIComponent(cal.url)}`;
                     const res = await fetch(proxied);
-                    if (!res.ok) return;
+                    if (!res.ok) {
+                        errors.push({ calendarName: cal.name, message: `iCal-Feed nicht erreichbar (${res.status})` });
+                        return;
+                    }
                     const text = await res.text();
                     const parsed = parseICalText(text, cal.id, cal.name, cal.color);
                     allParsed.push(...parsed);
                 }
-            } catch (err) {
+            } catch (err: any) {
+                errors.push({ calendarName: cal.name, message: err?.message || 'Netzwerkfehler' });
                 console.warn('[CalendarPage] Failed to fetch external cal:', cal.name, err);
             }
         }));
 
         setExternalEvents(allParsed);
+        setSyncErrors(errors);
     }, [externalCalendars, getDateRange]);
 
     const fetchHiddenEvents = useCallback(async () => {
@@ -298,6 +316,27 @@ export default function CalendarPage({ employees, currentUser }: Props) {
             />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Sync error banner */}
+                {syncErrors.length > 0 && !dismissedErrors && (
+                    <div className="px-6 py-2 flex items-start gap-3 shrink-0" style={{ background: '#FEF2F2', borderBottom: '1px solid #FECACA' }}>
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" style={{ color: '#DC2626' }} />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold" style={{ color: '#991B1B' }}>
+                                {syncErrors.length === 1 ? 'Ein Kalender konnte nicht synchronisiert werden:' : `${syncErrors.length} Kalender konnten nicht synchronisiert werden:`}
+                            </p>
+                            <ul className="text-[11px] mt-0.5 space-y-0.5" style={{ color: '#7F1D1D' }}>
+                                {syncErrors.slice(0, 3).map((e, i) => (
+                                    <li key={i}><span className="font-semibold">{e.calendarName}:</span> {e.message}</li>
+                                ))}
+                                {syncErrors.length > 3 && <li className="italic">…und {syncErrors.length - 3} weitere</li>}
+                            </ul>
+                        </div>
+                        <button onClick={() => setDismissedErrors(true)} className="p-1 rounded-lg shrink-0" style={{ color: '#991B1B' }}>
+                            <X size={14} />
+                        </button>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="flex items-center gap-4 px-6 py-3 shrink-0" style={{ borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
                     <div className="flex-1 min-w-0">

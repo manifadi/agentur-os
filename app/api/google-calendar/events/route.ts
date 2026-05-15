@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { encrypt, safeDecrypt } from '../../../utils/crypto';
 
 const SUPABASE_URL = 'https://lkyqohkdxmchrjicvurn.supabase.co';
 
@@ -24,14 +25,17 @@ async function getValidToken(supabase: any, calendarId: string): Promise<{ token
     const cal = calRaw as any;
     if (!cal) return null;
 
-    let token = cal.oauth_access_token;
+    let token = safeDecrypt(cal.oauth_access_token);
     const expired = cal.oauth_expires_at && new Date(cal.oauth_expires_at) < new Date(Date.now() + 60_000);
 
     if (expired && cal.oauth_refresh_token) {
-        token = await refreshGoogleToken(cal.oauth_refresh_token);
+        const refreshToken = safeDecrypt(cal.oauth_refresh_token);
+        token = (await refreshGoogleToken(refreshToken)) || '';
         if (token) {
             const expiresAt = new Date(Date.now() + 3600_000).toISOString();
-            await (supabase.from('external_calendars') as any).update({ oauth_access_token: token, oauth_expires_at: expiresAt }).eq('id', calendarId);
+            await (supabase.from('external_calendars') as any)
+                .update({ oauth_access_token: encrypt(token), oauth_expires_at: expiresAt })
+                .eq('id', calendarId);
         }
     }
 

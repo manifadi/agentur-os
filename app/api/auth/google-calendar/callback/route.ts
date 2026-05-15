@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { encrypt } from '../../../../utils/crypto';
 
 const SUPABASE_URL = 'https://lkyqohkdxmchrjicvurn.supabase.co';
 
@@ -59,8 +60,8 @@ export async function GET(request: NextRequest) {
         provider_type: 'google',
         is_writable: true,
         external_calendar_id: calInfo?.id || 'primary',
-        oauth_access_token: tokens.access_token,
-        oauth_refresh_token: tokens.refresh_token || null,
+        oauth_access_token: encrypt(tokens.access_token),
+        oauth_refresh_token: tokens.refresh_token ? encrypt(tokens.refresh_token) : null,
         oauth_expires_at: expiresAt,
     });
 

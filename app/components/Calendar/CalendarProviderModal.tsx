@@ -1,8 +1,15 @@
 'use client';
 import React, { useState } from 'react';
-import { X, Link, Chrome, Monitor, Apple, Building2, Eye, EyeOff, AlertCircle, Loader, Shield, Info } from 'lucide-react';
+import { X, Link, Chrome, Monitor, Apple, Building2, Eye, EyeOff, AlertCircle, Loader, Shield, Info, Check, Lock } from 'lucide-react';
 import { Employee, CalendarProviderType } from '../../types';
 import { supabase } from '../../supabaseClient';
+
+interface DiscoveredCalendar {
+    url: string;
+    displayName: string;
+    color?: string;
+    isWritable: boolean;
+}
 
 const COLORS = ['#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#F59E0B', '#06B6D4', '#64748B', '#0078D4', '#5059C9', '#7C3AED'];
 
@@ -70,6 +77,9 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
     const [connecting, setConnecting] = useState(false); // covers test + save together
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    // After discovery: list of calendars to choose from
+    const [discovered, setDiscovered] = useState<DiscoveredCalendar[] | null>(null);
+    const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
 
     const handlePresetChange = (p: CalDavPreset) => {
         setPreset(p);
@@ -87,22 +97,22 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
         return base + path;
     };
 
-    // Single action: test connection first, then save only if successful
-    const handleTestAndConnect = async () => {
-        if (!name.trim() || !serverUrl.trim() || !username.trim() || !password.trim()) {
-            setError('Bitte alle Pflichtfelder ausfüllen');
+    // Step 1: Discover available calendars on the server
+    const handleDiscover = async () => {
+        if (!serverUrl.trim() || !username.trim() || !password.trim()) {
+            setError('Bitte Server-Adresse, Benutzername und Passwort ausfüllen');
             return;
         }
         setConnecting(true);
         setError('');
 
-        let discoveredUrl = buildCalDavUrl() || serverUrl;
+        const startUrl = buildCalDavUrl() || serverUrl;
 
         try {
             const res = await fetch('/api/caldav/test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: discoveredUrl, username, password }),
+                body: JSON.stringify({ url: startUrl, username, password }),
             });
             const data = await res.json();
 
@@ -112,35 +122,67 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                 return;
             }
 
-            // Use server-discovered URL if returned (e.g. after .well-known redirect)
-            if (data.discoveredUrl) discoveredUrl = data.discoveredUrl;
-            if (data.calendarName && !name.trim()) setName(data.calendarName);
+            const cals: DiscoveredCalendar[] = data.calendars || [];
+            setDiscovered(cals);
+            // Pre-select all by default
+            setSelectedUrls(new Set(cals.map(c => c.url)));
         } catch {
             setError('Netzwerkfehler — Server nicht erreichbar.');
-            setConnecting(false);
+        }
+        setConnecting(false);
+    };
+
+    // Step 2: Save selected calendars to DB (server-side will encrypt password)
+    const handleSaveSelected = async () => {
+        if (!discovered || selectedUrls.size === 0) {
+            setError('Bitte mindestens einen Kalender auswählen');
+            return;
+        }
+        setSaving(true);
+        setError('');
+
+        const providerType: CalendarProviderType = preset === 'troi' ? 'troi' : preset === 'apple' ? 'apple' : 'ical';
+
+        // Save via dedicated endpoint so password gets encrypted server-side
+        try {
+            const res = await fetch('/api/caldav/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    organizationId,
+                    employeeId: currentUser.id,
+                    providerType,
+                    username: username.trim(),
+                    password,
+                    color,
+                    calendars: discovered
+                        .filter(c => selectedUrls.has(c.url))
+                        .map(c => ({ url: c.url, displayName: c.displayName, isWritable: c.isWritable, color: c.color || color })),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setError(data.error || 'Speichern fehlgeschlagen.');
+                setSaving(false);
+                return;
+            }
+        } catch {
+            setError('Netzwerkfehler beim Speichern.');
+            setSaving(false);
             return;
         }
 
-        // Connection verified — now save
-        const providerType: CalendarProviderType = preset === 'troi' ? 'troi' : preset === 'apple' ? 'apple' : 'ical';
-
-        const { error: dbErr } = await supabase.from('external_calendars').insert({
-            organization_id: organizationId,
-            employee_id: currentUser.id,
-            name: name.trim(),
-            url: discoveredUrl,
-            color,
-            is_visible: true,
-            provider_type: providerType,
-            is_writable: false,
-            caldav_username: username.trim(),
-            oauth_access_token: password,
-        });
-
-        setConnecting(false);
-        if (dbErr) { setError(dbErr.message); return; }
+        setSaving(false);
         onAdded();
         onClose();
+    };
+
+    const toggleCalendar = (url: string) => {
+        setSelectedUrls(prev => {
+            const next = new Set(prev);
+            if (next.has(url)) next.delete(url); else next.add(url);
+            return next;
+        });
     };
 
     const handleSaveIcal = async () => {
@@ -230,7 +272,70 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
                     {/* ── CalDAV Tab ── */}
-                    {tab === 'caldav' && (
+                    {tab === 'caldav' && discovered && (
+                        <>
+                            {/* Calendar Picker — after discovery */}
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Check size={14} style={{ color: '#10B981' }} />
+                                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                                        Verbindung erfolgreich · {discovered.length} {discovered.length === 1 ? 'Kalender' : 'Kalender'} gefunden
+                                    </span>
+                                </div>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    Welche Kalender möchtest Du verbinden?
+                                </p>
+                                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                                    {discovered.map(c => {
+                                        const selected = selectedUrls.has(c.url);
+                                        return (
+                                            <button
+                                                key={c.url}
+                                                onClick={() => toggleCalendar(c.url)}
+                                                className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all"
+                                                style={{
+                                                    background: selected ? 'var(--accent-subtle)' : 'var(--bg-subtle)',
+                                                    border: `1px solid ${selected ? 'var(--accent)' : 'var(--border-default)'}`,
+                                                }}
+                                            >
+                                                <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+                                                    style={{ background: selected ? 'var(--accent)' : 'transparent', border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--border-strong)'}` }}>
+                                                    {selected && <Check size={10} style={{ color: 'var(--accent-text)' }} />}
+                                                </div>
+                                                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: c.color || color }} />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{c.displayName}</div>
+                                                    <div className="text-[10px] truncate font-mono" style={{ color: 'var(--text-muted)' }}>{c.url.replace(/^https?:\/\//, '')}</div>
+                                                </div>
+                                                {c.isWritable ? (
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0" style={{ background: '#DCFCE7', color: '#166534' }}>↔ Sync</span>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0 flex items-center gap-1" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                                                        <Lock size={8} /> Read-only
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {error && (
+                                    <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: '#FEE2E2', color: '#991B1B' }}>
+                                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                                        {error}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => { setDiscovered(null); setSelectedUrls(new Set()); }}
+                                    className="text-[10px] font-bold uppercase tracking-widest"
+                                    style={{ color: 'var(--text-muted)' }}
+                                >
+                                    ← Andere Zugangsdaten verwenden
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {tab === 'caldav' && !discovered && (
                         <>
                             {/* Preset selector */}
                             <div className="grid grid-cols-3 gap-2">
@@ -425,11 +530,18 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                     </button>
 
                     <div className="flex gap-2">
-                        {tab === 'caldav' && (
-                            <button onClick={handleTestAndConnect} disabled={connecting || !name || !serverUrl || !username || !password}
+                        {tab === 'caldav' && !discovered && (
+                            <button onClick={handleDiscover} disabled={connecting || !serverUrl || !username || !password}
                                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-40"
                                 style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
-                                {connecting ? <><Loader size={12} className="animate-spin" /> Prüfen…</> : 'Verbinden'}
+                                {connecting ? <><Loader size={12} className="animate-spin" /> Suche Kalender…</> : 'Verbinden & Kalender suchen'}
+                            </button>
+                        )}
+                        {tab === 'caldav' && discovered && (
+                            <button onClick={handleSaveSelected} disabled={saving || selectedUrls.size === 0}
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-40"
+                                style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
+                                {saving ? <><Loader size={12} className="animate-spin" /> Speichern…</> : `${selectedUrls.size} Kalender hinzufügen`}
                             </button>
                         )}
                         {tab === 'google' && (
