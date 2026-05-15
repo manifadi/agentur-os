@@ -71,10 +71,11 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
     const [links, setLinks] = useState<ProjectLink[]>((project as any).project_links || []);
     const [showAddForm, setShowAddForm] = useState(false);
     const [addForm, setAddForm] = useState({ name: '', url: '' });
-    const [uploading, setUploading] = useState(false);
+    const [uploadingCount, setUploadingCount] = useState(0);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const uploading = uploadingCount > 0;
 
     const saveLinks = async (newLinks: ProjectLink[]) => {
         setLinks(newLinks);
@@ -97,27 +98,33 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
     };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        try {
-            setUploading(true);
-            const url = await uploadFileToSupabase(file, 'documents');
-            const type = detectType(url);
-            const nameFallback = file.name || url.split('/').pop() || 'Dokument';
-            const newLink: ProjectLink = {
-                id: crypto.randomUUID(),
-                name: nameFallback,
-                url,
-                type,
-                created_at: new Date().toISOString(),
-            };
-            await saveLinks([...links, newLink]);
-        } catch (error) {
-            console.error('Error uploading document:', error);
-        } finally {
-            setUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+        const fileArray = Array.from(files);
+        setUploadingCount(fileArray.length);
+        const newLinks: ProjectLink[] = [];
+        for (const file of fileArray) {
+            try {
+                const url = await uploadFileToSupabase(file, 'documents');
+                const type = detectType(url);
+                const nameFallback = file.name || url.split('/').pop() || 'Dokument';
+                newLinks.push({
+                    id: crypto.randomUUID(),
+                    name: nameFallback,
+                    url,
+                    type,
+                    created_at: new Date().toISOString(),
+                });
+            } catch (error) {
+                console.error('Error uploading document:', error);
+            } finally {
+                setUploadingCount(c => Math.max(0, c - 1));
+            }
         }
+        if (newLinks.length > 0) {
+            await saveLinks([...links, ...newLinks]);
+        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleDelete = async (id: string) => {
@@ -144,7 +151,7 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-subtle hover:bg-accent hover:text-surface text-text-primary border border-default hover:border-accent rounded-lg text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
                         <Upload size={13} />
-                        Datei hochladen
+                        {uploading ? `Lädt hoch (${uploadingCount}) …` : 'Dateien hochladen'}
                     </button>
                     <button
                         onClick={() => { setShowAddForm(!showAddForm); setAddForm({ name: '', url: '' }); }}
@@ -161,6 +168,7 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
+                multiple
                 className="hidden"
             />
 
@@ -225,7 +233,7 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
                             onClick={() => fileInputRef.current?.click()}
                             className="px-4 py-2 bg-surface border border-default hover:border-accent text-text-primary hover:text-accent rounded-xl text-xs font-bold transition-colors shadow-sm"
                         >
-                            Datei hochladen
+                            Dateien hochladen
                         </button>
                         <button
                             onClick={() => setShowAddForm(true)}
@@ -237,14 +245,14 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {/* Uploading placeholder card */}
-                    {uploading && (
-                        <div className="animate-pulse bg-subtle border border-default rounded-2xl p-4 flex flex-col gap-3">
+                    {/* Uploading placeholder cards */}
+                    {Array.from({ length: uploadingCount }).map((_, i) => (
+                        <div key={`uploading-${i}`} className="animate-pulse bg-subtle border border-default rounded-2xl p-4 flex flex-col gap-3">
                             <div className="w-10 h-10 rounded-xl bg-surface border border-default" />
                             <div className="h-3 bg-surface rounded w-3/4" />
                             <div className="h-2.5 bg-surface rounded w-1/2" />
                         </div>
-                    )}
+                    ))}
 
                     {links.map(link => (
                         <div

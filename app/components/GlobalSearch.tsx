@@ -177,7 +177,7 @@ export default function GlobalSearch() {
                                         {results.clients.map(c => (
                                             <button
                                                 key={c.id}
-                                                onClick={() => handleSelect(`/uebersicht?client_id=${c.id}`)}
+                                                onClick={() => handleSelect(`/clients/${c.id}`)}
                                                 className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
                                                 <div className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center text-sm font-bold border border-default group-hover:bg-accent-subtle group-hover:text-accent overflow-hidden shadow-sm text-text-primary">

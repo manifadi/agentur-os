@@ -1,28 +1,64 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 import { useApp } from '../../context/AppContext';
-import { Client, ClientContact, ClientLog, Project } from '../../types';
-import { ArrowLeft, Phone, Mail, Globe, MapPin, Building, Trash, Edit2, Plus, User, Save, X, Briefcase, FileText, Send, Calendar, MoreHorizontal } from 'lucide-react';
+import { Client, ClientContact, ClientLog, Project, ProjectInvoice, ProjectLink, TimeEntry } from '../../types';
+import { ArrowLeft, Phone, Mail, Globe, MapPin, Building, Trash, Edit2, Plus, User, Save, X, Briefcase, FileText, Send, Calendar, MoreHorizontal, TrendingUp, Receipt, Activity, Folder, Users as UsersIcon, ExternalLink, ArrowRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
 import ContactModal from '../../components/Modals/ContactModal';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { getStatusStyle, getStatusDot } from '../../utils';
+
+type TabId = 'overview' | 'projects' | 'finances' | 'activity' | 'documents' | 'team';
+
+const TABS: { id: TabId; label: string; icon: any }[] = [
+    { id: 'overview', label: 'Übersicht', icon: Building },
+    { id: 'projects', label: 'Projekte', icon: Briefcase },
+    { id: 'finances', label: 'Finanzen', icon: Receipt },
+    { id: 'activity', label: 'Aktivität', icon: Activity },
+    { id: 'documents', label: 'Dokumente', icon: Folder },
+    { id: 'team', label: 'Team', icon: UsersIcon }
+];
+
+function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
+}
+
+function formatDateTime(iso: string): string {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+function relativeTime(iso: string): string {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'gerade eben';
+    if (diffMin < 60) return `vor ${diffMin} Min.`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `vor ${diffH} Std.`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 7) return `vor ${diffD} Tagen`;
+    return new Date(iso).toLocaleDateString('de-DE');
+}
 
 export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const { session, currentUser } = useApp();
+    const { session, currentUser, employees } = useApp();
     const clientId = params.id as string;
 
     const [client, setClient] = useState<Client | null>(null);
     usePageTitle(client?.name || 'Kunde');
     const [contacts, setContacts] = useState<ClientContact[]>([]);
-    const [logs, setLogs] = useState<ClientLog[]>([]); // New Log State
+    const [logs, setLogs] = useState<ClientLog[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
+    const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabId>('overview');
 
     // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
@@ -84,9 +120,12 @@ export default function ClientDetailPage() {
         const { data: contactsData } = await supabase.from('client_contacts').select('*').eq('client_id', clientId);
         if (contactsData) setContacts(contactsData);
 
-        // 3. Fetch Projects
+        // 3. Fetch Projects (with project_links for documents tab)
         const { data: projectsData } = await supabase.from('projects').select('*, clients(*)').eq('client_id', clientId).order('created_at', { ascending: false });
-        if (projectsData) setProjects(projectsData as any);
+        const projectList = (projectsData || []) as any as Project[];
+        setProjects(projectList);
+
+        const projectIds = projectList.map(p => p.id);
 
         // 4. Fetch Logs (Logbook)
         const { data: logsData } = await supabase
@@ -94,14 +133,157 @@ export default function ClientDetailPage() {
             .select(`*, employees:author_id(id, name, initials)`)
             .eq('client_id', clientId)
             .order('created_at', { ascending: false });
+        if (logsData) setLogs(logsData as any);
 
-        if (logsData) {
-            // Transform data if necessary, or rely on automatic mapping if shapes match
-            setLogs(logsData as any);
+        // 5. Fetch Invoices for all projects of this client
+        if (projectIds.length > 0) {
+            const { data: invoiceData } = await supabase
+                .from('project_invoices')
+                .select('*')
+                .in('project_id', projectIds)
+                .order('invoice_date', { ascending: false });
+            if (invoiceData) setInvoices(invoiceData as any);
+
+            // 6. Fetch Time Entries
+            const { data: timeData } = await supabase
+                .from('time_entries')
+                .select('*')
+                .in('project_id', projectIds);
+            if (timeData) setTimeEntries(timeData as any);
+        } else {
+            setInvoices([]);
+            setTimeEntries([]);
         }
 
         setLoading(false);
     };
+
+    // ─── Derived Data / KPIs ─────────────────────────────────────────
+    const activeProjects = useMemo(
+        () => projects.filter(p => p.status !== 'Erledigt' && p.status !== 'Abgebrochen'),
+        [projects]
+    );
+    const completedProjects = useMemo(
+        () => projects.filter(p => p.status === 'Erledigt'),
+        [projects]
+    );
+
+    const finalInvoices = useMemo(() => invoices.filter(i => i.status === 'final'), [invoices]);
+    const openInvoices = useMemo(() => invoices.filter(i => i.status === 'draft'), [invoices]);
+
+    const totalRevenue = useMemo(
+        () => finalInvoices.reduce((sum, i) => sum + (Number(i.total_gross) || 0), 0),
+        [finalInvoices]
+    );
+    const openInvoicesAmount = useMemo(
+        () => openInvoices.reduce((sum, i) => sum + (Number(i.total_gross) || 0), 0),
+        [openInvoices]
+    );
+
+    // Project value lookup (revenue per project from final invoices)
+    const projectRevenueMap = useMemo(() => {
+        const map: Record<string, number> = {};
+        for (const inv of finalInvoices) {
+            map[inv.project_id] = (map[inv.project_id] || 0) + (Number(inv.total_gross) || 0);
+        }
+        return map;
+    }, [finalInvoices]);
+
+    // Aggregated documents from all project_links
+    const allDocuments = useMemo(() => {
+        const docs: (ProjectLink & { project_id: string; project_title: string })[] = [];
+        for (const p of projects) {
+            for (const link of (p.project_links || [])) {
+                docs.push({ ...link, project_id: p.id, project_title: p.title });
+            }
+        }
+        return docs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }, [projects]);
+
+    // Team aggregation: hours per employee
+    const teamStats = useMemo(() => {
+        const totals: Record<string, { hours: number; lastEntry: string }> = {};
+        for (const t of timeEntries) {
+            if (!t.employee_id) continue;
+            const existing = totals[t.employee_id] || { hours: 0, lastEntry: '' };
+            existing.hours += Number(t.hours) || 0;
+            if (!existing.lastEntry || (t.date > existing.lastEntry)) existing.lastEntry = t.date;
+            totals[t.employee_id] = existing;
+        }
+        return Object.entries(totals)
+            .map(([empId, { hours, lastEntry }]) => {
+                const emp = employees.find(e => e.id === empId);
+                return { employee: emp, hours, lastEntry };
+            })
+            .filter(t => t.employee)
+            .sort((a, b) => b.hours - a.hours);
+    }, [timeEntries, employees]);
+
+    const totalHours = useMemo(
+        () => timeEntries.reduce((sum, t) => sum + (Number(t.hours) || 0), 0),
+        [timeEntries]
+    );
+
+    // Upcoming deadlines (active projects with future deadlines)
+    const upcomingDeadlines = useMemo(() => {
+        const now = Date.now();
+        return activeProjects
+            .filter(p => p.deadline && new Date(p.deadline).getTime() >= now - 1000 * 60 * 60 * 24 * 3)
+            .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+            .slice(0, 5);
+    }, [activeProjects]);
+
+    // Activity timeline: logs + derived events
+    const activityTimeline = useMemo(() => {
+        type ActivityEvent = {
+            id: string;
+            type: 'log' | 'project_created' | 'invoice_created' | 'invoice_finalized';
+            date: string;
+            title: string;
+            description?: string;
+            author?: string;
+            meta?: any;
+        };
+        const events: ActivityEvent[] = [];
+
+        for (const log of logs) {
+            events.push({
+                id: `log-${log.id}`,
+                type: 'log',
+                date: log.created_at,
+                title: log.title,
+                description: log.content,
+                author: log.employees?.name
+            });
+        }
+
+        for (const p of projects) {
+            if (p.created_at) {
+                events.push({
+                    id: `proj-${p.id}`,
+                    type: 'project_created',
+                    date: p.created_at,
+                    title: `Projekt angelegt: ${p.title}`,
+                    description: p.job_number,
+                    meta: { projectId: p.id }
+                });
+            }
+        }
+
+        for (const inv of invoices) {
+            const projTitle = projects.find(p => p.id === inv.project_id)?.title || 'Unbekanntes Projekt';
+            events.push({
+                id: `inv-${inv.id}`,
+                type: inv.status === 'final' ? 'invoice_finalized' : 'invoice_created',
+                date: inv.created_at || inv.invoice_date,
+                title: inv.status === 'final' ? `Rechnung finalisiert: ${inv.invoice_number}` : `Rechnung erstellt: ${inv.invoice_number}`,
+                description: `${projTitle} • ${formatCurrency(Number(inv.total_gross) || 0)}`,
+                meta: { projectId: inv.project_id }
+            });
+        }
+
+        return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [logs, projects, invoices]);
 
     const handleSaveClient = async () => {
         if (!client) return;
@@ -386,9 +568,8 @@ export default function ClientDetailPage() {
     };
 
     const executeRemoveImage = async () => {
+        if (!client) return;
         try {
-            // Extract path from URL if possible, or just nullify in DB
-            // Assuming we just want to clear it from the client record
             const { error } = await supabase
                 .from('clients')
                 .update({ logo_url: null })
@@ -425,7 +606,7 @@ export default function ClientDetailPage() {
 
     return (
         <div className="min-h-screen bg-subtle/50 p-6 lg:p-12 animate-in fade-in duration-500">
-            <div className="max-w-5xl mx-auto space-y-8">
+            <div className="max-w-7xl mx-auto space-y-6">
 
                 {/* HEADER NAV */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -588,137 +769,485 @@ export default function ClientDetailPage() {
                     </div>
                 </div>
 
+                {/* KPI COCKPIT */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Total Revenue */}
+                    <div className="bg-surface rounded-2xl border border-default shadow-sm p-6 flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center flex-shrink-0">
+                            <TrendingUp size={22} strokeWidth={2.5} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest">Gesamt-Umsatz</div>
+                            <div className="text-2xl font-black text-text-primary tracking-tight mt-1">{formatCurrency(totalRevenue)}</div>
+                            <div className="text-[11px] text-text-muted mt-0.5">{finalInvoices.length} {finalInvoices.length === 1 ? 'Rechnung' : 'Rechnungen'} final</div>
+                        </div>
+                    </div>
+
+                    {/* Open Invoices */}
+                    <div className="bg-surface rounded-2xl border border-default shadow-sm p-6 flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${openInvoices.length > 0 ? 'bg-orange-500/10 text-orange-600' : 'bg-subtle text-text-muted'}`}>
+                            <Receipt size={22} strokeWidth={2.5} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest">Offene Rechnungen</div>
+                            <div className="text-2xl font-black text-text-primary tracking-tight mt-1">{formatCurrency(openInvoicesAmount)}</div>
+                            <div className="text-[11px] text-text-muted mt-0.5">{openInvoices.length} im Entwurf</div>
+                        </div>
+                    </div>
+
+                    {/* Projects */}
+                    <div className="bg-surface rounded-2xl border border-default shadow-sm p-6 flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-accent-subtle/30 text-accent flex items-center justify-center flex-shrink-0">
+                            <Briefcase size={22} strokeWidth={2.5} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest">Projekte</div>
+                            <div className="flex items-baseline gap-3 mt-1">
+                                <span className="text-2xl font-black text-text-primary tracking-tight">{activeProjects.length}</span>
+                                <span className="text-xs font-bold text-text-muted">aktiv</span>
+                                <span className="text-text-placeholder">/</span>
+                                <span className="text-lg font-bold text-text-muted">{completedProjects.length}</span>
+                                <span className="text-xs font-bold text-text-muted">erledigt</span>
+                            </div>
+                            <div className="text-[11px] text-text-muted mt-0.5">{projects.length} gesamt</div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* CONTENT GRID */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                    {/* LEFT COLUMN (2/3) */}
-                    <div className="lg:col-span-2 space-y-8">
-                        {/* ABOUT SECTION */}
-                        <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
-                            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
-                                <Building size={16} className="text-text-placeholder" /> Über das Unternehmen
-                            </h3>
-                            {isEditing ? (
-                                <textarea
-                                    className={inputStyle + " h-32 resize-none"}
-                                    placeholder="Beschreibung des Unternehmens..."
-                                    value={editForm.description || ''}
-                                    onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                                />
-                            ) : (
-                                <p className="text-text-secondary leading-relaxed text-lg">
-                                    {client.description || <span className="text-text-placeholder italic">Keine Beschreibung hinterlegt.</span>}
-                                </p>
-                            )}
+                    {/* LEFT COLUMN (2/3) - TABS */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* TAB NAVIGATION */}
+                        <div className="bg-surface rounded-2xl border border-default shadow-sm p-2 flex items-center gap-1 overflow-x-auto custom-scrollbar">
+                            {TABS.map(tab => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${isActive
+                                            ? 'bg-text-primary text-surface shadow-sm'
+                                            : 'text-text-muted hover:text-text-primary hover:bg-hover'
+                                            }`}
+                                    >
+                                        <Icon size={14} strokeWidth={2.5} />
+                                        {tab.label}
+                                    </button>
+                                );
+                            })}
                         </div>
 
-                        {/* LOGBOOK (Internal Notes replacement) */}
-                        <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
-                            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
-                                <FileText size={16} className="text-text-placeholder" /> Logbuch & Notizen
-                            </h3>
+                        {/* TAB CONTENT */}
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-                            {/* Create Log */}
-                            <div className="bg-subtle/50 p-4 rounded-xl border border-default mb-8">
-                                <input
-                                    className="w-full bg-surface border border-default rounded-lg px-4 py-2 text-sm font-bold text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none mb-2"
-                                    placeholder="Titel des Eintrags (z.B. Meeting Notiz)"
-                                    value={newLog.title}
-                                    onChange={e => setNewLog({ ...newLog, title: e.target.value })}
-                                />
-                                <textarea
-                                    className="w-full h-24 bg-surface border border-default rounded-lg px-4 py-3 text-sm text-text-secondary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none resize-none mb-3"
-                                    placeholder="Was gibt es Neues?"
-                                    value={newLog.content}
-                                    onChange={e => setNewLog({ ...newLog, content: e.target.value })}
-                                />
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={handlePostLog}
-                                        disabled={!newLog.title || !newLog.content || isPostingLog}
-                                        className="bg-gray-900 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-black transition disabled:opacity-50"
-                                    >
-                                        <Send size={14} /> Eintrag speichern
-                                    </button>
-                                </div>
-                            </div>
+                            {/* ── OVERVIEW TAB ── */}
+                            {activeTab === 'overview' && (
+                                <div className="space-y-6">
+                                    {/* About */}
+                                    <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                        <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                            <Building size={16} className="text-text-placeholder" /> Über das Unternehmen
+                                        </h3>
+                                        {isEditing ? (
+                                            <textarea
+                                                className={inputStyle + " h-32 resize-none"}
+                                                placeholder="Beschreibung des Unternehmens..."
+                                                value={editForm.description || ''}
+                                                onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                                            />
+                                        ) : (
+                                            <p className="text-text-secondary leading-relaxed">
+                                                {client.description || <span className="text-text-placeholder italic">Keine Beschreibung hinterlegt.</span>}
+                                            </p>
+                                        )}
+                                    </div>
 
-                            {/* Logs Feed */}
-                            <div className="space-y-6">
-                                {logs.length === 0 ? (
-                                    <div className="text-center text-text-placeholder text-sm py-4">Noch keine Einträge.</div>
-                                ) : (
-                                    logs.map(log => (
-                                        <div key={log.id} className="relative pl-6 border-l-2 border-default pb-2 group">
-                                            <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-gray-300 ring-4 ring-white group-hover:bg-accent transition-colors"></div>
-
-                                            {/* Header */}
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <h4 className="font-bold text-text-primary text-base">{editingLogId === log.id ? "Eintrag bearbeiten" : log.title}</h4>
-                                                    <div className="text-xs text-text-placeholder flex items-center gap-2 mt-1">
-                                                        <span className="font-medium text-text-muted">{log.employees?.name || 'Unbekannt'}</span>
-                                                        <span>•</span>
-                                                        <span>{new Date(log.created_at).toLocaleDateString()} {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Actions (Edit/Delete) - Allow for Author or Admin */}
-                                                {(isAdmin || currentUser?.id === log.author_id) && !editingLogId && (
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                                                        <button onClick={() => { setEditingLogId(log.id); setEditLogData({ title: log.title, content: log.content }) }} className="p-1 text-text-placeholder hover:text-black"><Edit2 size={12} /></button>
-                                                        <button onClick={() => handleDeleteLog(log.id)} className="p-1 text-text-placeholder hover:text-red-500"><Trash size={12} /></button>
-                                                    </div>
-                                                )}
+                                    {/* Upcoming Deadlines */}
+                                    <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                        <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                            <Calendar size={16} className="text-text-placeholder" /> Anstehende Deadlines
+                                        </h3>
+                                        {upcomingDeadlines.length === 0 ? (
+                                            <p className="text-text-placeholder text-sm italic">Keine anstehenden Deadlines.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {upcomingDeadlines.map(p => {
+                                                    const isOverdue = new Date(p.deadline!) < new Date();
+                                                    return (
+                                                        <button
+                                                            key={p.id}
+                                                            onClick={() => router.push(`/uebersicht?projectId=${p.id}`)}
+                                                            className="group w-full flex items-center gap-3 p-3 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
+                                                        >
+                                                            <div className={`w-2 h-2 rounded-full ${getStatusDot(p.status)}`} />
+                                                            <span className="text-sm font-bold text-text-primary flex-1 truncate group-hover:text-accent transition-colors">{p.title}</span>
+                                                            <span className="text-[10px] font-bold text-text-muted">{p.job_number}</span>
+                                                            <span className={`text-xs font-bold ${isOverdue ? 'text-red-500' : 'text-text-muted'}`}>{new Date(p.deadline!).toLocaleDateString('de-DE')}</span>
+                                                            <ArrowRight size={14} className="text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
+                                        )}
+                                    </div>
 
-                                            {/* Content */}
-                                            {editingLogId === log.id ? (
-                                                <div className="bg-surface p-4 rounded-xl border border-accent-subtle mt-2 shadow-sm">
-                                                    <input
-                                                        className="w-full border-b border-default py-2 mb-2 font-bold text-sm outline-none"
-                                                        value={editLogData.title}
-                                                        onChange={e => setEditLogData({ ...editLogData, title: e.target.value })}
-                                                    />
-                                                    <textarea
-                                                        className="w-full h-24 outline-none text-sm text-text-secondary resize-none"
-                                                        value={editLogData.content}
-                                                        onChange={e => setEditLogData({ ...editLogData, content: e.target.value })}
-                                                    />
-                                                    <div className="flex justify-end gap-2 mt-2">
-                                                        <button onClick={() => setEditingLogId(null)} className="text-xs text-text-placeholder font-bold px-2 py-1 hover:bg-hover rounded">Abbrechen</button>
-                                                        <button onClick={handleUpdateLog} className="text-xs bg-black text-white px-3 py-1 rounded font-bold">Update</button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="text-text-secondary text-sm leading-relaxed whitespace-pre-wrap bg-subtle p-4 rounded-xl border border-default/50">
-                                                    {log.content}
-                                                </div>
+                                    {/* Latest Logs Preview */}
+                                    <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                                                <FileText size={16} className="text-text-placeholder" /> Letzte Notizen
+                                            </h3>
+                                            {logs.length > 3 && (
+                                                <button onClick={() => setActiveTab('activity')} className="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline">Alle anzeigen →</button>
                                             )}
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        {/* PROJECTS */}
-                        <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
-                            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
-                                <Briefcase size={16} className="text-text-placeholder" /> Aktive Projekte ({projects.length})
-                            </h3>
-                            {projects.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {projects.map(p => (
-                                        <div key={p.id} className="p-5 rounded-xl border border-default hover:border-default hover:shadow-md transition cursor-pointer bg-subtle/30 group" onClick={() => router.push(`/uebersicht?projectId=${p.id}`)}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="font-bold text-text-primary group-hover:text-accent transition">{p.title}</div>
-                                                <div className={`w-2 h-2 rounded-full mt-1.5 ${p.status === 'Fertig' ? 'bg-green-500' : 'bg-accent'}`}></div>
+                                        {logs.length === 0 ? (
+                                            <p className="text-text-placeholder text-sm italic">Noch keine Notizen. Wechsle zu "Aktivität" um den ersten Eintrag zu erstellen.</p>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {logs.slice(0, 3).map(log => (
+                                                    <div key={log.id} className="p-4 rounded-xl bg-subtle border border-default">
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <h4 className="font-bold text-text-primary text-sm">{log.title}</h4>
+                                                            <span className="text-[10px] text-text-placeholder">{relativeTime(log.created_at)}</span>
+                                                        </div>
+                                                        <p className="text-xs text-text-secondary line-clamp-2 whitespace-pre-wrap">{log.content}</p>
+                                                        <div className="text-[10px] text-text-muted mt-2 font-medium">{log.employees?.name || 'Unbekannt'}</div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div className="text-xs text-text-muted font-medium tracking-wide">{p.job_number} • {p.status}</div>
-                                        </div>
-                                    ))}
+                                        )}
+                                    </div>
                                 </div>
-                            ) : <div className="text-text-placeholder text-sm">Keine aktiven Projekte.</div>}
+                            )}
+
+                            {/* ── PROJECTS TAB ── */}
+                            {activeTab === 'projects' && (
+                                <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                    <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Briefcase size={16} className="text-text-placeholder" /> Alle Projekte ({projects.length})
+                                    </h3>
+                                    {projects.length === 0 ? (
+                                        <div className="text-center py-12 text-text-placeholder">
+                                            <Briefcase size={32} className="mx-auto mb-3 opacity-40" />
+                                            <p className="text-sm">Noch keine Projekte für diesen Kunden.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {projects.map(p => {
+                                                const revenue = projectRevenueMap[p.id] || 0;
+                                                const todos = (p as any).todos as { is_done?: boolean }[] | undefined;
+                                                const todoCount = todos?.length || 0;
+                                                const doneCount = todos?.filter(t => t.is_done).length || 0;
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        onClick={() => router.push(`/uebersicht?projectId=${p.id}`)}
+                                                        className="group w-full flex items-center gap-4 p-4 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
+                                                    >
+                                                        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusDot(p.status)}`} />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <span className="text-sm font-bold text-text-primary truncate group-hover:text-accent transition-colors">{p.title}</span>
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusStyle(p.status)}`}>{p.status}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 text-[10px] text-text-muted font-medium">
+                                                                <span className="font-mono">{p.job_number}</span>
+                                                                {p.deadline && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Calendar size={10} />
+                                                                        {new Date(p.deadline).toLocaleDateString('de-DE')}
+                                                                    </span>
+                                                                )}
+                                                                {todoCount > 0 && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <CheckCircle2 size={10} />
+                                                                        {doneCount}/{todoCount}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {revenue > 0 && (
+                                                            <div className="text-right shrink-0">
+                                                                <div className="text-xs font-black text-text-primary">{formatCurrency(revenue)}</div>
+                                                                <div className="text-[9px] text-text-muted uppercase tracking-widest font-bold">Umsatz</div>
+                                                            </div>
+                                                        )}
+                                                        <ArrowRight size={14} className="text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── FINANCES TAB ── */}
+                            {activeTab === 'finances' && (
+                                <div className="space-y-6">
+                                    {/* Summary cards */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-surface p-5 rounded-2xl border border-default shadow-sm">
+                                            <div className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest mb-1">Anzahl Rechnungen</div>
+                                            <div className="text-2xl font-black text-text-primary">{invoices.length}</div>
+                                            <div className="text-[11px] text-text-muted mt-0.5">{finalInvoices.length} final · {openInvoices.length} Entwurf</div>
+                                        </div>
+                                        <div className="bg-surface p-5 rounded-2xl border border-default shadow-sm">
+                                            <div className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest mb-1">Ø Rechnungswert</div>
+                                            <div className="text-2xl font-black text-text-primary">{formatCurrency(finalInvoices.length > 0 ? totalRevenue / finalInvoices.length : 0)}</div>
+                                            <div className="text-[11px] text-text-muted mt-0.5">über finalisierte Rechnungen</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Invoice List */}
+                                    <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                        <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                            <Receipt size={16} className="text-text-placeholder" /> Rechnungs-Historie
+                                        </h3>
+                                        {invoices.length === 0 ? (
+                                            <div className="text-center py-12 text-text-placeholder">
+                                                <Receipt size={32} className="mx-auto mb-3 opacity-40" />
+                                                <p className="text-sm">Noch keine Rechnungen.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {invoices.map(inv => {
+                                                    const proj = projects.find(p => p.id === inv.project_id);
+                                                    const isFinal = inv.status === 'final';
+                                                    return (
+                                                        <button
+                                                            key={inv.id}
+                                                            onClick={() => router.push(`/uebersicht?projectId=${inv.project_id}`)}
+                                                            className="group w-full flex items-center gap-4 p-4 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
+                                                        >
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isFinal ? 'bg-green-500/10 text-green-600' : 'bg-orange-500/10 text-orange-600'}`}>
+                                                                {isFinal ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className="text-sm font-bold text-text-primary truncate group-hover:text-accent transition-colors">{inv.invoice_number}</span>
+                                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isFinal ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                                        {isFinal ? 'Final' : 'Entwurf'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 text-[10px] text-text-muted font-medium">
+                                                                    <span className="truncate">{proj?.title || 'Unbekanntes Projekt'}</span>
+                                                                    <span>·</span>
+                                                                    <span>{new Date(inv.invoice_date).toLocaleDateString('de-DE')}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <div className="text-sm font-black text-text-primary">{formatCurrency(Number(inv.total_gross) || 0)}</div>
+                                                                <div className="text-[9px] text-text-muted uppercase tracking-widest font-bold">Brutto</div>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── ACTIVITY TAB ── */}
+                            {activeTab === 'activity' && (
+                                <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                    <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Activity size={16} className="text-text-placeholder" /> Aktivitäten & Logbuch
+                                    </h3>
+
+                                    {/* Create Log */}
+                                    <div className="bg-subtle/50 p-4 rounded-xl border border-default mb-8">
+                                        <input
+                                            className="w-full bg-surface border border-default rounded-lg px-4 py-2 text-sm font-bold text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none mb-2"
+                                            placeholder="Titel des Eintrags (z.B. Meeting Notiz)"
+                                            value={newLog.title}
+                                            onChange={e => setNewLog({ ...newLog, title: e.target.value })}
+                                        />
+                                        <textarea
+                                            className="w-full h-24 bg-surface border border-default rounded-lg px-4 py-3 text-sm text-text-secondary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none resize-none mb-3"
+                                            placeholder="Was gibt es Neues?"
+                                            value={newLog.content}
+                                            onChange={e => setNewLog({ ...newLog, content: e.target.value })}
+                                        />
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={handlePostLog}
+                                                disabled={!newLog.title || !newLog.content || isPostingLog}
+                                                className="bg-text-primary text-surface px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:brightness-110 transition disabled:opacity-50"
+                                            >
+                                                <Send size={14} /> Eintrag speichern
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Timeline */}
+                                    {activityTimeline.length === 0 ? (
+                                        <div className="text-center py-12 text-text-placeholder">
+                                            <Activity size={32} className="mx-auto mb-3 opacity-40" />
+                                            <p className="text-sm">Noch keine Aktivität.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-5">
+                                            {activityTimeline.map(event => {
+                                                const eventIcon = event.type === 'log' ? FileText : event.type === 'project_created' ? Briefcase : event.type === 'invoice_finalized' ? CheckCircle2 : Receipt;
+                                                const Icon = eventIcon;
+                                                const iconColor = event.type === 'log' ? 'bg-blue-500/10 text-blue-600' : event.type === 'project_created' ? 'bg-accent-subtle/30 text-accent' : event.type === 'invoice_finalized' ? 'bg-green-500/10 text-green-600' : 'bg-orange-500/10 text-orange-600';
+                                                const isLog = event.type === 'log';
+                                                const logRef = isLog ? logs.find(l => `log-${l.id}` === event.id) : null;
+                                                const isEditingThis = logRef && editingLogId === logRef.id;
+
+                                                return (
+                                                    <div key={event.id} className="group relative pl-12">
+                                                        <div className={`absolute left-0 top-0 w-8 h-8 rounded-xl flex items-center justify-center ${iconColor}`}>
+                                                            <Icon size={14} />
+                                                        </div>
+                                                        <div className="flex items-start justify-between mb-1">
+                                                            <div className="min-w-0 flex-1">
+                                                                <h4 className="font-bold text-text-primary text-sm">{isEditingThis ? 'Eintrag bearbeiten' : event.title}</h4>
+                                                                <div className="text-[11px] text-text-placeholder flex items-center gap-2 mt-0.5">
+                                                                    {event.author && <span className="font-medium text-text-muted">{event.author}</span>}
+                                                                    {event.author && <span>·</span>}
+                                                                    <span>{relativeTime(event.date)}</span>
+                                                                </div>
+                                                            </div>
+                                                            {isLog && logRef && (isAdmin || currentUser?.id === logRef.author_id) && !editingLogId && (
+                                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                                    <button onClick={() => { setEditingLogId(logRef.id); setEditLogData({ title: logRef.title, content: logRef.content }) }} className="p-1 text-text-placeholder hover:text-text-primary"><Edit2 size={12} /></button>
+                                                                    <button onClick={() => handleDeleteLog(logRef.id)} className="p-1 text-text-placeholder hover:text-red-500"><Trash size={12} /></button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {isEditingThis && logRef ? (
+                                                            <div className="bg-surface p-4 rounded-xl border border-accent mt-2 shadow-sm">
+                                                                <input
+                                                                    className="w-full border-b border-default py-2 mb-2 font-bold text-sm outline-none bg-transparent"
+                                                                    value={editLogData.title}
+                                                                    onChange={e => setEditLogData({ ...editLogData, title: e.target.value })}
+                                                                />
+                                                                <textarea
+                                                                    className="w-full h-24 outline-none text-sm text-text-secondary resize-none bg-transparent"
+                                                                    value={editLogData.content}
+                                                                    onChange={e => setEditLogData({ ...editLogData, content: e.target.value })}
+                                                                />
+                                                                <div className="flex justify-end gap-2 mt-2">
+                                                                    <button onClick={() => setEditingLogId(null)} className="text-xs text-text-placeholder font-bold px-2 py-1 hover:bg-hover rounded">Abbrechen</button>
+                                                                    <button onClick={handleUpdateLog} className="text-xs bg-text-primary text-surface px-3 py-1 rounded font-bold">Update</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : event.description ? (
+                                                            <div className={`text-sm leading-relaxed mt-2 ${isLog ? 'text-text-secondary bg-subtle p-3 rounded-xl border border-default/50 whitespace-pre-wrap' : 'text-text-muted'}`}>
+                                                                {isLog ? event.description : (
+                                                                    <button
+                                                                        onClick={() => event.meta?.projectId && router.push(`/uebersicht?projectId=${event.meta.projectId}`)}
+                                                                        className="hover:text-accent transition-colors"
+                                                                    >
+                                                                        {event.description}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── DOCUMENTS TAB ── */}
+                            {activeTab === 'documents' && (
+                                <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                    <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Folder size={16} className="text-text-placeholder" /> Dokumente & Links ({allDocuments.length})
+                                    </h3>
+                                    {allDocuments.length === 0 ? (
+                                        <div className="text-center py-12 text-text-placeholder">
+                                            <Folder size={32} className="mx-auto mb-3 opacity-40" />
+                                            <p className="text-sm">Keine Dokumente in den Projekten dieses Kunden.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {allDocuments.map(doc => (
+                                                <a
+                                                    key={doc.id}
+                                                    href={doc.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="group flex items-start gap-3 p-4 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all"
+                                                >
+                                                    <div className="w-10 h-10 rounded-xl bg-surface border border-default flex items-center justify-center text-text-muted flex-shrink-0 group-hover:text-accent group-hover:border-accent transition-colors">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-bold text-text-primary truncate group-hover:text-accent transition-colors">{doc.name}</div>
+                                                        <div className="text-[10px] text-text-muted truncate uppercase tracking-widest font-bold mt-0.5">{doc.type} · {doc.project_title}</div>
+                                                    </div>
+                                                    <ExternalLink size={12} className="text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── TEAM TAB ── */}
+                            {activeTab === 'team' && (
+                                <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                                            <UsersIcon size={16} className="text-text-placeholder" /> Team-Beteiligung
+                                        </h3>
+                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-muted">
+                                            <Clock size={11} />
+                                            {totalHours.toFixed(1)}h gesamt
+                                        </div>
+                                    </div>
+                                    {teamStats.length === 0 ? (
+                                        <div className="text-center py-12 text-text-placeholder">
+                                            <UsersIcon size={32} className="mx-auto mb-3 opacity-40" />
+                                            <p className="text-sm">Noch keine Zeit auf Projekten dieses Kunden erfasst.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {teamStats.map(({ employee, hours, lastEntry }) => {
+                                                if (!employee) return null;
+                                                const percentage = totalHours > 0 ? (hours / totalHours) * 100 : 0;
+                                                return (
+                                                    <div key={employee.id} className="p-4 rounded-xl bg-subtle border border-default">
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            {employee.avatar_url ? (
+                                                                <img src={employee.avatar_url} className="w-10 h-10 rounded-full object-cover flex-shrink-0" alt={employee.name} />
+                                                            ) : (
+                                                                <div className="w-10 h-10 rounded-full bg-surface border border-default flex items-center justify-center text-xs font-bold text-text-primary flex-shrink-0">
+                                                                    {employee.initials || employee.name.substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-bold text-text-primary truncate">{employee.name}</div>
+                                                                <div className="text-[10px] text-text-muted">
+                                                                    {employee.job_title || 'Mitarbeiter'} · Zuletzt erfasst {lastEntry ? new Date(lastEntry).toLocaleDateString('de-DE') : '—'}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <div className="text-sm font-black text-text-primary">{hours.toFixed(1)}h</div>
+                                                                <div className="text-[9px] text-text-muted uppercase tracking-widest font-bold">{percentage.toFixed(0)}%</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                                                            <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${percentage}%` }} />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -726,9 +1255,9 @@ export default function ClientDetailPage() {
                     <div className="space-y-8">
                         <div className="bg-surface p-8 rounded-2xl border border-default shadow-sm sticky top-8">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Ansprechpartner</h3>
+                                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Ansprechpartner ({contacts.length})</h3>
                                 {(!isAddingContact) && (
-                                    <button onClick={() => setIsAddingContact(true)} className="p-2 bg-subtle hover:bg-hover rounded-lg transition text-text-muted hover:text-black">
+                                    <button onClick={() => setIsAddingContact(true)} className="p-2 bg-subtle hover:bg-hover rounded-lg transition text-text-muted hover:text-text-primary" title="Kontakt hinzufügen">
                                         <Plus size={18} />
                                     </button>
                                 )}
@@ -736,7 +1265,7 @@ export default function ClientDetailPage() {
 
                             <div className="space-y-4">
                                 {contacts.map(contact => (
-                                    <div key={contact.id} className="group bg-subtle/50 p-4 rounded-xl border border-default hover:border-default transition relative">
+                                    <div key={contact.id} className="group bg-subtle/50 p-4 rounded-xl border border-default hover:border-accent/40 hover:shadow-sm transition relative">
                                         {(isAdmin || currentUser?.role === 'admin') && (
                                             <button onClick={() => handleDeleteContact(contact.id)} className="absolute top-2 right-2 p-1.5 text-text-placeholder hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
                                                 <Trash size={14} />
@@ -746,9 +1275,9 @@ export default function ClientDetailPage() {
                                             <div className="w-10 h-10 rounded-full bg-surface border border-default flex items-center justify-center text-text-placeholder font-bold shadow-sm">
                                                 {contact.name.charAt(0)}
                                             </div>
-                                            <div>
-                                                <div className="font-bold text-text-primary text-sm">{contact.name}</div>
-                                                <div className="text-xs text-text-muted">{contact.role || 'Mitarbeiter'}</div>
+                                            <div className="min-w-0">
+                                                <div className="font-bold text-text-primary text-sm truncate">{contact.name}</div>
+                                                <div className="text-xs text-text-muted truncate">{contact.role || 'Mitarbeiter'}</div>
                                             </div>
                                         </div>
                                         <div className="space-y-2">

@@ -4,7 +4,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Employee, Project, Todo, TimeEntry, DashboardConfig, WidgetId, DashboardWidgetConfig } from '../../types';
-import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2, Filter, Layout } from 'lucide-react';
+import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2, Filter, Layout, FolderOpen } from 'lucide-react';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
@@ -364,43 +364,50 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 (assignedTasks as any[]).map(t => {
                                     const isPending = pendingIds.has(t.id);
                                     const isDoneEffective = t.is_done || isPending;
+                                    const isOverdue = t.deadline && new Date(t.deadline) < new Date();
 
                                     return (
                                         <div
                                             key={t.id}
-                                            onClick={() => router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`)}
-                                            className="group/item relative flex items-start gap-4 p-4 rounded-2xl hover:bg-hover transition-all border border-transparent hover:border-default hover:shadow-sm cursor-pointer"
+                                            onClick={() => setSelectedTask(t as any)}
+                                            className="group/item relative flex items-start gap-3 p-4 rounded-2xl hover:bg-hover transition-all border border-transparent hover:border-default hover:shadow-sm cursor-pointer"
                                         >
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, isDoneEffective); }}
-                                                className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isDoneEffective ? 'bg-accent border-accent' : 'border-text-muted group-hover/item:border-accent'}`}
+                                                className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isDoneEffective ? 'bg-accent border-accent' : 'border-text-muted group-hover/item:border-accent'}`}
+                                                title={isDoneEffective ? 'Als offen markieren' : 'Als erledigt markieren'}
                                             >
                                                 {isDoneEffective && <Check size={10} className="text-accent-text" />}
                                             </button>
-                                            <div className="flex-1 min-w-0 pr-8">
-                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-text-placeholder line-through' : 'text-text-primary group-hover/item:text-accent'}`}>
+                                            <div className="flex-1 min-w-0">
+                                                <div className={`text-sm font-semibold transition-all leading-tight line-clamp-2 ${isDoneEffective ? 'text-text-placeholder line-through' : 'text-text-primary group-hover/item:text-accent'}`}>
                                                     {t.title}
-                                                    {t.title.length > 30 && '...'}
                                                 </div>
-                                                <span className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest truncate">{t.project?.title}</span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] font-bold text-text-placeholder uppercase tracking-widest truncate">{t.project?.title}</span>
+                                                    {t.deadline && (
+                                                        <span className={`flex items-center gap-1 text-[10px] font-medium shrink-0 ${isOverdue ? 'text-red-500' : 'text-text-muted'}`}>
+                                                            <Calendar size={10} />
+                                                            {new Date(t.deadline).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            {t.deadline && (
-                                                <div className={`flex items-center gap-1 text-[10px] font-medium mt-1.5 ${new Date(t.deadline) < new Date() ? 'text-red-500' : 'text-text-muted'}`}>
-                                                    <Calendar size={10} />
-                                                    {new Date(t.deadline).toLocaleDateString('de-DE')}
-                                                </div>
-                                            )}
 
-                                            {/* Floating Action Button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`);
-                                                }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-text-primary text-surface px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                                            >
-                                                Details <ArrowRight size={10} />
-                                            </button>
+                                            {/* Hover Action: Zum Projekt */}
+                                            {t.project_id && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`);
+                                                    }}
+                                                    title="Zum Projekt"
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-all duration-200 z-10 flex items-center gap-1.5 px-2.5 py-1.5 bg-surface border border-default hover:border-accent hover:text-accent rounded-lg text-[10px] font-bold text-text-secondary shadow-md"
+                                                >
+                                                    <FolderOpen size={11} />
+                                                    Zum Projekt
+                                                </button>
+                                            )}
                                         </div>
                                     );
                                 })
@@ -457,18 +464,29 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 );
             case 'deadlines':
                 return (
-                    <div className="h-full flex flex-col items-center justify-center">
+                    <div className="h-full flex flex-col">
                         {deadlines.length === 0 ? (
-                            <span className="text-sm text-text-muted font-medium opacity-60">Keine anstehenden Termine.</span>
+                            <div className="h-full flex flex-col items-center justify-center text-text-placeholder opacity-60">
+                                <Calendar size={32} strokeWidth={1.5} />
+                                <span className="text-xs font-medium mt-2">Keine anstehenden Termine</span>
+                            </div>
                         ) : (
-                            <div className="w-full space-y-2">
-                                {deadlines.map(p => (
-                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20">
-                                        <div className={`w-2 h-2 rounded-full ${getDeadlineColorClass(p.deadline!)}`} />
-                                        <span className="text-sm font-bold text-text-primary truncate flex-1">{p.title}</span>
-                                        <span className="text-[10px] font-bold text-text-muted">{new Date(p.deadline!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}.</span>
-                                    </div>
-                                ))}
+                            <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                                {deadlines.map(p => {
+                                    const isOverdue = new Date(p.deadline!) < new Date();
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => onSelectProject(p)}
+                                            className="group/item w-full flex items-center gap-3 p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 hover:border-accent hover:bg-accent-subtle/30 hover:shadow-sm transition-all text-left cursor-pointer"
+                                        >
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getDeadlineColorClass(p.deadline!)}`} />
+                                            <span className="text-sm font-bold text-text-primary truncate flex-1 group-hover/item:text-accent transition-colors">{p.title}</span>
+                                            <span className={`text-[10px] font-bold shrink-0 ${isOverdue ? 'text-red-500' : 'text-text-muted'}`}>{new Date(p.deadline!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}.</span>
+                                            <ArrowRight size={12} className="text-text-placeholder opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0 -translate-x-1 transition-all flex-shrink-0" />
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -575,35 +593,40 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 userPersonalTodos.filter(t => !t.parent_id || pendingIds.has(t.id)).map(t => {
                                     const isPending = pendingIds.has(t.id);
                                     const isDoneEffective = t.is_done || isPending;
+                                    const isOverdue = t.deadline && new Date(t.deadline) < new Date();
 
                                     return (
                                         <div
                                             key={t.id}
                                             onClick={() => setSelectedTask(t as any)}
-                                            className="group/item relative flex items-center gap-4 p-4 rounded-2xl hover:bg-hover transition-all border border-transparent hover:border-default hover:shadow-sm cursor-pointer"
+                                            className="group/item relative flex items-start gap-3 p-4 rounded-2xl hover:bg-hover transition-all border border-transparent hover:border-default hover:shadow-sm cursor-pointer"
                                         >
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleToggleTodoWithDelay(t.id, isDoneEffective); }}
-                                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isDoneEffective ? 'bg-green-500 border-green-500' : 'border-text-placeholder group-hover/item:border-green-500'}`}
+                                                className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isDoneEffective ? 'bg-green-500 border-green-500' : 'border-text-placeholder group-hover/item:border-green-500'}`}
+                                                title={isDoneEffective ? 'Als offen markieren' : 'Als erledigt markieren'}
                                             >
                                                 {isDoneEffective && <Check size={10} className="text-white" />}
                                             </button>
-                                            <div className="flex-1 min-w-0 pr-10">
-                                                <div className={`text-sm font-semibold transition-all leading-tight ${isDoneEffective ? 'text-text-placeholder line-through' : 'text-text-primary'}`}>
+                                            <div className="flex-1 min-w-0">
+                                                <div className={`text-sm font-semibold transition-all leading-tight line-clamp-2 ${isDoneEffective ? 'text-text-placeholder line-through' : 'text-text-primary group-hover/item:text-accent'}`}>
                                                     {t.title}
                                                 </div>
+                                                {t.deadline && (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`flex items-center gap-1 text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-text-muted'}`}>
+                                                            <Calendar size={10} />
+                                                            {new Date(t.deadline).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            {/* Floating Action Button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedTask(t as any);
-                                                }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-100 transition-all duration-300 ease-out z-10 bg-text-primary text-surface px-3 py-1.5 rounded-full text-[10px] font-bold shadow-xl flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                                            >
-                                                Bearbeiten
-                                            </button>
+                                            {/* Subtle hover indicator */}
+                                            <ArrowRight
+                                                size={14}
+                                                className="text-text-placeholder opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0 -translate-x-1 transition-all duration-200 mt-1 flex-shrink-0"
+                                            />
                                         </div>
                                     );
                                 })
