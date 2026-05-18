@@ -206,6 +206,7 @@ In dieser Reihenfolge in Supabase SQL Editor ausführen:
 1. `calendar_v2_migration.sql` — Basis-Schema, OAuth-Felder
 2. `calendar_caldav_migration.sql` — `caldav_username` Feld
 3. `calendar_encryption_migration.sql` — `last_synced_at` Feld
+4. `calendar_account_label_migration.sql` — `account_label` Feld (für Multi-Kalender Gruppierung)
 
 ---
 

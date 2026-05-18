@@ -344,6 +344,7 @@ export interface ExternalCalendar {
     is_writable: boolean;
     external_calendar_id?: string | null;
     caldav_username?: string | null;
+    account_label?: string | null;
     last_synced_at?: string | null;
     created_at?: string;
 }

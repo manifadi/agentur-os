@@ -1,11 +1,44 @@
 'use client';
 import React, { useState } from 'react';
-import { Plus, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Globe, Lock, Chrome, Monitor, Apple, Building2, Link, Check } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Globe, Lock, Chrome, Monitor, Apple, Building2, Link, Check, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { Employee, ExternalCalendar, CalendarProviderType } from '../../types';
 import { isSameDay } from './views/WeekView';
 import UserAvatar from '../UI/UserAvatar';
 import { supabase } from '../../supabaseClient';
 import CalendarProviderModal from './CalendarProviderModal';
+
+function providerGroupLabel(type: CalendarProviderType): string {
+    switch (type) {
+        case 'google': return 'Google';
+        case 'outlook':
+        case 'teams': return 'Outlook';
+        case 'apple': return 'Apple iCloud';
+        case 'troi': return 'Troi';
+        default: return 'Kalender';
+    }
+}
+
+interface CalendarGroup {
+    key: string;
+    providerType: CalendarProviderType;
+    accountLabel: string | null;
+    calendars: ExternalCalendar[];
+}
+
+function groupExternalCalendars(calendars: ExternalCalendar[]): CalendarGroup[] {
+    const map = new Map<string, CalendarGroup>();
+    for (const cal of calendars) {
+        const provider = cal.provider_type || 'ical';
+        // Group by provider+account_label. Calendars without account_label stand alone.
+        const label = cal.account_label || cal.caldav_username || null;
+        const key = label ? `${provider}::${label}` : `single::${cal.id}`;
+        if (!map.has(key)) {
+            map.set(key, { key, providerType: provider, accountLabel: label, calendars: [] });
+        }
+        map.get(key)!.calendars.push(cal);
+    }
+    return Array.from(map.values());
+}
 
 const EMPLOYEE_COLORS = ['#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#F59E0B', '#06B6D4', '#64748B', '#EF4444', '#F97316', '#8B5CF6'];
 export function getEmployeeColor(empId: string): string {
@@ -115,6 +148,7 @@ export default function CalendarSidebar({
 
     const [myCalExpanded, setMyCalExpanded] = useState(true);
     const [showProviderModal, setShowProviderModal] = useState(false);
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     const teammates = employees.filter(e => e.id !== currentUser.id);
 
@@ -123,6 +157,32 @@ export default function CalendarSidebar({
         await supabase.from('external_calendars').delete().eq('id', id);
         onRefreshExternals();
     };
+
+    const handleDeleteAccount = async (group: CalendarGroup) => {
+        const accountName = group.accountLabel || group.calendars[0]?.name || 'diesen Account';
+        if (!confirm(`Alle ${group.calendars.length} Kalender von ${accountName} entfernen?`)) return;
+        const ids = group.calendars.map(c => c.id);
+        await supabase.from('external_calendars').delete().in('id', ids);
+        onRefreshExternals();
+    };
+
+    const handleToggleGroup = async (group: CalendarGroup) => {
+        // If any are visible → hide all. Else show all.
+        const anyVisible = group.calendars.some(c => c.is_visible);
+        const ids = group.calendars.map(c => c.id);
+        await supabase.from('external_calendars').update({ is_visible: !anyVisible }).in('id', ids);
+        onRefreshExternals();
+    };
+
+    const toggleGroupCollapse = (key: string) => {
+        setCollapsedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key); else next.add(key);
+            return next;
+        });
+    };
+
+    const groups = groupExternalCalendars(externalCalendars);
 
     const myColor = getEmployeeColor(currentUser.id);
 
@@ -168,23 +228,84 @@ export default function CalendarSidebar({
                                 }
                             </button>
 
-                            {/* External calendars */}
-                            {externalCalendars.map(cal => {
-                                const visible = cal.is_visible;
+                            {/* External calendar groups */}
+                            {groups.map(group => {
+                                // Single standalone calendar → render directly without group header
+                                if (group.key.startsWith('single::') || group.calendars.length === 1 && !group.accountLabel) {
+                                    const cal = group.calendars[0];
+                                    const visible = cal.is_visible;
+                                    return (
+                                        <div key={cal.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg group transition-colors"
+                                            style={{ background: visible ? cal.color + '16' : 'transparent' }}>
+                                            <button onClick={() => onToggleExternal(cal.id)} className="flex items-center gap-2 flex-1 min-w-0">
+                                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: visible ? cal.color : 'var(--border-strong)' }} />
+                                                <span className="shrink-0">{providerIcon(cal.provider_type || 'ical')}</span>
+                                                <span className="text-xs font-medium truncate text-left" style={{ color: visible ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                                    {cal.name}
+                                                </span>
+                                            </button>
+                                            {cal.is_writable && <span title="Bidirektional synchronisiert"><Check size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /></span>}
+                                            <button onClick={() => handleDeleteExternal(cal.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded" style={{ color: 'var(--text-muted)' }}>
+                                                <Trash2 size={11} />
+                                            </button>
+                                        </div>
+                                    );
+                                }
+
+                                // Multi-calendar account → collapsible group header
+                                const collapsed = collapsedGroups.has(group.key);
+                                const visibleCount = group.calendars.filter(c => c.is_visible).length;
+                                const allVisible = visibleCount === group.calendars.length;
+                                const groupLabel = providerGroupLabel(group.providerType);
+
                                 return (
-                                    <div key={cal.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg group transition-colors"
-                                        style={{ background: visible ? cal.color + '16' : 'transparent' }}>
-                                        <button onClick={() => onToggleExternal(cal.id)} className="flex items-center gap-2 flex-1 min-w-0">
-                                            <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: visible ? cal.color : 'var(--border-strong)' }} />
-                                            <span className="shrink-0">{providerIcon(cal.provider_type || 'ical')}</span>
-                                            <span className="text-xs font-medium truncate text-left" style={{ color: visible ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                                                {cal.name}
-                                            </span>
-                                        </button>
-                                        {cal.is_writable && <span title="Bidirektional synchronisiert"><Check size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /></span>}
-                                        <button onClick={() => handleDeleteExternal(cal.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded" style={{ color: 'var(--text-muted)' }}>
-                                            <Trash2 size={11} />
-                                        </button>
+                                    <div key={group.key} className="space-y-0.5">
+                                        {/* Group header */}
+                                        <div className="flex items-center gap-1 px-1 py-1 rounded-lg group/header">
+                                            <button onClick={() => toggleGroupCollapse(group.key)} className="p-0.5 rounded transition-transform" style={{ color: 'var(--text-muted)' }}>
+                                                {collapsed ? <ChevronRightIcon size={12} /> : <ChevronDown size={12} />}
+                                            </button>
+                                            <button onClick={() => handleToggleGroup(group)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+                                                <span className="shrink-0">{providerIcon(group.providerType, 12)}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-[11px] font-bold leading-tight truncate" style={{ color: 'var(--text-primary)' }}>{groupLabel}</div>
+                                                    {group.accountLabel && (
+                                                        <div className="text-[9px] font-medium truncate leading-tight" style={{ color: 'var(--text-muted)' }}>{group.accountLabel}</div>
+                                                    )}
+                                                </div>
+                                                <span className="text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                                                    {visibleCount}/{group.calendars.length}
+                                                </span>
+                                            </button>
+                                            <button onClick={() => handleDeleteAccount(group)} className="opacity-0 group-hover/header:opacity-100 transition-opacity p-0.5 rounded" style={{ color: 'var(--text-muted)' }} title="Account und alle Kalender entfernen">
+                                                <Trash2 size={11} />
+                                            </button>
+                                        </div>
+
+                                        {/* Group children */}
+                                        {!collapsed && (
+                                            <div className="pl-4 space-y-0.5">
+                                                {group.calendars.map(cal => {
+                                                    const visible = cal.is_visible;
+                                                    return (
+                                                        <div key={cal.id} className="flex items-center gap-2 px-2 py-1 rounded-lg group transition-colors"
+                                                            style={{ background: visible ? cal.color + '16' : 'transparent' }}>
+                                                            <button onClick={() => onToggleExternal(cal.id)} className="flex items-center gap-2 flex-1 min-w-0">
+                                                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: visible ? cal.color : 'var(--border-strong)' }} />
+                                                                <span className="text-xs font-medium truncate text-left" style={{ color: visible ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                                                    {cal.name}
+                                                                </span>
+                                                            </button>
+                                                            {cal.is_writable && <span title="Bidirektional synchronisiert"><Check size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /></span>}
+                                                            {visible
+                                                                ? <Eye size={10} style={{ color: cal.color, flexShrink: 0 }} />
+                                                                : <EyeOff size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                                                            }
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}

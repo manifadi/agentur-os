@@ -33,9 +33,19 @@ async function getValidToken(supabase: any, calendarId: string): Promise<{ token
         token = (await refreshGoogleToken(refreshToken)) || '';
         if (token) {
             const expiresAt = new Date(Date.now() + 3600_000).toISOString();
-            await (supabase.from('external_calendars') as any)
-                .update({ oauth_access_token: encrypt(token), oauth_expires_at: expiresAt })
-                .eq('id', calendarId);
+            const encrypted = encrypt(token);
+            // Update ALL sibling calendars from the same Google account
+            // so they don't each trigger their own refresh.
+            const query = (supabase.from('external_calendars') as any)
+                .update({ oauth_access_token: encrypted, oauth_expires_at: expiresAt });
+            if (cal.account_label) {
+                await query
+                    .eq('employee_id', cal.employee_id)
+                    .eq('provider_type', 'google')
+                    .eq('account_label', cal.account_label);
+            } else {
+                await query.eq('id', calendarId);
+            }
         }
     }
 

@@ -34,9 +34,17 @@ async function getValidToken(supabase: any, calendarId: string): Promise<string 
         token = (await refreshMicrosoftToken(refreshToken)) || '';
         if (token) {
             const expiresAt = new Date(Date.now() + 3600_000).toISOString();
-            await (supabase.from('external_calendars') as any)
-                .update({ oauth_access_token: encrypt(token), oauth_expires_at: expiresAt })
-                .eq('id', calendarId);
+            const encrypted = encrypt(token);
+            const query = (supabase.from('external_calendars') as any)
+                .update({ oauth_access_token: encrypted, oauth_expires_at: expiresAt });
+            if (cal.account_label) {
+                await query
+                    .eq('employee_id', cal.employee_id)
+                    .eq('provider_type', 'outlook')
+                    .eq('account_label', cal.account_label);
+            } else {
+                await query.eq('id', calendarId);
+            }
         }
     }
 
@@ -64,7 +72,7 @@ export async function GET(request: NextRequest) {
     const token = await getValidToken(supabase, calendarId);
     if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const { data: cal } = await supabase.from('external_calendars').select('color, name').eq('id', calendarId).single();
+    const { data: cal } = await supabase.from('external_calendars').select('color, name, external_calendar_id').eq('id', calendarId).single();
 
     const filter: string[] = [];
     if (from) filter.push(`start/dateTime ge '${new Date(from).toISOString()}'`);
@@ -77,7 +85,14 @@ export async function GET(request: NextRequest) {
         ...(filter.length && { $filter: filter.join(' and ') }),
     });
 
-    const res = await fetch(`https://graph.microsoft.com/v1.0/me/events?${params}`, {
+    // Use specific calendar endpoint if external_calendar_id is set (multi-calendar support).
+    // Otherwise fall back to /me/events (legacy single-calendar rows).
+    const msCalId = (cal as any)?.external_calendar_id;
+    const endpoint = msCalId && msCalId !== 'me'
+        ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(msCalId)}/events`
+        : `https://graph.microsoft.com/v1.0/me/events`;
+
+    const res = await fetch(`${endpoint}?${params}`, {
         headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="Europe/Vienna"' },
     });
 
