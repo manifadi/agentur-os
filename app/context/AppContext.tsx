@@ -37,7 +37,7 @@ interface AppContextType {
 const defaultTheme: ThemePreferences = {
     themeMode: 'light',
     accentColor: 'default',
-    fontFamily: 'inter',
+    fontFamily: 'vela-sans',
     backgroundStyle: 'clean',
     isSidebarExpanded: false,
 };

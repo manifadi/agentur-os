@@ -3,7 +3,61 @@
 @tailwind utilities;
 
 /* ============================================================
-   AGENTUR OS — DESIGN SYSTEM VARIABLES (Light Mode Default)
+   VELA SANS — Self-hosted font (Default)
+   License: SIL Open Font License — see /public/fonts/vela-sans/OFL.txt
+   ============================================================ */
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-ExtraLight.woff2') format('woff2');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vela Sans';
+  src: url('/fonts/vela-sans/VelaSans-ExtraBold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================
+   VELA — DESIGN SYSTEM VARIABLES (Light Mode Default)
    ============================================================ */
 :root {
   /* App Backgrounds */
@@ -69,8 +123,8 @@
   --scrollbar-thumb: rgba(0, 0, 0, 0.12);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
 
-  /* Font */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Font — Vela Sans is the default, self-hosted from /public/fonts/vela-sans */
+  --font-family: 'Vela Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Radius */
   --radius-sm: 8px;

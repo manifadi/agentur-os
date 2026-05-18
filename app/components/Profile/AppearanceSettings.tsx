@@ -10,6 +10,12 @@ import type { ThemeMode, AccentColor, FontFamily, BackgroundStyle } from '../../
 // ─────────────────────────────────────────────
 const FONT_GROUPS: { label: string; fonts: { id: FontFamily; name: string; css: string }[] }[] = [
     {
+        label: 'Standard',
+        fonts: [
+            { id: 'vela-sans',    name: 'Vela Sans',        css: "'Vela Sans', sans-serif" },
+        ],
+    },
+    {
         label: 'Modern & Klar',
         fonts: [
             { id: 'inter',        name: 'Inter',            css: "'Inter', sans-serif" },

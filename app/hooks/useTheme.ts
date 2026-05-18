@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type AccentColor = 'default' | 'blue' | 'violet' | 'rose' | 'emerald' | 'amber' | 'cyan' | 'slate' | 'teal' | 'indigo' | 'orange' | 'pink' | 'custom';
-export type FontFamily = 'inter' | 'outfit' | 'dm-sans' | 'playfair' | 'space-grotesk' | 'geist-mono' | 'manrope' | 'plus-jakarta' | 'figtree' | 'sora' | 'nunito' | 'cormorant' | 'fraunces' | 'italiana' | 'cinzel';
+export type FontFamily = 'vela-sans' | 'inter' | 'outfit' | 'dm-sans' | 'playfair' | 'space-grotesk' | 'geist-mono' | 'manrope' | 'plus-jakarta' | 'figtree' | 'sora' | 'nunito' | 'cormorant' | 'fraunces' | 'italiana' | 'cinzel';
 export type BackgroundStyle = 'clean' | 'subtle' | 'canvas';
 
 export interface ThemePreferences {
@@ -18,6 +18,7 @@ export interface ThemePreferences {
 }
 
 const FONT_MAP: Record<FontFamily, string> = {
+    'vela-sans': "'Vela Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     'inter': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     'outfit': "'Outfit', -apple-system, sans-serif",
     'dm-sans': "'DM Sans', -apple-system, sans-serif",
@@ -38,7 +39,7 @@ const FONT_MAP: Record<FontFamily, string> = {
 const DEFAULT_PREFS: ThemePreferences = {
     themeMode: 'light',
     accentColor: 'default',
-    fontFamily: 'inter',
+    fontFamily: 'vela-sans',
     backgroundStyle: 'clean',
     isSidebarExpanded: false,
 };
