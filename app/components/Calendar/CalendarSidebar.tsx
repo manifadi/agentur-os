@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Plus, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Globe, Lock, Chrome, Monitor, Apple, Building2, Link, Check, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Globe, Lock, Chrome, Monitor, Apple, Building2, Link, Check } from 'lucide-react';
 import { Employee, ExternalCalendar, CalendarProviderType } from '../../types';
 import { isSameDay } from './views/WeekView';
 import UserAvatar from '../UI/UserAvatar';
@@ -263,7 +263,7 @@ export default function CalendarSidebar({
                                         {/* Group header */}
                                         <div className="flex items-center gap-1 px-1 py-1 rounded-lg group/header">
                                             <button onClick={() => toggleGroupCollapse(group.key)} className="p-0.5 rounded transition-transform" style={{ color: 'var(--text-muted)' }}>
-                                                {collapsed ? <ChevronRightIcon size={12} /> : <ChevronDown size={12} />}
+                                                {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                                             </button>
                                             <button onClick={() => handleToggleGroup(group)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
                                                 <span className="shrink-0">{providerIcon(group.providerType, 12)}</span>
