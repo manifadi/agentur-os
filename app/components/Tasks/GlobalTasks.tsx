@@ -1,8 +1,15 @@
-import React, { useMemo } from 'react';
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
 import { Project, Todo, Employee } from '../../types';
-import { ChevronRight, CheckCircle2, User, Plus, X, History, Check, Filter } from 'lucide-react';
+import {
+    ChevronRight, CheckCircle2, Plus, History, Check, Search, X, Briefcase, User,
+    Flame, Star, Calendar, Inbox, ListTree, LayoutGrid,
+} from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import TaskHistoryModal from './TaskHistoryModal';
+import MultiSelectDropdown, { MultiSelectItem } from '../Dashboard/MultiSelectDropdown';
+import UserAvatar from '../UI/UserAvatar';
 
 interface GlobalTasksProps {
     projects: Project[];
@@ -15,374 +22,687 @@ interface GlobalTasksProps {
     onTaskClick?: (task: Todo) => void;
 }
 
-export default function GlobalTasks({ projects, personalTodos, employees, onSelectProject, onUpdate, onAddPersonal, currentUser, onTaskClick }: GlobalTasksProps) {
-    const [personalSort, setPersonalSort] = React.useState<'created' | 'deadline'>('created');
-    const [showHistory, setShowHistory] = React.useState(false);
+type ViewMode = 'today' | 'list';
+type Scope = 'mine' | 'team';
 
-    // [FIX] Use Ref for timeouts to prevent cancellation on re-renders
+// Unified task type with attached project info
+interface UnifiedTask extends Todo {
+    _project: Project | null; // null = personal
+}
+
+const PAGE_SIZE = 50;
+
+export default function GlobalTasks({
+    projects, personalTodos, employees, onSelectProject, onUpdate,
+    currentUser, onTaskClick,
+}: GlobalTasksProps) {
+    // ── UI state ──────────────────────────────────────────
+    const [viewMode, setViewMode] = useState<ViewMode>('today');
+    const [scope, setScope] = useState<Scope>('mine');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
+    const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
+    const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
+    const [showHistory, setShowHistory] = useState(false);
+
+    // ── Task-row interaction state ────────────────────────
     const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
-    const [pendingIds, setPendingIds] = React.useState<Set<string>>(new Set());
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+    const [editingPersonalId, setEditingPersonalId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
 
-    const [editingPersonalId, setEditingPersonalId] = React.useState<string | null>(null);
-    const [editingTitle, setEditingTitle] = React.useState('');
-
-    // [FIX] Cleanup: Execute pending on unmount
-    React.useEffect(() => {
+    useEffect(() => {
         return () => {
             Object.entries(pendingTimeouts.current).forEach(([id, timeout]) => {
                 clearTimeout(timeout);
-                // Force completion for tasks that were pending done
-                // We assume if it's in pendingTimeouts, it was being "toggled to done" (delayed completion)
-                supabase.from('todos').update({ is_done: true }).eq('id', id).then(() => {
-                    // No need to call onUpdate here as we are unmounting
-                });
+                supabase.from('todos').update({ is_done: true }).eq('id', id).then(() => { });
             });
             pendingTimeouts.current = {};
         };
     }, []);
 
-    const getTasksByProject = useMemo(() => {
-        const list: { project: Project, visibleTodos: Todo[], allProjectTodos: Todo[] }[] = [];
-        projects.forEach(proj => {
-            // Filter: (Not done OR pending) AND assigned to me AND top-level
-            const openTodos = proj.todos ? proj.todos.filter(t =>
-                !t.parent_id &&
-                (!t.is_done || pendingIds.has(t.id)) &&
-                (currentUser ? t.assigned_to === currentUser.id : true)
-            ) : [];
-            if (openTodos.length > 0) {
-                list.push({ project: proj, visibleTodos: openTodos, allProjectTodos: proj.todos || [] });
+    // Reset pagination when filters change
+    useEffect(() => {
+        setDisplayLimit(PAGE_SIZE);
+    }, [searchQuery, filterProjectIds, filterAssigneeIds, scope, viewMode]);
+
+    // ── Build unified task list ───────────────────────────
+    const allTasks = useMemo<UnifiedTask[]>(() => {
+        const result: UnifiedTask[] = [];
+
+        // Project tasks
+        for (const p of projects) {
+            for (const t of (p.todos || [])) {
+                if (t.parent_id) continue;
+                if (t.is_done && !pendingIds.has(t.id)) continue;
+                if (scope === 'mine' && t.assigned_to !== currentUser?.id) continue;
+                result.push({ ...t, _project: p });
             }
-        });
-        return list;
-    }, [projects, currentUser, pendingIds]);
-
-    const sortedPersonalTodos = useMemo(() => {
-        let list = personalTodos.filter(t => !t.parent_id && (!t.is_done || pendingIds.has(t.id)));
-        if (personalSort === 'deadline') {
-            list.sort((a, b) => {
-                if (!a.deadline) return 1;
-                if (!b.deadline) return -1;
-                return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-            });
-        } else {
-            list.sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
         }
-        return list;
-    }, [personalTodos, personalSort, pendingIds]);
 
-    // ... handlers ...
-    const handleGlobalToggle = async (todoId: string, currentIsDone: boolean) => {
-        // If we are marking as DONE, add delay
+        // Personal tasks — only in 'mine' scope (each user has their own private list)
+        if (scope === 'mine') {
+            for (const t of personalTodos) {
+                if (t.parent_id) continue;
+                if (t.is_done && !pendingIds.has(t.id)) continue;
+                result.push({ ...t, _project: null });
+            }
+        }
+
+        return result;
+    }, [projects, personalTodos, currentUser, pendingIds, scope]);
+
+    // ── Apply filters ─────────────────────────────────────
+    const filtered = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        return allTasks.filter(t => {
+            // Search: title, project title, project job_number
+            if (q) {
+                const titleMatch = t.title?.toLowerCase().includes(q);
+                const projMatch = t._project?.title?.toLowerCase().includes(q);
+                const jobMatch = t._project?.job_number?.toLowerCase().includes(q);
+                if (!titleMatch && !projMatch && !jobMatch) return false;
+            }
+            // Project filter
+            if (filterProjectIds.length > 0) {
+                const pid = t._project?.id;
+                if (!pid || !filterProjectIds.includes(pid)) return false;
+            }
+            // Assignee filter (team view mainly)
+            if (filterAssigneeIds.length > 0) {
+                if (!t.assigned_to || !filterAssigneeIds.includes(t.assigned_to)) return false;
+            }
+            return true;
+        });
+    }, [allTasks, searchQuery, filterProjectIds, filterAssigneeIds]);
+
+    // ── Build day buckets ─────────────────────────────────
+    const buckets = useMemo(() => {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(todayStart); todayEnd.setHours(23, 59, 59, 999);
+        const weekEnd = new Date(todayStart); weekEnd.setDate(weekEnd.getDate() + 7);
+
+        const overdue: UnifiedTask[] = [];
+        const today: UnifiedTask[] = [];
+        const thisWeek: UnifiedTask[] = [];
+        const later: UnifiedTask[] = [];
+
+        for (const t of filtered) {
+            if (!t.deadline) { later.push(t); continue; }
+            const dd = new Date(t.deadline);
+            if (dd < todayStart) overdue.push(t);
+            else if (dd <= todayEnd) today.push(t);
+            else if (dd <= weekEnd) thisWeek.push(t);
+            else later.push(t);
+        }
+
+        // Sort each bucket by deadline ascending; later by no-deadline-last
+        const byDeadline = (a: UnifiedTask, b: UnifiedTask) => {
+            if (!a.deadline) return 1;
+            if (!b.deadline) return -1;
+            return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        };
+        overdue.sort(byDeadline);
+        today.sort(byDeadline);
+        thisWeek.sort(byDeadline);
+        later.sort(byDeadline);
+
+        return { overdue, today, thisWeek, later };
+    }, [filtered]);
+
+    // ── List view: sort by deadline (overdue first) ───────
+    const listSorted = useMemo(() => {
+        const result = [...filtered];
+        result.sort((a, b) => {
+            // Overdue/today first
+            const aDate = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+            const bDate = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+            return aDate - bDate;
+        });
+        return result;
+    }, [filtered]);
+
+    const visibleListTasks = listSorted.slice(0, displayLimit);
+    const hasMore = listSorted.length > displayLimit;
+
+    // ── Handlers ──────────────────────────────────────────
+    const handleToggle = async (todoId: string, currentIsDone: boolean) => {
         if (!currentIsDone) {
-            // Check if already pending
             if (pendingTimeouts.current[todoId]) return;
-
-            // Optimistic UI
-            setPendingIds(prev => {
-                const next = new Set(prev);
-                next.add(todoId);
-                return next;
-            });
-
+            setPendingIds(prev => new Set(prev).add(todoId));
             const timeout = setTimeout(async () => {
                 await supabase.from('todos').update({ is_done: true }).eq('id', todoId);
-
                 delete pendingTimeouts.current[todoId];
-                setPendingIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(todoId);
-                    return next;
-                });
+                setPendingIds(prev => { const n = new Set(prev); n.delete(todoId); return n; });
                 onUpdate();
             }, 3000);
-
             pendingTimeouts.current[todoId] = timeout;
         } else {
-            // If we are unmarking a PENDING task
             if (pendingTimeouts.current[todoId]) {
                 clearTimeout(pendingTimeouts.current[todoId]);
                 delete pendingTimeouts.current[todoId];
-
-                setPendingIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(todoId);
-                    return next;
-                });
+                setPendingIds(prev => { const n = new Set(prev); n.delete(todoId); return n; });
             } else {
-                // Regular unmark (from history or similar)
                 await supabase.from('todos').update({ is_done: false }).eq('id', todoId);
                 onUpdate();
             }
         }
     };
 
-    const handleAssigneeUpdateGlobal = async (todoId: string, newAssigneeId: string) => {
-        const target = newAssigneeId === "" ? null : newAssigneeId;
-        await supabase.from('todos').update({ assigned_to: target }).eq('id', todoId);
+    const handleAssignee = async (todoId: string, newAssigneeId: string) => {
+        await supabase.from('todos').update({ assigned_to: newAssigneeId || null }).eq('id', todoId);
         onUpdate();
     };
 
+    const handleAddPrivate = async () => {
+        if (!currentUser) return;
+        const { data } = await supabase.from('todos').insert({
+            title: 'Neue Aufgabe',
+            assigned_to: currentUser.id,
+            organization_id: currentUser.organization_id,
+            is_done: false,
+        }).select();
+        if (data && data[0]) {
+            onUpdate();
+            setEditingPersonalId(data[0].id);
+            setEditingTitle('Neue Aufgabe');
+        }
+    };
+
+    // ── Stats for header ──────────────────────────────────
+    const stats = {
+        overdue: buckets.overdue.length,
+        today: buckets.today.length,
+        thisWeek: buckets.thisWeek.length,
+        total: filtered.length,
+    };
+
+    // ── Filter options ────────────────────────────────────
+    const projectsWithTasks = useMemo(() => {
+        const ids = new Set(allTasks.map(t => t._project?.id).filter(Boolean));
+        return projects.filter(p => ids.has(p.id));
+    }, [allTasks, projects]);
+
+    const projectFilterItems: MultiSelectItem[] = useMemo(() =>
+        projectsWithTasks.map(p => ({
+            id: p.id,
+            label: p.title,
+            leading: p.clients?.logo_url
+                ? <img src={p.clients.logo_url} className="w-5 h-5 rounded object-contain bg-white border" style={{ borderColor: 'var(--border-default)' }} />
+                : <div className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
+                    {p.clients?.name?.slice(0, 2).toUpperCase() || 'NA'}
+                </div>,
+            sublabel: p.job_number,
+        }))
+        , [projectsWithTasks]);
+
+    const assigneeFilterItems: MultiSelectItem[] = useMemo(() => {
+        const empsInTasks = new Set(allTasks.map(t => t.assigned_to).filter(Boolean));
+        return employees
+            .filter(e => empsInTasks.has(e.id))
+            .map(e => ({
+                id: e.id,
+                label: e.name,
+                leading: <UserAvatar src={e.avatar_url} name={e.name} initials={e.initials} size="xs" />,
+            }));
+    }, [allTasks, employees]);
+
     return (
-        <>
-            <div className="max-w-5xl mx-auto py-8 px-4 space-y-12 animate-in fade-in duration-500">
-                <header className="mb-0 flex justify-between items-end">
-                    <div>
-                        <h1 className="text-3xl font-bold text-text-primary tracking-tight text-nowrap">Meine To-Do Liste</h1>
-                        <p className="text-text-muted mt-2 truncate">Alle offenen Aufgaben, die mir zugewiesen sind.</p>
-                    </div>
-                    <button
-                        onClick={() => setShowHistory(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-surface border border-default text-sm font-bold text-text-secondary hover:text-accent hover:border-accent hover:bg-accent-subtle/50 shadow-sm transition group"
-                    >
-                        <History size={18} className="text-text-placeholder group-hover:text-accent transition" />
-                        Historie
-                    </button>
-                </header>
+        <div className="max-w-6xl mx-auto py-6 px-4 space-y-5 animate-in fade-in duration-500">
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-                    {/* LEFT COLUMN: Project Tasks */}
-                    <div className="space-y-8">
-                        <h2 className="text-sm font-bold text-text-placeholder uppercase tracking-widest px-1">Zugewiesene To-Do's in Projekten</h2>
-
-                        {getTasksByProject.length === 0 ? (
-                            <div className="text-center py-16 bg-subtle rounded-3xl border border-dashed border-default">
-                                <p className="text-text-placeholder text-sm">Keine offenen Projektaufgaben.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-8">
-                                {getTasksByProject.map(item => {
-                                    const project = item.project;
-                                    const projectTodos = item.visibleTodos;
-
-                                    return (
-                                        <section key={project.id} className="bg-surface rounded-2xl shadow-sm border border-default overflow-hidden">
-                                            {/* Project Header */}
-                                            <div
-                                                onClick={() => { onSelectProject(project); }}
-                                                className="bg-subtle/50 px-5 py-3.5 flex items-center justify-between border-b border-default cursor-pointer hover:bg-hover transition"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {project.clients?.logo_url ? (
-                                                        <div className="w-8 h-8 bg-surface rounded-lg border border-default p-1 flex items-center justify-center shrink-0">
-                                                            <img src={project.clients.logo_url} className="max-w-full max-h-full object-contain" />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="w-8 h-8 bg-surface rounded-lg border border-default flex items-center justify-center shrink-0 text-[10px] font-bold text-text-placeholder">
-                                                            {project.clients?.name?.substring(0, 2).toUpperCase() || 'NA'}
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <h2 className="text-sm font-bold text-text-primary leading-tight">{project.title}</h2>
-                                                        <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-0.5">
-                                                            <span className="font-mono">{project.job_number}</span>
-                                                            <span>•</span>
-                                                            <span>{project.clients?.name}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="text-[10px] font-bold px-2 py-0.5 bg-surface border border-default rounded-full text-text-muted">
-                                                        {projectTodos.length}
-                                                    </div>
-                                                    <ChevronRight size={16} className="text-text-placeholder" />
-                                                </div>
-                                            </div>
-
-                                            {/* Task List */}
-                                            <div className="divide-y divide-gray-100">
-                                                {projectTodos.map(todo => (
-                                                    <div
-                                                        key={todo.id}
-                                                        className="group flex items-start gap-4 p-4 hover:bg-subtle transition-colors duration-200 cursor-pointer"
-                                                        onClick={() => onTaskClick?.(todo)}
-                                                    >
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
-                                                            className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingIds.has(todo.id)
-                                                                ? 'bg-accent border-accent'
-                                                                : 'border-default hover:border-accent hover:bg-accent-subtle/10'
-                                                                }`}
-                                                        >
-                                                            <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingIds.has(todo.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
-                                                        </button>
-
-                                                        <div className="flex flex-col flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className={`text-sm font-medium leading-relaxed ${(todo.is_done || pendingIds.has(todo.id)) ? 'text-text-placeholder line-through' : 'text-text-primary group-hover:text-accent'}`}>
-                                                                    {todo.title}
-                                                                </p>
-                                                                {item.allProjectTodos.some(t => t.parent_id === todo.id) && (
-                                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-hover text-[10px] font-bold text-text-placeholder min-w-[18px] text-center">
-                                                                        {item.allProjectTodos.filter(t => t.parent_id === todo.id).length}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            {todo.deadline && (
-                                                                <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-text-placeholder'}`}>
-                                                                    Fällig: {new Date(todo.deadline).toLocaleDateString()}
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Assignee Selector */}
-                                                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="relative group/select">
-                                                                <select
-                                                                    className="appearance-none pl-7 pr-2 py-1 bg-surface border border-default rounded-full text-[11px] font-medium text-text-muted hover:border-default focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent cursor-pointer transition-all w-28 truncate"
-                                                                    value={todo.assigned_to || ''}
-                                                                    onChange={(e) => handleAssigneeUpdateGlobal(todo.id, e.target.value)}
-                                                                >
-                                                                    <option value="">Offen</option>
-                                                                    {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                                                                </select>
-                                                                <User size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-placeholder pointer-events-none" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </section>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* RIGHT COLUMN: Personal To-Dos */}
-                    <div className="space-y-8">
-                        <div className="flex justify-between items-center px-1">
-                            <h2 className="text-sm font-bold text-text-placeholder uppercase tracking-widest">Persönliche To-Do's</h2>
-                            <div className="relative">
-                                <button
-                                    onClick={() => setPersonalSort(personalSort === 'created' ? 'deadline' : 'created')}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-default text-xs font-medium text-text-secondary hover:border-default shadow-sm transition"
-                                >
-                                    <Filter size={14} className="text-text-placeholder" />
-                                    {personalSort === 'created' ? 'Nach Datum' : 'Nach Fälligkeit'}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="bg-surface rounded-2xl shadow-sm border border-default overflow-hidden flex flex-col min-h-[400px]">
-
-                            <div className="divide-y divide-gray-100 flex-1">
-                                {sortedPersonalTodos.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-24 text-text-placeholder px-6 text-center">
-                                        <div className="w-16 h-16 bg-subtle rounded-full flex items-center justify-center mb-4">
-                                            <CheckCircle2 size={32} strokeWidth={1.5} />
-                                        </div>
-                                        <p className="text-sm font-medium">Deine private Liste ist leer.</p>
-                                        <p className="text-xs mt-1">Hier kannst du Aufgaben für dich selbst verwalten.</p>
-                                    </div>
-                                ) : (
-                                    sortedPersonalTodos.map(todo => (
-                                        <div
-                                            key={todo.id}
-                                            className="group flex items-start gap-4 p-4 hover:bg-subtle transition-colors duration-200 cursor-pointer"
-                                            onClick={() => onTaskClick?.(todo)}
-                                        >
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleGlobalToggle(todo.id, todo.is_done || pendingIds.has(todo.id)); }}
-                                                className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center group/check ${todo.is_done || pendingIds.has(todo.id)
-                                                    ? 'bg-accent border-accent'
-                                                    : 'border-default hover:border-accent hover:bg-accent-subtle/10'
-                                                    }`}
-                                            >
-                                                <Check size={12} className={`text-white transition-opacity ${todo.is_done || pendingIds.has(todo.id) ? 'opacity-100' : 'opacity-0 stroke-[3px]'}`} />
-                                            </button>
-
-                                            <div className="flex flex-col flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    {editingPersonalId === todo.id ? (
-                                                        <input
-                                                            type="text"
-                                                            className="flex-1 text-sm font-medium bg-surface border border-accent rounded px-2 py-0.5 focus:ring-1 focus:ring-accent"
-                                                            value={editingTitle}
-                                                            autoFocus
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            onChange={(e) => setEditingTitle(e.target.value)}
-                                                            onFocus={(e) => e.target.select()}
-                                                            onBlur={async () => {
-                                                                if (editingTitle.trim()) {
-                                                                    await supabase.from('todos').update({ title: editingTitle.trim() }).eq('id', todo.id);
-                                                                    onUpdate();
-                                                                }
-                                                                setEditingPersonalId(null);
-                                                            }}
-                                                            onKeyDown={async (e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.currentTarget.blur();
-                                                                }
-                                                                if (e.key === 'Escape') {
-                                                                    setEditingPersonalId(null);
-                                                                }
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <p className={`text-sm font-medium leading-relaxed ${todo.is_done || pendingIds.has(todo.id) ? 'text-text-placeholder line-through' : 'text-text-primary group-hover:text-accent'}`}>
-                                                            {todo.title}
-                                                        </p>
-                                                    )}
-                                                    {personalTodos.some(t => t.parent_id === todo.id) && (
-                                                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-hover text-[10px] font-bold text-text-placeholder min-w-[18px] text-center">
-                                                            {personalTodos.filter(t => t.parent_id === todo.id).length}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {todo.deadline && (
-                                                    <span className={`text-[10px] mt-0.5 font-medium ${new Date(todo.deadline) < new Date() && !todo.is_done ? 'text-red-500' : 'text-text-placeholder'}`}>
-                                                        Fällig: {new Date(todo.deadline).toLocaleDateString()}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="text-[10px] text-text-placeholder font-medium px-2 py-0.5 bg-subtle rounded-full">
-                                                Privat
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-
-                            {/* Add Button at bottom */}
-                            <button
-                                onClick={async () => {
-                                    if (!currentUser) return;
-                                    const { data } = await supabase.from('todos').insert({
-                                        title: 'Neue Aufgabe',
-                                        assigned_to: currentUser.id,
-                                        organization_id: currentUser.organization_id,
-                                        is_done: false
-                                    }).select();
-                                    if (data && data[0]) {
-                                        onUpdate();
-                                        setEditingPersonalId(data[0].id);
-                                        setEditingTitle('Neue Aufgabe');
-                                    }
-                                }}
-                                className="flex items-center gap-2 px-4 py-3 text-sm text-text-placeholder hover:text-text-secondary hover:bg-subtle transition border-t border-default"
-                            >
-                                <Plus size={16} />
-                                Neue Aufgabe
-                            </button>
-                        </div>
-                    </div>
+            {/* ─── Header ──────────────────────────────────── */}
+            <header className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div>
+                    <h1 className="ds-display">Aufgaben</h1>
+                    <p className="ds-caption mt-1">
+                        {scope === 'mine' ? 'Dein persönlicher Arbeitsbereich' : 'Übersicht aller Team-Aufgaben'}
+                    </p>
                 </div>
 
-                {showHistory && (
-                    <TaskHistoryModal
-                        projects={projects}
-                        personalTodos={personalTodos}
-                        onClose={() => setShowHistory(false)}
-                        onToggle={handleGlobalToggle}
-                        onTaskClick={(t) => {
-                            setShowHistory(false);
-                            onTaskClick?.(t);
-                        }}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleAddPrivate}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
+                        style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
+                    >
+                        <Plus size={14} strokeWidth={2.5} /> Aufgabe
+                    </button>
+                    <button
+                        onClick={() => setShowHistory(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
+                        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+                    >
+                        <History size={14} /> Historie
+                    </button>
+                </div>
+            </header>
+
+            {/* ─── Stats row (clickable to switch view+filter) ── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <StatCard
+                    label="Überfällig" value={stats.overdue} icon={<Flame size={14} />} color="#EF4444"
+                    onClick={() => setViewMode('today')}
+                    active={viewMode === 'today' && stats.overdue > 0}
+                />
+                <StatCard
+                    label="Heute" value={stats.today} icon={<Star size={14} />} color="#F59E0B"
+                    onClick={() => setViewMode('today')}
+                />
+                <StatCard
+                    label="Diese Woche" value={stats.thisWeek} icon={<Calendar size={14} />} color="#3B82F6"
+                    onClick={() => setViewMode('today')}
+                />
+                <StatCard
+                    label="Alle offen" value={stats.total} icon={<Inbox size={14} />} color="#6B7280"
+                    onClick={() => setViewMode('list')}
+                    active={viewMode === 'list'}
+                />
+            </div>
+
+            {/* ─── Toolbar: View toggle + Scope + Filters ───── */}
+            <div className="p-3 rounded-2xl flex flex-col md:flex-row md:items-center gap-3 flex-wrap"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+
+                {/* View toggle */}
+                <div className="inline-flex p-0.5 rounded-xl"
+                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                    <SegmentButton active={viewMode === 'today'} onClick={() => setViewMode('today')}>
+                        <LayoutGrid size={13} /> Heute
+                    </SegmentButton>
+                    <SegmentButton active={viewMode === 'list'} onClick={() => setViewMode('list')}>
+                        <ListTree size={13} /> Liste
+                    </SegmentButton>
+                </div>
+
+                {/* Scope toggle */}
+                <div className="inline-flex p-0.5 rounded-xl"
+                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                    <SegmentButton active={scope === 'mine'} onClick={() => setScope('mine')}>
+                        Meine
+                    </SegmentButton>
+                    <SegmentButton active={scope === 'team'} onClick={() => setScope('team')}>
+                        Team
+                    </SegmentButton>
+                </div>
+
+                <div className="flex-1" />
+
+                {/* Search */}
+                <div className="relative flex-1 md:max-w-xs min-w-[200px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                    <input
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Aufgabe oder Projekt suchen…"
+                        className="w-full pl-9 pr-8 py-2 text-[13px] rounded-xl outline-none"
+                        style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5" style={{ color: 'var(--text-muted)' }}>
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Project filter */}
+                {projectsWithTasks.length > 0 && (
+                    <MultiSelectDropdown
+                        label="Projekt"
+                        icon={<Briefcase size={13} />}
+                        items={projectFilterItems}
+                        selectedIds={filterProjectIds}
+                        onChange={setFilterProjectIds}
+                        searchable={projectsWithTasks.length > 6}
+                        searchPlaceholder="Projekt filtern…"
+                        alignRight
+                    />
+                )}
+
+                {/* Assignee filter — only in team view */}
+                {scope === 'team' && assigneeFilterItems.length > 0 && (
+                    <MultiSelectDropdown
+                        label="Person"
+                        icon={<User size={13} />}
+                        items={assigneeFilterItems}
+                        selectedIds={filterAssigneeIds}
+                        onChange={setFilterAssigneeIds}
+                        searchable={assigneeFilterItems.length > 6}
+                        alignRight
                     />
                 )}
             </div>
-        </>
+
+            {/* ─── Content: Today or List view ──────────────── */}
+            {filtered.length === 0 ? (
+                <EmptyState />
+            ) : viewMode === 'today' ? (
+                <TodayView
+                    buckets={buckets}
+                    employees={employees}
+                    onSelectProject={onSelectProject}
+                    onTaskClick={onTaskClick}
+                    onToggle={handleToggle}
+                    onAssignee={handleAssignee}
+                    pendingIds={pendingIds}
+                    editingPersonalId={editingPersonalId}
+                    editingTitle={editingTitle}
+                    setEditingPersonalId={setEditingPersonalId}
+                    setEditingTitle={setEditingTitle}
+                    onUpdate={onUpdate}
+                />
+            ) : (
+                <>
+                    <ListView
+                        tasks={visibleListTasks}
+                        employees={employees}
+                        onSelectProject={onSelectProject}
+                        onTaskClick={onTaskClick}
+                        onToggle={handleToggle}
+                        onAssignee={handleAssignee}
+                        pendingIds={pendingIds}
+                        editingPersonalId={editingPersonalId}
+                        editingTitle={editingTitle}
+                        setEditingPersonalId={setEditingPersonalId}
+                        setEditingTitle={setEditingTitle}
+                        onUpdate={onUpdate}
+                    />
+                    {hasMore && (
+                        <div className="flex justify-center pt-2">
+                            <button
+                                onClick={() => setDisplayLimit(d => d + PAGE_SIZE)}
+                                className="px-4 py-2 rounded-xl text-[13px] font-bold transition-all shadow-sm"
+                                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+                            >
+                                Weitere {Math.min(PAGE_SIZE, listSorted.length - displayLimit)} laden
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {showHistory && (
+                <TaskHistoryModal
+                    projects={projects}
+                    personalTodos={personalTodos}
+                    onClose={() => setShowHistory(false)}
+                    onToggle={handleToggle}
+                    onTaskClick={(t) => { setShowHistory(false); onTaskClick?.(t); }}
+                />
+            )}
+        </div>
+    );
+}
+
+// ─── Reusable: Stat card ──────────────────────────────────
+function StatCard({ label, value, icon, color, onClick, active }: {
+    label: string; value: number; icon: React.ReactNode; color: string;
+    onClick?: () => void; active?: boolean;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className="flex items-center gap-3 p-4 rounded-2xl transition-all text-left"
+            style={{
+                background: 'var(--bg-card)',
+                border: `1px solid ${active ? color : 'var(--border-default)'}`,
+                boxShadow: active ? `0 0 0 2px ${color}20` : 'none',
+            }}
+        >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: `${color}15`, color }}>
+                {icon}
+            </div>
+            <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</div>
+                <div className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{value}</div>
+            </div>
+        </button>
+    );
+}
+
+// ─── Reusable: Segment toggle button ──────────────────────
+function SegmentButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <button
+            onClick={onClick}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+            style={{
+                background: active ? 'var(--bg-surface)' : 'transparent',
+                color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                boxShadow: active ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+            }}
+        >
+            {children}
+        </button>
+    );
+}
+
+// ─── Empty state ──────────────────────────────────────────
+function EmptyState() {
+    return (
+        <div className="text-center py-20 rounded-3xl border-2 border-dashed"
+            style={{ borderColor: 'var(--border-default)', background: 'var(--bg-subtle)' }}>
+            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+                style={{ background: 'var(--bg-surface)', color: 'var(--text-placeholder)' }}>
+                <CheckCircle2 size={32} strokeWidth={1.5} />
+            </div>
+            <p className="font-bold text-base mb-1" style={{ color: 'var(--text-primary)' }}>Nichts zu tun.</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Genieß den Moment oder fügst eine neue Aufgabe hinzu.</p>
+        </div>
+    );
+}
+
+// ─── Today view: 4 buckets ────────────────────────────────
+interface RowProps {
+    employees: Employee[];
+    onSelectProject: (p: Project) => void;
+    onTaskClick?: (t: Todo) => void;
+    onToggle: (id: string, currentDone: boolean) => Promise<void>;
+    onAssignee: (id: string, assigneeId: string) => Promise<void>;
+    pendingIds: Set<string>;
+    editingPersonalId: string | null;
+    editingTitle: string;
+    setEditingPersonalId: (id: string | null) => void;
+    setEditingTitle: (s: string) => void;
+    onUpdate: () => void;
+}
+
+function TodayView({ buckets, ...rowProps }: { buckets: { overdue: UnifiedTask[]; today: UnifiedTask[]; thisWeek: UnifiedTask[]; later: UnifiedTask[] } } & RowProps) {
+    return (
+        <div className="space-y-5">
+            {buckets.overdue.length > 0 && (
+                <BucketSection title="Überfällig" icon={<Flame size={14} />} color="#EF4444" count={buckets.overdue.length}>
+                    {buckets.overdue.map(t => <TaskRow key={t.id} task={t} highlight="overdue" {...rowProps} />)}
+                </BucketSection>
+            )}
+            {buckets.today.length > 0 && (
+                <BucketSection title="Heute" icon={<Star size={14} />} color="#F59E0B" count={buckets.today.length}>
+                    {buckets.today.map(t => <TaskRow key={t.id} task={t} {...rowProps} />)}
+                </BucketSection>
+            )}
+            {buckets.thisWeek.length > 0 && (
+                <BucketSection title="Diese Woche" icon={<Calendar size={14} />} color="#3B82F6" count={buckets.thisWeek.length}>
+                    {buckets.thisWeek.map(t => <TaskRow key={t.id} task={t} {...rowProps} />)}
+                </BucketSection>
+            )}
+            {buckets.later.length > 0 && (
+                <BucketSection title="Später / kein Datum" icon={<Inbox size={14} />} color="#6B7280" count={buckets.later.length}>
+                    {buckets.later.map(t => <TaskRow key={t.id} task={t} {...rowProps} />)}
+                </BucketSection>
+            )}
+        </div>
+    );
+}
+
+function BucketSection({ title, icon, color, count, children }: {
+    title: string; icon: React.ReactNode; color: string; count: number; children: React.ReactNode;
+}) {
+    return (
+        <section className="rounded-2xl overflow-hidden shadow-sm"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+            <header className="flex items-center gap-2 px-4 py-2.5"
+                style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${color}15`, color }}>
+                    {icon}
+                </div>
+                <h2 className="text-[12px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ background: `${color}15`, color }}>{count}</span>
+            </header>
+            <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                {children}
+            </div>
+        </section>
+    );
+}
+
+// ─── List view: flat sorted list ──────────────────────────
+function ListView({ tasks, ...rowProps }: { tasks: UnifiedTask[] } & RowProps) {
+    return (
+        <section className="rounded-2xl overflow-hidden shadow-sm"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+            <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                {tasks.map(t => <TaskRow key={t.id} task={t} {...rowProps} />)}
+            </div>
+        </section>
+    );
+}
+
+// ─── Single task row (used by both views) ─────────────────
+function TaskRow({
+    task, highlight, employees, onSelectProject, onTaskClick, onToggle, onAssignee,
+    pendingIds, editingPersonalId, editingTitle, setEditingPersonalId, setEditingTitle, onUpdate,
+}: { task: UnifiedTask; highlight?: 'overdue' } & RowProps) {
+    const isDone = task.is_done || pendingIds.has(task.id);
+    const isPersonal = !task._project;
+    const isEditing = editingPersonalId === task.id;
+    const overdue = task.deadline && new Date(task.deadline) < new Date();
+
+    return (
+        <div
+            className="group flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer"
+            style={{ background: 'transparent' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            onClick={() => !isEditing && onTaskClick?.(task)}
+        >
+            {/* Checkbox */}
+            <button
+                onClick={(e) => { e.stopPropagation(); onToggle(task.id, isDone); }}
+                className="mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all"
+                style={{
+                    background: isDone ? 'var(--accent)' : 'transparent',
+                    border: `2px solid ${isDone ? 'var(--accent)' : 'var(--border-strong)'}`,
+                }}
+            >
+                {isDone && <Check size={11} style={{ color: 'var(--accent-text)' }} strokeWidth={3} />}
+            </button>
+
+            {/* Title + meta */}
+            <div className="flex-1 min-w-0">
+                {isEditing ? (
+                    <input
+                        autoFocus
+                        type="text"
+                        value={editingTitle}
+                        onChange={e => setEditingTitle(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        onFocus={e => e.target.select()}
+                        onBlur={async () => {
+                            if (editingTitle.trim()) {
+                                await supabase.from('todos').update({ title: editingTitle.trim() }).eq('id', task.id);
+                                onUpdate();
+                            }
+                            setEditingPersonalId(null);
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') setEditingPersonalId(null);
+                        }}
+                        className="w-full text-sm font-medium px-2 py-0.5 rounded outline-none"
+                        style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent)', color: 'var(--text-primary)' }}
+                    />
+                ) : (
+                    <p className="text-sm font-medium leading-snug"
+                        style={{ color: isDone ? 'var(--text-placeholder)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}
+                    >
+                        {task.title}
+                    </p>
+                )}
+
+                {/* Meta line */}
+                <div className="flex items-center gap-2 mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {/* Source: project or personal */}
+                    {isPersonal ? (
+                        <span className="font-bold uppercase tracking-widest">Privat</span>
+                    ) : (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); if (task._project) onSelectProject(task._project); }}
+                            className="inline-flex items-center gap-1.5 hover:underline transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            {task._project?.clients?.logo_url ? (
+                                <img src={task._project.clients.logo_url} className="w-3.5 h-3.5 rounded object-contain bg-white" />
+                            ) : (
+                                <div className="w-3.5 h-3.5 rounded flex items-center justify-center text-[7px] font-bold"
+                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                                    {task._project?.clients?.name?.slice(0, 2).toUpperCase() || 'NA'}
+                                </div>
+                            )}
+                            <span className="font-medium truncate max-w-[160px]">{task._project?.title}</span>
+                        </button>
+                    )}
+
+                    {task.deadline && (
+                        <>
+                            <span>·</span>
+                            <span style={{ color: overdue && !isDone ? '#EF4444' : 'var(--text-muted)', fontWeight: overdue && !isDone ? 600 : 500 }}>
+                                {new Date(task.deadline).toLocaleDateString('de-DE')}
+                            </span>
+                        </>
+                    )}
+
+                    {task._project && task._project.todos?.some(t => t.parent_id === task.id) && (
+                        <>
+                            <span>·</span>
+                            <span>
+                                {task._project.todos.filter(t => t.parent_id === task.id).length} Subtasks
+                            </span>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Assignee selector (only for project tasks in team view, or always for unassigned) */}
+            {!isPersonal && (
+                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative">
+                        <select
+                            className="appearance-none pl-7 pr-2 py-1 rounded-full text-[11px] font-medium cursor-pointer transition-all w-28 truncate outline-none"
+                            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}
+                            value={task.assigned_to || ''}
+                            onChange={(e) => onAssignee(task.id, e.target.value)}
+                        >
+                            <option value="">Offen</option>
+                            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                        <User size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-placeholder)' }} />
+                    </div>
+                </div>
+            )}
+
+            {/* Inline edit trigger for private tasks (on hover) */}
+            {isPersonal && !isEditing && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); setEditingPersonalId(task.id); setEditingTitle(task.title); }}
+                    className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] font-bold px-2 py-1 rounded transition-opacity"
+                    style={{ color: 'var(--text-muted)' }}
+                >
+                    Umbenennen
+                </button>
+            )}
+        </div>
     );
 }
