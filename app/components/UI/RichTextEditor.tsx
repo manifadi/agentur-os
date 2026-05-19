@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -112,6 +112,22 @@ export default function RichTextEditor({
 }
 
 function Toolbar({ editor, compact }: { editor: Editor; compact?: boolean }) {
+    // Force re-render whenever the cursor moves or content changes so that
+    // `editor.isActive(...)` reflects the formatting at the current cursor position
+    // (TipTap v3 doesn't trigger React re-renders on selection-only updates by default).
+    const [, forceTick] = useState(0);
+    useEffect(() => {
+        const tick = () => forceTick(t => t + 1);
+        editor.on('selectionUpdate', tick);
+        editor.on('transaction', tick);
+        editor.on('focus', tick);
+        return () => {
+            editor.off('selectionUpdate', tick);
+            editor.off('transaction', tick);
+            editor.off('focus', tick);
+        };
+    }, [editor]);
+
     const handleLink = () => {
         const prev = editor.getAttributes('link').href;
         const url = window.prompt('URL eingeben:', prev || 'https://');
