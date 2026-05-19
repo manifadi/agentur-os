@@ -403,7 +403,7 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                     {/* Description */}
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-text-placeholder uppercase tracking-wider">Beschreibung</label>
-                        <div className="relative group" onPaste={handlePaste}>
+                        <div onPaste={handlePaste}>
                             <RichTextEditor
                                 value={description}
                                 onChange={setDescription}
@@ -412,41 +412,43 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                                 onBlur={() => description !== task.description && handleUpdate({ description })}
                             />
 
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                {imageUrls.map((url, i) => (
-                                    <div key={i} className="relative w-20 h-20 group/img">
-                                        <img src={url} className="w-full h-full object-cover rounded-xl border border-default" />
-                                        <button
-                                            onClick={() => {
-                                                const updated = imageUrls.filter((_, idx) => idx !== i);
-                                                setImageUrls(updated);
-                                                handleUpdate({ image_urls: updated });
-                                            }}
-                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-xl p-0.5 opacity-0 group-hover/img:opacity-100 transition shadow-sm"
-                                        >
-                                            <X size={10} />
-                                        </button>
-                                    </div>
-                                ))}
-                                {uploading && (
-                                    <div className="w-20 h-20 flex items-center justify-center bg-hover rounded-xl animate-pulse">
-                                        <ImageIcon size={20} className="text-text-placeholder" />
-                                    </div>
-                                )}
-                            </div>
+                            {(imageUrls.length > 0 || uploading) && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {imageUrls.map((url, i) => (
+                                        <div key={i} className="relative w-20 h-20 group/img">
+                                            <img src={url} className="w-full h-full object-cover rounded-xl border border-default" />
+                                            <button
+                                                onClick={() => {
+                                                    const updated = imageUrls.filter((_, idx) => idx !== i);
+                                                    setImageUrls(updated);
+                                                    handleUpdate({ image_urls: updated });
+                                                }}
+                                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-xl p-0.5 opacity-0 group-hover/img:opacity-100 transition shadow-sm"
+                                            >
+                                                <X size={10} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {uploading && (
+                                        <div className="w-20 h-20 flex items-center justify-center bg-hover rounded-xl animate-pulse">
+                                            <ImageIcon size={20} className="text-text-placeholder" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                            <div className="mt-2 flex items-center justify-between">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="p-1.5 text-text-placeholder hover:text-text-primary bg-surface rounded-xl shadow-sm border border-default transition"
+                                    className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-primary px-2 py-1 rounded-lg hover:bg-hover transition"
                                     title="Bilder anhängen"
                                 >
-                                    <Plus size={16} />
+                                    <ImageIcon size={12} /> Bild anhängen
                                 </button>
+                                <p className="text-[10px] text-text-placeholder italic">Tipp: Strg+V zum Einfügen</p>
                             </div>
                         </div>
                         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={(e) => e.target.files && handleUpload(e.target.files)} />
-                        <p className="text-[10px] text-text-placeholder italic">Tipp: Bilder können auch direkt mit Strg+V eingefügt werden.</p>
                     </div>
 
                     {/* Subtasks */}
