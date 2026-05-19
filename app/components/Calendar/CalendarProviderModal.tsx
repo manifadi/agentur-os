@@ -164,14 +164,18 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                         .map(c => ({ url: c.url, displayName: c.displayName, isWritable: c.isWritable, color: c.color || color })),
                 }),
             });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                setError(data.error || 'Speichern fehlgeschlagen.');
+            // Try JSON, fall back to text so we never swallow a real server error message
+            const raw = await res.text();
+            let data: any = null;
+            try { data = JSON.parse(raw); } catch { /* not JSON */ }
+            if (!res.ok || !data?.success) {
+                const msg = data?.error || raw.slice(0, 200) || `HTTP ${res.status}`;
+                setError(`Speichern fehlgeschlagen: ${msg}`);
                 setSaving(false);
                 return;
             }
-        } catch {
-            setError('Netzwerkfehler beim Speichern.');
+        } catch (e: any) {
+            setError(`Netzwerkfehler beim Speichern: ${e?.message || 'unbekannt'}`);
             setSaving(false);
             return;
         }
