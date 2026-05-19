@@ -860,7 +860,10 @@ body {
   line-height: 1.55;
   resize: vertical;
   overflow-y: auto;
-  max-height: 75vh;
+  /* Auto-grow with content up to --editor-max-h (default 40vh).
+     Component bumps this to 60vh when user grabs the resize handle. */
+  max-height: var(--editor-max-h, 40vh);
+  transition: max-height 200ms ease;
 }
 .rich-text-editor-content::-webkit-resizer {
   border-width: 6px;

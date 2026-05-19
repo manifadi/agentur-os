@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -99,10 +99,37 @@ export default function RichTextEditor({
         }
     }, [value, editor]);
 
+    // Detect manual resize via bottom-right handle → unlock max-height from 40vh to 60vh
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const [resized, setResized] = useState(false);
+    useEffect(() => {
+        const root = wrapperRef.current;
+        if (!root) return;
+        const editable = root.querySelector('.rich-text-editor-content') as HTMLElement | null;
+        if (!editable) return;
+        const handler = (e: PointerEvent) => {
+            const rect = editable.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            // Native resize handle sits in the bottom-right ~18px corner
+            if (rect.width - x < 18 && rect.height - y < 18) setResized(true);
+        };
+        editable.addEventListener('pointerdown', handler);
+        return () => editable.removeEventListener('pointerdown', handler);
+    }, [editor]);
+
     if (!editor) return null;
 
     return (
-        <div className="rich-text-editor rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+        <div
+            ref={wrapperRef}
+            className="rich-text-editor rounded-xl overflow-hidden"
+            style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-default)',
+                ['--editor-max-h' as any]: resized ? '60vh' : '40vh',
+            }}
+        >
             <Toolbar editor={editor} compact={compact} />
             <div onClick={() => editor.commands.focus()} style={{ cursor: 'text' }}>
                 <EditorContent editor={editor} />
