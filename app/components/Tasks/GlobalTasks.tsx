@@ -28,17 +28,20 @@ type SourceFilter = 'all' | 'project' | 'private';
 // Unified task type with attached project info
 interface UnifiedTask extends Todo {
     _project: Project | null; // null = personal
+    _parent?: Todo | null;    // parent task if this is a subtask
 }
 
 const PAGE_SIZE = 50;
+const PREFS_KEY = 'vela-tasks-view';
 
 export default function GlobalTasks({
     projects, personalTodos, employees, onSelectProject, onUpdate,
     currentUser, onTaskClick,
 }: GlobalTasksProps) {
     // ── UI state ──────────────────────────────────────────
+    // Default: Projekt-Tasks (zugewiesene) in Heute-View. Wird beim Mount aus localStorage überschrieben.
     const [viewMode, setViewMode] = useState<ViewMode>('today');
-    const [source, setSource] = useState<SourceFilter>('all');
+    const [source, setSource] = useState<SourceFilter>('project');
     const [searchQuery, setSearchQuery] = useState('');
     const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
     const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
@@ -46,6 +49,24 @@ export default function GlobalTasks({
     // Inline-add private task
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [addingPrivate, setAddingPrivate] = useState(false);
+
+    // ── Persist last-used view in localStorage ────────────
+    const [prefsLoaded, setPrefsLoaded] = useState(false);
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(PREFS_KEY);
+            if (raw) {
+                const prefs = JSON.parse(raw);
+                if (prefs.viewMode === 'today' || prefs.viewMode === 'list') setViewMode(prefs.viewMode);
+                if (prefs.source === 'all' || prefs.source === 'project' || prefs.source === 'private') setSource(prefs.source);
+            }
+        } catch { /* ignore */ }
+        setPrefsLoaded(true);
+    }, []);
+    useEffect(() => {
+        if (!prefsLoaded) return;
+        try { localStorage.setItem(PREFS_KEY, JSON.stringify({ viewMode, source })); } catch { /* ignore */ }
+    }, [viewMode, source, prefsLoaded]);
 
     // ── Task-row interaction state ────────────────────────
     const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
@@ -69,27 +90,30 @@ export default function GlobalTasks({
     }, [searchQuery, filterProjectIds, source, viewMode]);
 
     // ── Build unified task list ───────────────────────────
+    // Includes top-level tasks AND subtasks — every assigned task is its own row.
+    // Parent reference is attached for breadcrumb display in the row.
     const allTasks = useMemo<UnifiedTask[]>(() => {
         const result: UnifiedTask[] = [];
 
-        // Project tasks (only those assigned to current user)
         if (source !== 'private') {
             for (const p of projects) {
-                for (const t of (p.todos || [])) {
-                    if (t.parent_id) continue;
+                const todos = p.todos || [];
+                const byId = new Map(todos.map(t => [t.id, t]));
+                for (const t of todos) {
                     if (t.is_done && !pendingIds.has(t.id)) continue;
                     if (t.assigned_to !== currentUser?.id) continue;
-                    result.push({ ...t, _project: p });
+                    const parent = t.parent_id ? byId.get(t.parent_id) || null : null;
+                    result.push({ ...t, _project: p, _parent: parent });
                 }
             }
         }
 
-        // Personal tasks
         if (source !== 'project') {
+            const byId = new Map(personalTodos.map(t => [t.id, t]));
             for (const t of personalTodos) {
-                if (t.parent_id) continue;
                 if (t.is_done && !pendingIds.has(t.id)) continue;
-                result.push({ ...t, _project: null });
+                const parent = t.parent_id ? byId.get(t.parent_id) || null : null;
+                result.push({ ...t, _project: null, _parent: parent });
             }
         }
 
@@ -607,14 +631,26 @@ function TaskRow({
     const isEditing = editingPersonalId === task.id;
     const overdue = task.deadline && new Date(task.deadline) < new Date();
 
+    const isSubtask = !!task._parent;
+
     return (
         <div
             className="group flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer"
-            style={{ background: 'transparent' }}
+            style={{
+                background: 'transparent',
+                paddingLeft: isSubtask ? '32px' : undefined,
+            }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             onClick={() => !isEditing && onTaskClick?.(task)}
         >
+            {/* Subtask indent indicator */}
+            {isSubtask && (
+                <div className="shrink-0 mt-2" style={{ color: 'var(--text-placeholder)' }}>
+                    <span className="text-[14px]">↳</span>
+                </div>
+            )}
+
             {/* Checkbox */}
             <button
                 onClick={(e) => { e.stopPropagation(); onToggle(task.id, isDone); }}
@@ -661,6 +697,15 @@ function TaskRow({
 
                 {/* Meta line */}
                 <div className="flex items-center gap-2 mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {/* Parent task breadcrumb (for subtasks) */}
+                    {task._parent && (
+                        <>
+                            <span className="font-medium italic truncate max-w-[180px]" title={task._parent.title}>
+                                ↳ in „{task._parent.title}"
+                            </span>
+                            <span>·</span>
+                        </>
+                    )}
                     {/* Source: project or personal */}
                     {isPersonal ? (
                         <span className="font-bold uppercase tracking-widest">Privat</span>
@@ -691,7 +736,8 @@ function TaskRow({
                         </>
                     )}
 
-                    {task._project && task._project.todos?.some(t => t.parent_id === task.id) && (
+                    {/* Subtask-Count nur am Parent zeigen (zur Übersicht wie viele es insgesamt sind) */}
+                    {!isSubtask && task._project && task._project.todos?.some(t => t.parent_id === task.id) && (
                         <>
                             <span>·</span>
                             <span>

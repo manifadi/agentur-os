@@ -198,9 +198,6 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-// Re-export encrypt so other server code can encrypt password when saving from modal
-export { encrypt };
-
 // ── Helper: build iCalendar VEVENT body ─────────────────────────
 function buildICalEvent(event: {
     uid: string;
