@@ -23,7 +23,7 @@ interface GlobalTasksProps {
 }
 
 type ViewMode = 'today' | 'list';
-type Scope = 'mine' | 'team';
+type SourceFilter = 'all' | 'project' | 'private';
 
 // Unified task type with attached project info
 interface UnifiedTask extends Todo {
@@ -38,12 +38,14 @@ export default function GlobalTasks({
 }: GlobalTasksProps) {
     // ── UI state ──────────────────────────────────────────
     const [viewMode, setViewMode] = useState<ViewMode>('today');
-    const [scope, setScope] = useState<Scope>('mine');
+    const [source, setSource] = useState<SourceFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
-    const [filterAssigneeIds, setFilterAssigneeIds] = useState<string[]>([]);
     const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
     const [showHistory, setShowHistory] = useState(false);
+    // Inline-add private task
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [addingPrivate, setAddingPrivate] = useState(false);
 
     // ── Task-row interaction state ────────────────────────
     const pendingTimeouts = React.useRef<Record<string, NodeJS.Timeout>>({});
@@ -64,24 +66,26 @@ export default function GlobalTasks({
     // Reset pagination when filters change
     useEffect(() => {
         setDisplayLimit(PAGE_SIZE);
-    }, [searchQuery, filterProjectIds, filterAssigneeIds, scope, viewMode]);
+    }, [searchQuery, filterProjectIds, source, viewMode]);
 
     // ── Build unified task list ───────────────────────────
     const allTasks = useMemo<UnifiedTask[]>(() => {
         const result: UnifiedTask[] = [];
 
-        // Project tasks
-        for (const p of projects) {
-            for (const t of (p.todos || [])) {
-                if (t.parent_id) continue;
-                if (t.is_done && !pendingIds.has(t.id)) continue;
-                if (scope === 'mine' && t.assigned_to !== currentUser?.id) continue;
-                result.push({ ...t, _project: p });
+        // Project tasks (only those assigned to current user)
+        if (source !== 'private') {
+            for (const p of projects) {
+                for (const t of (p.todos || [])) {
+                    if (t.parent_id) continue;
+                    if (t.is_done && !pendingIds.has(t.id)) continue;
+                    if (t.assigned_to !== currentUser?.id) continue;
+                    result.push({ ...t, _project: p });
+                }
             }
         }
 
-        // Personal tasks — only in 'mine' scope (each user has their own private list)
-        if (scope === 'mine') {
+        // Personal tasks
+        if (source !== 'project') {
             for (const t of personalTodos) {
                 if (t.parent_id) continue;
                 if (t.is_done && !pendingIds.has(t.id)) continue;
@@ -90,31 +94,25 @@ export default function GlobalTasks({
         }
 
         return result;
-    }, [projects, personalTodos, currentUser, pendingIds, scope]);
+    }, [projects, personalTodos, currentUser, pendingIds, source]);
 
     // ── Apply filters ─────────────────────────────────────
     const filtered = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         return allTasks.filter(t => {
-            // Search: title, project title, project job_number
             if (q) {
                 const titleMatch = t.title?.toLowerCase().includes(q);
                 const projMatch = t._project?.title?.toLowerCase().includes(q);
                 const jobMatch = t._project?.job_number?.toLowerCase().includes(q);
                 if (!titleMatch && !projMatch && !jobMatch) return false;
             }
-            // Project filter
             if (filterProjectIds.length > 0) {
                 const pid = t._project?.id;
                 if (!pid || !filterProjectIds.includes(pid)) return false;
             }
-            // Assignee filter (team view mainly)
-            if (filterAssigneeIds.length > 0) {
-                if (!t.assigned_to || !filterAssigneeIds.includes(t.assigned_to)) return false;
-            }
             return true;
         });
-    }, [allTasks, searchQuery, filterProjectIds, filterAssigneeIds]);
+    }, [allTasks, searchQuery, filterProjectIds]);
 
     // ── Build day buckets ─────────────────────────────────
     const buckets = useMemo(() => {
@@ -195,19 +193,20 @@ export default function GlobalTasks({
         onUpdate();
     };
 
-    const handleAddPrivate = async () => {
-        if (!currentUser) return;
-        const { data } = await supabase.from('todos').insert({
-            title: 'Neue Aufgabe',
+    const handleAddPrivate = async (title: string) => {
+        if (!currentUser || !title.trim()) return false;
+        const { error } = await supabase.from('todos').insert({
+            title: title.trim(),
             assigned_to: currentUser.id,
             organization_id: currentUser.organization_id,
             is_done: false,
-        }).select();
-        if (data && data[0]) {
-            onUpdate();
-            setEditingPersonalId(data[0].id);
-            setEditingTitle('Neue Aufgabe');
+        });
+        if (error) {
+            console.error('[GlobalTasks] insert failed:', error);
+            return false;
         }
+        await onUpdate();
+        return true;
     };
 
     // ── Stats for header ──────────────────────────────────
@@ -238,17 +237,6 @@ export default function GlobalTasks({
         }))
         , [projectsWithTasks]);
 
-    const assigneeFilterItems: MultiSelectItem[] = useMemo(() => {
-        const empsInTasks = new Set(allTasks.map(t => t.assigned_to).filter(Boolean));
-        return employees
-            .filter(e => empsInTasks.has(e.id))
-            .map(e => ({
-                id: e.id,
-                label: e.name,
-                leading: <UserAvatar src={e.avatar_url} name={e.name} initials={e.initials} size="xs" />,
-            }));
-    }, [allTasks, employees]);
-
     return (
         <div className="max-w-6xl mx-auto py-6 px-4 space-y-5 animate-in fade-in duration-500">
 
@@ -256,19 +244,10 @@ export default function GlobalTasks({
             <header className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div>
                     <h1 className="ds-display">Aufgaben</h1>
-                    <p className="ds-caption mt-1">
-                        {scope === 'mine' ? 'Dein persönlicher Arbeitsbereich' : 'Übersicht aller Team-Aufgaben'}
-                    </p>
+                    <p className="ds-caption mt-1">Dein persönlicher Arbeitsbereich</p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleAddPrivate}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
-                        style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
-                    >
-                        <Plus size={14} strokeWidth={2.5} /> Aufgabe
-                    </button>
                     <button
                         onClick={() => setShowHistory(true)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
@@ -316,14 +295,17 @@ export default function GlobalTasks({
                     </SegmentButton>
                 </div>
 
-                {/* Scope toggle */}
+                {/* Source toggle */}
                 <div className="inline-flex p-0.5 rounded-xl"
                     style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                    <SegmentButton active={scope === 'mine'} onClick={() => setScope('mine')}>
-                        Meine
+                    <SegmentButton active={source === 'all'} onClick={() => setSource('all')}>
+                        Alle
                     </SegmentButton>
-                    <SegmentButton active={scope === 'team'} onClick={() => setScope('team')}>
-                        Team
+                    <SegmentButton active={source === 'project'} onClick={() => setSource('project')}>
+                        <Briefcase size={11} /> Projekt
+                    </SegmentButton>
+                    <SegmentButton active={source === 'private'} onClick={() => setSource('private')}>
+                        <User size={11} /> Privat
                     </SegmentButton>
                 </div>
 
@@ -346,8 +328,8 @@ export default function GlobalTasks({
                     )}
                 </div>
 
-                {/* Project filter */}
-                {projectsWithTasks.length > 0 && (
+                {/* Project filter — only shown when projects are visible in current source */}
+                {source !== 'private' && projectsWithTasks.length > 0 && (
                     <MultiSelectDropdown
                         label="Projekt"
                         icon={<Briefcase size={13} />}
@@ -359,20 +341,23 @@ export default function GlobalTasks({
                         alignRight
                     />
                 )}
-
-                {/* Assignee filter — only in team view */}
-                {scope === 'team' && assigneeFilterItems.length > 0 && (
-                    <MultiSelectDropdown
-                        label="Person"
-                        icon={<User size={13} />}
-                        items={assigneeFilterItems}
-                        selectedIds={filterAssigneeIds}
-                        onChange={setFilterAssigneeIds}
-                        searchable={assigneeFilterItems.length > 6}
-                        alignRight
-                    />
-                )}
             </div>
+
+            {/* ─── Inline add (Privat-Tasks) ────────────────── */}
+            {source !== 'project' && (
+                <InlineAddBar
+                    title={newTaskTitle}
+                    setTitle={setNewTaskTitle}
+                    adding={addingPrivate}
+                    onSubmit={async () => {
+                        if (!newTaskTitle.trim()) return;
+                        setAddingPrivate(true);
+                        const ok = await handleAddPrivate(newTaskTitle);
+                        setAddingPrivate(false);
+                        if (ok) setNewTaskTitle('');
+                    }}
+                />
+            )}
 
             {/* ─── Content: Today or List view ──────────────── */}
             {filtered.length === 0 ? (
@@ -567,6 +552,48 @@ function ListView({ tasks, ...rowProps }: { tasks: UnifiedTask[] } & RowProps) {
                 {tasks.map(t => <TaskRow key={t.id} task={t} {...rowProps} />)}
             </div>
         </section>
+    );
+}
+
+// ─── Inline add bar (Todoist-style) ────────────────────────
+function InlineAddBar({ title, setTitle, adding, onSubmit }: {
+    title: string; setTitle: (s: string) => void; adding: boolean; onSubmit: () => void;
+}) {
+    return (
+        <div
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all"
+            style={{
+                background: 'var(--bg-card)',
+                border: `1px dashed ${title ? 'var(--accent)' : 'var(--border-default)'}`,
+            }}
+        >
+            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                style={{ border: '2px dashed var(--border-strong)', color: 'var(--text-muted)' }}>
+                <Plus size={11} strokeWidth={3} />
+            </div>
+            <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                onKeyDown={e => {
+                    if (e.key === 'Enter') onSubmit();
+                    if (e.key === 'Escape') setTitle('');
+                }}
+                placeholder="Neue private Aufgabe — tippen und Enter drücken…"
+                disabled={adding}
+                className="flex-1 bg-transparent outline-none text-sm"
+                style={{ color: 'var(--text-primary)' }}
+            />
+            {title && (
+                <button
+                    onClick={onSubmit}
+                    disabled={adding}
+                    className="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+                    style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
+                >
+                    {adding ? '…' : 'Hinzufügen'}
+                </button>
+            )}
+        </div>
     );
 }
 
