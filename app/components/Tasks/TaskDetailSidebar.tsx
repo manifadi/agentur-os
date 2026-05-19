@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle2, Calendar, User, Image as ImageIcon, Plus, Globe, Lock, Trash2, Layout, Edit2, Check, GripVertical } from 'lucide-react';
+import RichTextEditor from '../UI/RichTextEditor';
 import { Todo, Employee, Project } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
@@ -402,15 +403,12 @@ export default function TaskDetailSidebar({ task, employees, projects, onClose, 
                     {/* Description */}
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-text-placeholder uppercase tracking-wider">Beschreibung</label>
-                        <div
-                            className="relative group p-4 rounded-xl border border-default bg-subtle/30 hover:bg-subtle/50 transition duration-200"
-                            onPaste={handlePaste}
-                        >
-                            <textarea
-                                className="w-full min-h-[120px] bg-transparent border-none focus:ring-0 p-0 text-sm text-text-secondary placeholder-gray-400 resize-none"
-                                placeholder="Hier klicken, um Details hinzuzufügen..."
+                        <div className="relative group" onPaste={handlePaste}>
+                            <RichTextEditor
                                 value={description}
-                                onChange={(e) => setDescription(e.target.value)}
+                                onChange={setDescription}
+                                placeholder="Hier klicken, um Details hinzuzufügen…"
+                                minHeight={120}
                                 onBlur={() => description !== task.description && handleUpdate({ description })}
                             />
 

@@ -3,6 +3,8 @@ import { Clock, Plus, ImageIcon, X, Pencil, Trash2, Lock, Globe, List } from 'lu
 import { ProjectLog } from '../../types';
 import ConfirmModal from '../Modals/ConfirmModal';
 import UserAvatar from '../UI/UserAvatar';
+import RichTextEditor from '../UI/RichTextEditor';
+import RichTextDisplay from '../UI/RichTextDisplay';
 
 interface LogbookProps {
     logs: ProjectLog[];
@@ -179,7 +181,15 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                 <div className="mb-4 bg-subtle p-3 rounded-xl border border-default">
                     <input type="date" className="w-full bg-transparent border-none text-xs text-text-secondary font-bold mb-2 focus:ring-0 p-0" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
                     <input type="text" placeholder="Titel" className="w-full bg-transparent border-none text-sm font-semibold mb-2 focus:ring-0 p-0 text-text-primary outline-none" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-                    <textarea placeholder="Text..." className="w-full bg-transparent border-none text-sm text-text-secondary resize-none focus:ring-0 p-0 h-24 outline-none" value={newContent} onChange={(e) => setNewContent(e.target.value)} onPaste={handlePaste} />
+                    <div onPaste={handlePaste} className="mb-2">
+                        <RichTextEditor
+                            value={newContent}
+                            onChange={setNewContent}
+                            placeholder="Text…"
+                            minHeight={90}
+                            compact
+                        />
+                    </div>
 
                     <div className="flex items-center gap-2 mb-2">
                         <button
@@ -246,7 +256,15 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                                 <div className="bg-subtle p-3 rounded-xl border border-accent/20 -ml-2">
                                     <input type="date" className="w-full bg-transparent border-none text-xs text-text-secondary font-bold mb-2 focus:ring-0 p-0" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
                                     <input autoFocus type="text" className="w-full bg-transparent border-none text-sm font-semibold mb-1 focus:ring-0 p-0 text-text-primary outline-none" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-                                    <textarea className="w-full bg-transparent border-none text-sm text-text-secondary resize-none focus:ring-0 p-0 h-16 outline-none" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+                                    <div className="mb-2">
+                                        <RichTextEditor
+                                            value={editContent}
+                                            onChange={setEditContent}
+                                            placeholder="Inhalt"
+                                            minHeight={80}
+                                            compact
+                                        />
+                                    </div>
 
                                     <div className="flex items-center gap-2 mb-2">
                                         <button
@@ -296,7 +314,8 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
                                         {!log.is_public && <Lock size={12} className="text-text-muted" />}
                                     </div>
                                     <div className="text-sm font-medium text-text-primary">{log.title}</div>
-                                    <div className="text-sm text-text-secondary mt-1 leading-relaxed whitespace-pre-wrap">{renderContentWithLinks(log.content)}</div>
+                                    <RichTextDisplay html={log.content} className="mt-1" />
+
 
                                     {((log.image_urls && log.image_urls.length > 0) || log.image_url) && (
                                         <div className="mt-3 flex flex-wrap gap-2">

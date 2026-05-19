@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, FileText, Clock, Users, Palette, Trash2, Plus, Globe, Lock, Video, Calendar, EyeOff } from 'lucide-react';
+import RichTextEditor from '../UI/RichTextEditor';
 import { CalendarEvent, CalendarAttendee, EventColor, Employee, ExternalCalendar, CalendarEventVisibility } from '../../types';
 import { supabase } from '../../supabaseClient';
 import UserAvatar from '../UI/UserAvatar';
@@ -337,10 +338,17 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                     </div>
 
                     {/* Description */}
-                    <div className="flex gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                        <FileText size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0 mt-0.5" />
-                        <textarea placeholder="Notizen hinzufügen..." rows={2} value={description} onChange={e => setDesc(e.target.value)}
-                            className="flex-1 bg-transparent text-xs outline-none resize-none" style={{ color: 'var(--text-primary)' }} />
+                    <div className="flex items-start gap-2">
+                        <FileText size={14} style={{ color: 'var(--text-muted)' }} className="shrink-0 mt-2.5" />
+                        <div className="flex-1 min-w-0">
+                            <RichTextEditor
+                                value={description}
+                                onChange={setDesc}
+                                placeholder="Notizen hinzufügen…"
+                                minHeight={70}
+                                compact
+                            />
+                        </div>
                     </div>
 
                     {/* Target calendar (only shown if writable calendars exist) */}

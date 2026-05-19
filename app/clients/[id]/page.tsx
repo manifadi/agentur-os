@@ -10,6 +10,8 @@ import ConfirmModal from '../../components/Modals/ConfirmModal';
 import ContactModal from '../../components/Modals/ContactModal';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { getStatusStyle, getStatusDot } from '../../utils';
+import RichTextEditor from '../../components/UI/RichTextEditor';
+import RichTextDisplay from '../../components/UI/RichTextDisplay';
 
 type TabId = 'overview' | 'projects' | 'finances' | 'activity' | 'documents' | 'team';
 
@@ -847,16 +849,18 @@ export default function ClientDetailPage() {
                                             <Building size={16} className="text-text-placeholder" /> Über das Unternehmen
                                         </h3>
                                         {isEditing ? (
-                                            <textarea
-                                                className={inputStyle + " h-32 resize-none"}
-                                                placeholder="Beschreibung des Unternehmens..."
+                                            <RichTextEditor
                                                 value={editForm.description || ''}
-                                                onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                                                onChange={(html) => setEditForm({ ...editForm, description: html })}
+                                                placeholder="Beschreibung des Unternehmens…"
+                                                minHeight={120}
                                             />
                                         ) : (
-                                            <p className="text-text-secondary leading-relaxed">
-                                                {client.description || <span className="text-text-placeholder italic">Keine Beschreibung hinterlegt.</span>}
-                                            </p>
+                                            <RichTextDisplay
+                                                html={client.description}
+                                                className="leading-relaxed"
+                                                fallback={<span className="text-text-placeholder italic">Keine Beschreibung hinterlegt.</span>}
+                                            />
                                         )}
                                     </div>
 
@@ -909,7 +913,7 @@ export default function ClientDetailPage() {
                                                             <h4 className="font-bold text-text-primary text-sm">{log.title}</h4>
                                                             <span className="text-[10px] text-text-placeholder">{relativeTime(log.created_at)}</span>
                                                         </div>
-                                                        <p className="text-xs text-text-secondary line-clamp-2 whitespace-pre-wrap">{log.content}</p>
+                                                        <RichTextDisplay html={log.content} lineClamp={2} className="text-xs" />
                                                         <div className="text-[10px] text-text-muted mt-2 font-medium">{log.employees?.name || 'Unbekannt'}</div>
                                                     </div>
                                                 ))}
@@ -1062,12 +1066,14 @@ export default function ClientDetailPage() {
                                             value={newLog.title}
                                             onChange={e => setNewLog({ ...newLog, title: e.target.value })}
                                         />
-                                        <textarea
-                                            className="w-full h-24 bg-surface border border-default rounded-lg px-4 py-3 text-sm text-text-secondary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none resize-none mb-3"
-                                            placeholder="Was gibt es Neues?"
-                                            value={newLog.content}
-                                            onChange={e => setNewLog({ ...newLog, content: e.target.value })}
-                                        />
+                                        <div className="mb-3">
+                                            <RichTextEditor
+                                                value={newLog.content}
+                                                onChange={(html) => setNewLog({ ...newLog, content: html })}
+                                                placeholder="Was gibt es Neues?"
+                                                minHeight={90}
+                                            />
+                                        </div>
                                         <div className="flex justify-end">
                                             <button
                                                 onClick={handlePostLog}
@@ -1118,25 +1124,28 @@ export default function ClientDetailPage() {
                                                         </div>
 
                                                         {isEditingThis && logRef ? (
-                                                            <div className="bg-surface p-4 rounded-xl border border-accent mt-2 shadow-sm">
+                                                            <div className="mt-2 space-y-2">
                                                                 <input
-                                                                    className="w-full border-b border-default py-2 mb-2 font-bold text-sm outline-none bg-transparent"
+                                                                    className="w-full border-b border-default py-2 font-bold text-sm outline-none bg-transparent"
                                                                     value={editLogData.title}
                                                                     onChange={e => setEditLogData({ ...editLogData, title: e.target.value })}
                                                                 />
-                                                                <textarea
-                                                                    className="w-full h-24 outline-none text-sm text-text-secondary resize-none bg-transparent"
+                                                                <RichTextEditor
                                                                     value={editLogData.content}
-                                                                    onChange={e => setEditLogData({ ...editLogData, content: e.target.value })}
+                                                                    onChange={(html) => setEditLogData({ ...editLogData, content: html })}
+                                                                    placeholder="Inhalt"
+                                                                    minHeight={90}
                                                                 />
-                                                                <div className="flex justify-end gap-2 mt-2">
+                                                                <div className="flex justify-end gap-2">
                                                                     <button onClick={() => setEditingLogId(null)} className="text-xs text-text-placeholder font-bold px-2 py-1 hover:bg-hover rounded">Abbrechen</button>
                                                                     <button onClick={handleUpdateLog} className="text-xs bg-text-primary text-surface px-3 py-1 rounded font-bold">Update</button>
                                                                 </div>
                                                             </div>
                                                         ) : event.description ? (
-                                                            <div className={`text-sm leading-relaxed mt-2 ${isLog ? 'text-text-secondary bg-subtle p-3 rounded-xl border border-default/50 whitespace-pre-wrap' : 'text-text-muted'}`}>
-                                                                {isLog ? event.description : (
+                                                            <div className={`mt-2 ${isLog ? 'bg-subtle p-3 rounded-xl border border-default/50' : 'text-text-muted text-sm'}`}>
+                                                                {isLog ? (
+                                                                    <RichTextDisplay html={event.description} />
+                                                                ) : (
                                                                     <button
                                                                         onClick={() => event.meta?.projectId && router.push(`/uebersicht?projectId=${event.meta.projectId}`)}
                                                                         className="hover:text-accent transition-colors"
