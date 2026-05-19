@@ -92,7 +92,11 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
     };
 
     const buildCalDavUrl = () => {
-        const base = serverUrl.replace(/\/$/, '');
+        let base = serverUrl.trim().replace(/\/$/, '');
+        // Auto-prepend scheme if user only entered hostname (like Apple Calendar does)
+        if (!/^https?:\/\//i.test(base)) {
+            base = (useSSL ? 'https://' : 'http://') + base;
+        }
         const path = calPath.startsWith('/') ? calPath : (calPath ? '/' + calPath : '');
         return base + path;
     };

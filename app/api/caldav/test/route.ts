@@ -139,9 +139,15 @@ export async function POST(request: NextRequest) {
 
     const auth = buildAuth(username, password);
 
+    // Auto-prepend https:// if user entered bare hostname (Apple Calendar does this too)
+    let normalizedUrl = url.trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) {
+        normalizedUrl = 'https://' + normalizedUrl;
+    }
+
     let parsedBase: URL;
     try {
-        parsedBase = new URL(url);
+        parsedBase = new URL(normalizedUrl);
     } catch {
         return NextResponse.json({ success: false, error: 'Ungültige Server-URL' });
     }
@@ -150,7 +156,7 @@ export async function POST(request: NextRequest) {
     // ── Step 1: Find user principal ──────────────────────────
     // Try entered URL first, then .well-known/caldav, then server root
     const startCandidates = [
-        url,
+        normalizedUrl,
         `${serverOrigin}/.well-known/caldav`,
         `${serverOrigin}/`,
     ];
