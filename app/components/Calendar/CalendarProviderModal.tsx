@@ -260,14 +260,14 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                     {([
                         { id: 'caldav', label: 'CalDAV', icon: <Shield size={13} />, sub: 'Troi, Apple, …' },
                         { id: 'google', label: 'Google', icon: <Chrome size={13} />, sub: 'OAuth' },
-                        { id: 'outlook', label: 'Outlook', icon: <Monitor size={13} />, sub: 'Teams' },
+                        { id: 'outlook', label: 'Outlook', icon: <Monitor size={13} />, sub: 'Bald', soon: true },
                         { id: 'ical', label: 'iCal URL', icon: <Link size={13} />, sub: 'Lesezugriff' },
-                    ] as { id: Tab; label: string; icon: React.ReactNode; sub: string }[]).map(t => (
+                    ] as { id: Tab; label: string; icon: React.ReactNode; sub: string; soon?: boolean }[]).map(t => (
                         <button key={t.id} onClick={() => { setTab(t.id); setError(''); }}
-                            className="flex-1 flex flex-col items-center py-3 text-xs transition-all"
+                            className="flex-1 flex flex-col items-center py-3 text-xs transition-all relative"
                             style={tab === t.id
                                 ? { color: 'var(--accent)', borderBottom: '2px solid var(--accent)', background: 'var(--accent-subtle)' }
-                                : { color: 'var(--text-muted)', borderBottom: '2px solid transparent' }
+                                : { color: 'var(--text-muted)', borderBottom: '2px solid transparent', opacity: t.soon ? 0.7 : 1 }
                             }
                         >
                             <span className="flex items-center gap-1 font-semibold">{t.icon}{t.label}</span>
@@ -461,30 +461,22 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                         </div>
                     )}
 
-                    {/* ── Outlook/Teams Tab ── */}
+                    {/* ── Outlook/Teams Tab — coming soon ── */}
                     {tab === 'outlook' && (
-                        <div className="space-y-4">
-                            <div className="p-4 rounded-xl space-y-2" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                                <div className="flex items-center gap-2">
-                                    <Info size={14} style={{ color: '#0078D4' }} />
-                                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Microsoft 365 / Teams</span>
-                                </div>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    Klicke unten auf „Mit Microsoft verbinden" und melde dich mit deinem Microsoft-Konto an. Teams-Meeting-Links werden automatisch erkannt und als „Beitreten"-Button angezeigt.
+                        <div className="flex flex-col items-center justify-center py-8 px-4 text-center space-y-3">
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: '#0078D420' }}>
+                                <Monitor size={24} style={{ color: '#0078D4' }} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Outlook & Teams — bald verfügbar</h3>
+                                <p className="text-xs max-w-sm" style={{ color: 'var(--text-muted)' }}>
+                                    Die Microsoft-Integration ist in Vorbereitung. Sobald sie freigeschaltet ist, kannst du dein Outlook-Konto und Teams-Meeting-Links direkt verbinden.
                                 </p>
                             </div>
-
-                            <FormRow label="Anzeigename">
-                                <input value={oauthName} onChange={e => setOauthName(e.target.value)} placeholder="Outlook"
-                                    className="w-full p-2.5 rounded-xl text-xs outline-none"
-                                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                            </FormRow>
-
-                            <div className="flex gap-2">
-                                {['#0078D4', '#5059C9', '#3B82F6', '#7C3AED', '#06B6D4', '#10B981', '#64748B'].map(c => (
-                                    <button key={c} onClick={() => setOauthColor(c)} className="w-5 h-5 rounded-full"
-                                        style={{ background: c, outline: oauthColor === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }} />
-                                ))}
+                            <div className="text-[10px] px-3 py-1.5 rounded-full inline-flex items-center gap-1.5"
+                                style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                                <Info size={10} />
+                                Tipp: nutze bis dahin den iCal-Link aus Outlook (Lesezugriff)
                             </div>
                         </div>
                     )}
@@ -545,9 +537,9 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                             </button>
                         )}
                         {tab === 'outlook' && (
-                            <button onClick={handleConnectMicrosoft} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
-                                style={{ background: '#0078D4', color: '#fff' }}>
-                                <Monitor size={13} /> Mit Microsoft verbinden
+                            <button disabled className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold cursor-not-allowed"
+                                style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-default)' }}>
+                                <Monitor size={13} /> Bald verfügbar
                             </button>
                         )}
                         {tab === 'ical' && (
