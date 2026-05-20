@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, X } from 'lucide-react';
-import { Employee, CalendarEvent, ExternalCalendar, ParsedExternalEvent, CalendarView, HiddenCalendarEvent } from '../../types';
+import { Employee, CalendarEvent, CalendarView } from '../../types';
 import { supabase } from '../../supabaseClient';
-import { useApp } from '../../context/AppContext';
+import { useCalendarData } from '../../context/CalendarDataContext';
 import { getWeekDays, isSameDay } from './views/WeekView';
 import { getEmployeeColor } from './CalendarSidebar';
 import CalendarSidebar from './CalendarSidebar';
@@ -11,7 +11,6 @@ import EventModal from './EventModal';
 import WeekView from './views/WeekView';
 import DayView from './views/DayView';
 import MonthView from './views/MonthView';
-import { parseICalText } from '../../utils/icalParser';
 
 interface Props {
     employees: Employee[];
@@ -21,12 +20,22 @@ interface Props {
 const VIEW_LABELS: Record<CalendarView, string> = { day: 'Tag', week: 'Woche', month: 'Monat' };
 
 export default function CalendarPage({ employees, currentUser }: Props) {
-    const { agencySettings } = useApp();
     if (!currentUser) return (
         <div className="flex h-full items-center justify-center text-sm" style={{ color: 'var(--text-muted)' }}>Lade Kalender...</div>
     );
 
     const organizationId = (currentUser as any).organization_id as string;
+
+    const {
+        setRange,
+        visibleEmployeeIds, setVisibleEmployeeIds,
+        ownEvents, teamEvents,
+        externalCalendars, externalEvents,
+        hiddenEventIds, hiddenExternalKeys,
+        syncErrors,
+        refreshExternalCalendars,
+        hideEventLocally, hideExternalEvent,
+    } = useCalendarData();
 
     const [view, setView] = useState<CalendarView>('week');
     const [anchor, setAnchor] = useState(new Date());
@@ -38,155 +47,31 @@ export default function CalendarPage({ employees, currentUser }: Props) {
     const [modalDefaultEnd, setModalDefaultEnd] = useState<Date | undefined>();
     const [modalAllDay, setModalAllDay] = useState(false);
 
-    const [ownEvents, setOwnEvents] = useState<CalendarEvent[]>([]);
-    const [teamEvents, setTeamEvents] = useState<CalendarEvent[]>([]);
-    const [externalCalendars, setExternals] = useState<ExternalCalendar[]>([]);
-    const [externalEvents, setExternalEvents] = useState<ParsedExternalEvent[]>([]);
-    const [visibleEmployeeIds, setVisibleEmployeeIds] = useState<string[]>([]);
     const [showOwnEvents, setShowOwnEvents] = useState(true);
-
-    // Hidden events
-    const [hiddenEventIds, setHiddenEventIds] = useState<Set<string>>(new Set());
-    const [hiddenExternalKeys, setHiddenExternalKeys] = useState<Set<string>>(new Set()); // uid|calendarId
-
-    // Sync errors from external calendars
-    const [syncErrors, setSyncErrors] = useState<{ calendarName: string; message: string }[]>([]);
     const [dismissedErrors, setDismissedErrors] = useState(false);
 
-    // Reset dismissed state when new errors appear
     useEffect(() => {
         if (syncErrors.length > 0) setDismissedErrors(false);
     }, [syncErrors]);
 
     const weekDays = getWeekDays(anchor);
 
-    const getDateRange = useCallback(() => {
+    // Push range to provider whenever view/anchor changes
+    useEffect(() => {
+        let from: Date, to: Date;
         if (view === 'day') {
-            const s = new Date(anchor); s.setHours(0, 0, 0, 0);
-            const e = new Date(anchor); e.setHours(23, 59, 59, 999);
-            return { from: s, to: e };
-        }
-        if (view === 'week') {
+            from = new Date(anchor); from.setHours(0, 0, 0, 0);
+            to = new Date(anchor); to.setHours(23, 59, 59, 999);
+        } else if (view === 'week') {
             const days = getWeekDays(anchor);
-            const s = new Date(days[0]); s.setHours(0, 0, 0, 0);
-            const e = new Date(days[6]); e.setHours(23, 59, 59, 999);
-            return { from: s, to: e };
+            from = new Date(days[0]); from.setHours(0, 0, 0, 0);
+            to = new Date(days[6]); to.setHours(23, 59, 59, 999);
+        } else {
+            from = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 0, 0, 0, 0);
+            to = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 23, 59, 59, 999);
         }
-        const s = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 0, 0, 0, 0);
-        const e = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 23, 59, 59, 999);
-        return { from: s, to: e };
-    }, [view, anchor]);
-
-    const fetchOwnEvents = useCallback(async () => {
-        const { from, to } = getDateRange();
-        const { data } = await supabase.from('calendar_events')
-            .select('*')
-            .eq('employee_id', currentUser.id)
-            .gte('start_at', from.toISOString())
-            .lte('start_at', to.toISOString())
-            .order('start_at');
-        if (data) setOwnEvents(data as CalendarEvent[]);
-    }, [currentUser.id, getDateRange]);
-
-    const fetchTeamEvents = useCallback(async () => {
-        if (visibleEmployeeIds.length === 0) { setTeamEvents([]); return; }
-        const { from, to } = getDateRange();
-        // Only fetch public events from team members
-        const { data } = await supabase.from('calendar_events')
-            .select('*, employees(id, name, initials, avatar_url)')
-            .in('employee_id', visibleEmployeeIds)
-            .eq('visibility', 'public')
-            .gte('start_at', from.toISOString())
-            .lte('start_at', to.toISOString())
-            .order('start_at');
-        if (data) setTeamEvents(data as CalendarEvent[]);
-    }, [visibleEmployeeIds, getDateRange]);
-
-    const fetchExternalCalendars = useCallback(async () => {
-        const { data } = await supabase.from('external_calendars')
-            .select('*')
-            .eq('employee_id', currentUser.id)
-            .order('created_at');
-        if (data) setExternals(data as ExternalCalendar[]);
-    }, [currentUser.id]);
-
-    const fetchExternalEvents = useCallback(async () => {
-        const visibleCals = externalCalendars.filter(c => c.is_visible);
-        if (visibleCals.length === 0) { setExternalEvents([]); setSyncErrors([]); return; }
-
-        const { from, to } = getDateRange();
-        const allParsed: ParsedExternalEvent[] = [];
-        const errors: { calendarName: string; message: string }[] = [];
-
-        const handleResponse = async (cal: ExternalCalendar, res: Response): Promise<any | null> => {
-            if (res.ok) return res.json();
-            let msg = `HTTP ${res.status}`;
-            try {
-                const data = await res.json();
-                if (data.error) msg = data.error;
-            } catch { /* ignore */ }
-            errors.push({ calendarName: cal.name, message: msg });
-            return null;
-        };
-
-        await Promise.all(visibleCals.map(async cal => {
-            try {
-                if (cal.provider_type === 'google') {
-                    const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
-                    const res = await fetch(`/api/google-calendar/events?${params}`);
-                    const data = await handleResponse(cal, res);
-                    if (data) allParsed.push(...(data.events || []));
-                } else if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
-                    const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
-                    const res = await fetch(`/api/microsoft/events?${params}`);
-                    const data = await handleResponse(cal, res);
-                    if (data) allParsed.push(...(data.events || []));
-                } else if ((cal.provider_type === 'troi' || cal.provider_type === 'apple') && cal.caldav_username) {
-                    const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
-                    const res = await fetch(`/api/caldav/events?${params}`);
-                    const data = await handleResponse(cal, res);
-                    if (data?.ical) {
-                        const parsed = parseICalText(data.ical, cal.id, cal.name, cal.color);
-                        allParsed.push(...parsed);
-                    }
-                } else {
-                    if (!cal.url) return;
-                    const proxied = `/api/ical-proxy?url=${encodeURIComponent(cal.url)}`;
-                    const res = await fetch(proxied);
-                    if (!res.ok) {
-                        errors.push({ calendarName: cal.name, message: `iCal-Feed nicht erreichbar (${res.status})` });
-                        return;
-                    }
-                    const text = await res.text();
-                    const parsed = parseICalText(text, cal.id, cal.name, cal.color);
-                    allParsed.push(...parsed);
-                }
-            } catch (err: any) {
-                errors.push({ calendarName: cal.name, message: err?.message || 'Netzwerkfehler' });
-                console.warn('[CalendarPage] Failed to fetch external cal:', cal.name, err);
-            }
-        }));
-
-        setExternalEvents(allParsed);
-        setSyncErrors(errors);
-    }, [externalCalendars, getDateRange]);
-
-    const fetchHiddenEvents = useCallback(async () => {
-        const res = await fetch(`/api/calendar/hidden-events?employeeId=${currentUser.id}&organizationId=${organizationId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const hidden: HiddenCalendarEvent[] = data.hidden || [];
-        const eventIds = new Set(hidden.filter(h => h.event_id).map(h => h.event_id!));
-        const externalKeys = new Set(hidden.filter(h => h.external_event_uid && h.external_calendar_id).map(h => `${h.external_event_uid}|${h.external_calendar_id}`));
-        setHiddenEventIds(eventIds);
-        setHiddenExternalKeys(externalKeys);
-    }, [currentUser.id, organizationId]);
-
-    useEffect(() => { fetchOwnEvents(); }, [fetchOwnEvents]);
-    useEffect(() => { fetchTeamEvents(); }, [fetchTeamEvents]);
-    useEffect(() => { fetchExternalCalendars(); }, [fetchExternalCalendars]);
-    useEffect(() => { fetchExternalEvents(); }, [fetchExternalEvents]);
-    useEffect(() => { fetchHiddenEvents(); }, [fetchHiddenEvents]);
+        setRange(from, to);
+    }, [view, anchor, setRange]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -261,23 +146,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         const cal = externalCalendars.find(c => c.id === id);
         if (!cal) return;
         await supabase.from('external_calendars').update({ is_visible: !cal.is_visible }).eq('id', id);
-        fetchExternalCalendars();
-    };
-
-    const handleHideEvent = (eventId: string) => {
-        setHiddenEventIds(prev => new Set(Array.from(prev).concat(eventId)));
-    };
-
-    const handleHideExternal = async (uid: string, externalCalendarId: string) => {
-        const key = `${uid}|${externalCalendarId}`;
-        setHiddenExternalKeys(prev => new Set(Array.from(prev).concat(key)));
-        // Persist to DB
-        const cal = externalCalendars.find(c => c.id === externalCalendarId);
-        await fetch('/api/calendar/hidden-events', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeId: currentUser.id, organizationId, externalEventUid: uid, externalCalendarId }),
-        });
+        // Realtime subscription on external_calendars will sync state automatically.
     };
 
     // Filter events
@@ -309,7 +178,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                 onToggleEmployee={toggleEmployee}
                 externalCalendars={externalCalendars}
                 onToggleExternal={toggleExternal}
-                onRefreshExternals={fetchExternalCalendars}
+                onRefreshExternals={refreshExternalCalendars}
                 ownEvents={ownEvents}
                 showOwnEvents={showOwnEvents}
                 onToggleOwnEvents={() => setShowOwnEvents(x => !x)}
@@ -324,10 +193,29 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             <p className="text-xs font-bold" style={{ color: '#991B1B' }}>
                                 {syncErrors.length === 1 ? 'Ein Kalender konnte nicht synchronisiert werden:' : `${syncErrors.length} Kalender konnten nicht synchronisiert werden:`}
                             </p>
-                            <ul className="text-[11px] mt-0.5 space-y-0.5" style={{ color: '#7F1D1D' }}>
-                                {syncErrors.slice(0, 3).map((e, i) => (
-                                    <li key={i}><span className="font-semibold">{e.calendarName}:</span> {e.message}</li>
-                                ))}
+                            <ul className="text-[11px] mt-0.5 space-y-1" style={{ color: '#7F1D1D' }}>
+                                {syncErrors.slice(0, 3).map((e, i) => {
+                                    const reauthUrl = e.isAuthError
+                                        ? (e.providerType === 'google'
+                                            ? `/api/auth/google-calendar?employeeId=${currentUser.id}&organizationId=${organizationId}&name=${encodeURIComponent(e.calendarName)}&returnUrl=/kalender`
+                                            : (e.providerType === 'outlook' || e.providerType === 'teams')
+                                                ? `/api/auth/microsoft?employeeId=${currentUser.id}&organizationId=${organizationId}&name=${encodeURIComponent(e.calendarName)}&returnUrl=/kalender`
+                                                : null)
+                                        : null;
+                                    return (
+                                        <li key={i} className="flex items-start gap-2 flex-wrap">
+                                            <span><span className="font-semibold">{e.calendarName}:</span> {e.message}</span>
+                                            {reauthUrl && (
+                                                <a href={reauthUrl} className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#991B1B', color: '#fff' }}>
+                                                    Erneut anmelden
+                                                </a>
+                                            )}
+                                            {e.isAuthError && !reauthUrl && e.providerType !== 'ical' && (
+                                                <span className="text-[10px] italic">Bitte Passwort in den Kalender-Einstellungen aktualisieren</span>
+                                            )}
+                                        </li>
+                                    );
+                                })}
                                 {syncErrors.length > 3 && <li className="italic">…und {syncErrors.length - 3} weitere</li>}
                             </ul>
                         </div>
@@ -389,7 +277,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             externalEvents={visibleExternal}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
-                            onHideExternal={handleHideExternal}
+                            onHideExternal={hideExternalEvent}
                         />
                     )}
                     {view === 'day' && (
@@ -402,7 +290,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             externalEvents={visibleExternal}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
-                            onHideExternal={handleHideExternal}
+                            onHideExternal={hideExternalEvent}
                         />
                     )}
                     {view === 'month' && (
@@ -431,9 +319,9 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                     organizationId={organizationId}
                     externalCalendars={externalCalendars}
                     onClose={() => setShowModal(false)}
-                    onSaved={() => { fetchOwnEvents(); fetchTeamEvents(); }}
-                    onDeleted={() => { fetchOwnEvents(); fetchTeamEvents(); }}
-                    onHidden={handleHideEvent}
+                    onSaved={() => { /* realtime handles it */ }}
+                    onDeleted={() => { /* realtime handles it */ }}
+                    onHidden={hideEventLocally}
                 />
             )}
         </div>
