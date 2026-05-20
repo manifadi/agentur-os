@@ -16,8 +16,38 @@ import {
     CalendarDays,
     BarChart3
 } from 'lucide-react';
-import { AgencySettings, Employee } from '../types';
+import { AgencySettings, Employee, SidebarItemId, DEFAULT_SIDEBAR_ITEMS } from '../types';
 import UserAvatar from './UI/UserAvatar';
+
+const ICON_MAP: Record<SidebarItemId, any> = {
+    dashboard: LayoutGrid,
+    projects_overview: FolderKanban,
+    global_tasks: Globe,
+    resource_planning: CalendarRange,
+    time_tracking: Timer,
+    kalender: CalendarDays,
+    reporting: BarChart3,
+};
+
+const LABEL_MAP: Record<SidebarItemId, string> = {
+    dashboard: 'Mein Bereich',
+    projects_overview: 'Projekte',
+    global_tasks: 'Alle Aufgaben',
+    resource_planning: 'Ressourcen',
+    time_tracking: 'Zeiterfassung',
+    kalender: 'Kalender',
+    reporting: 'Reporting',
+};
+
+const HREF_MAP: Record<SidebarItemId, string> = {
+    dashboard: '/dashboard',
+    projects_overview: '/uebersicht',
+    global_tasks: '/aufgaben',
+    resource_planning: '/ressourcen',
+    time_tracking: '/zeiterfassung',
+    kalender: '/kalender',
+    reporting: '/reporting',
+};
 
 interface MainSidebarProps {
     currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'settings' | 'kalender' | 'reporting';
@@ -222,13 +252,15 @@ export default function MainSidebar({
                     )}
                 </button>
 
-                <NavItem view="dashboard" href="/dashboard" icon={LayoutGrid} label="Mein Bereich" />
-                <NavItem view="projects_overview" href="/uebersicht" icon={FolderKanban} label="Projekte" />
-                <NavItem view="global_tasks" href="/aufgaben" icon={Globe} label="Alle Aufgaben" />
-                <NavItem view="resource_planning" href="/ressourcen" icon={CalendarRange} label="Ressourcen" />
-                <NavItem view="time_tracking" href="/zeiterfassung" icon={Timer} label="Zeiterfassung" />
-                <NavItem view="kalender" href="/kalender" icon={CalendarDays} label="Kalender" />
-                <NavItem view="reporting" href="/reporting" icon={BarChart3} label="Reporting" />
+                {(activeUser?.dashboard_config?.sidebar_items ?? DEFAULT_SIDEBAR_ITEMS).map((itemId) => (
+                    <NavItem
+                        key={itemId}
+                        view={itemId}
+                        href={HREF_MAP[itemId]}
+                        icon={ICON_MAP[itemId]}
+                        label={LABEL_MAP[itemId]}
+                    />
+                ))}
             </div>
 
             {/* Footer */}

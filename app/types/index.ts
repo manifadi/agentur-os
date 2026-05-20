@@ -49,7 +49,25 @@ export interface DashboardConfig {
     widgets: DashboardWidgetConfig[];
     favoriteProjectIds?: string[];
     has_seen_welcome?: boolean;
+    sidebar_items?: SidebarItemId[]; // Reihenfolge + Sichtbarkeit der Sidebar-Items
 }
+
+export type SidebarItemId = 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'kalender' | 'reporting';
+
+export const DEFAULT_SIDEBAR_ITEMS: SidebarItemId[] = [
+    'dashboard', 'projects_overview', 'global_tasks', 'resource_planning', 'time_tracking', 'kalender'
+    // 'reporting' bewusst nicht im default — User kann es in Einstellungen aktivieren
+];
+
+export const ALL_SIDEBAR_ITEMS: { id: SidebarItemId; label: string; href: string }[] = [
+    { id: 'dashboard', label: 'Mein Bereich', href: '/dashboard' },
+    { id: 'projects_overview', label: 'Projekte', href: '/uebersicht' },
+    { id: 'global_tasks', label: 'Alle Aufgaben', href: '/aufgaben' },
+    { id: 'resource_planning', label: 'Ressourcen', href: '/ressourcen' },
+    { id: 'time_tracking', label: 'Zeiterfassung', href: '/zeiterfassung' },
+    { id: 'kalender', label: 'Kalender', href: '/kalender' },
+    { id: 'reporting', label: 'Reporting', href: '/reporting' },
+];
 
 export interface Employee {
     id: string;
@@ -62,7 +80,8 @@ export interface Employee {
     organization_id?: string;
     user_id?: string;
     hourly_rate?: number;
-    weekly_hours?: number; // Soll-Stunden pro Woche (default 40)
+    weekly_hours?: number; // Legacy — summe von weekly_schedule
+    weekly_schedule?: number[]; // [Mo, Di, Mi, Do, Fr, Sa, So] Soll-Stunden pro Tag
     phone?: string;
     avatar_url?: string | null;
     dashboard_config?: DashboardConfig;

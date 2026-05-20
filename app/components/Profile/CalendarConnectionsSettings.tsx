@@ -1,9 +1,41 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Trash2, RefreshCw, Chrome, Monitor, Apple, Building2, Link, Shield, Check, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Employee, ExternalCalendar, CalendarProviderType } from '../../types';
 import { supabase } from '../../supabaseClient';
 import CalendarProviderModal from '../Calendar/CalendarProviderModal';
+
+const COLOR_PALETTE = [
+    '#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#F59E0B', '#06B6D4', '#64748B',
+    '#EF4444', '#F97316', '#8B5CF6', '#EC4899', '#14B8A6', '#84CC16', '#0078D4',
+];
+
+function ColorPickerPopover({ current, onPick, onClose, anchorRect }: { current: string; onPick: (c: string) => void; onClose: () => void; anchorRect: DOMRect }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const click = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+        const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('mousedown', click);
+        document.addEventListener('keydown', esc);
+        return () => { document.removeEventListener('mousedown', click); document.removeEventListener('keydown', esc); };
+    }, [onClose]);
+    const x = Math.min(anchorRect.left, window.innerWidth - 200);
+    const y = anchorRect.bottom + 4;
+    return (
+        <div ref={ref}
+            className="fixed z-[400] p-2.5 rounded-xl shadow-2xl grid grid-cols-7 gap-1.5"
+            style={{ left: x, top: y, background: 'var(--bg-card)', border: '1px solid var(--border-default)', width: 188 }}
+        >
+            {COLOR_PALETTE.map(c => (
+                <button key={c} onClick={() => { onPick(c); onClose(); }}
+                    className="w-6 h-6 rounded-full transition-transform hover:scale-110"
+                    style={{ background: c, outline: c === current ? `2.5px solid ${c}` : 'none', outlineOffset: 2 }}
+                    title={c}
+                />
+            ))}
+        </div>
+    );
+}
 
 function ProviderIcon({ type, size = 14 }: { type: CalendarProviderType; size?: number }) {
     switch (type) {
@@ -36,6 +68,7 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
+    const [colorPicker, setColorPicker] = useState<{ id: string; current: string; rect: DOMRect } | null>(null);
 
     const fetchCalendars = useCallback(async () => {
         setLoading(true);
@@ -64,6 +97,17 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
 
     const hasCalDavIssue = (cal: ExternalCalendar) =>
         (cal.provider_type === 'troi' || cal.provider_type === 'apple') && !cal.caldav_username;
+
+    const handleColorPick = async (id: string, color: string) => {
+        await supabase.from('external_calendars').update({ color }).eq('id', id);
+        fetchCalendars();
+    };
+
+    const openColorPicker = (e: React.MouseEvent, cal: ExternalCalendar) => {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setColorPicker({ id: cal.id, current: cal.color, rect });
+    };
 
     return (
         <div className="space-y-4">
@@ -109,8 +153,12 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
                 <div className="space-y-2">
                     {calendars.map(cal => (
                         <div key={cal.id} className="flex items-center gap-4 p-4 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-                            {/* Color dot */}
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: cal.color }} />
+                            {/* Color dot — clickable */}
+                            <button onClick={(e) => openColorPicker(e, cal)}
+                                className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-125"
+                                style={{ background: cal.color }}
+                                title="Farbe ändern"
+                            />
 
                             {/* Icon + Info */}
                             <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -171,6 +219,15 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
                     organizationId={organizationId}
                     onClose={() => setShowModal(false)}
                     onAdded={() => { fetchCalendars(); setShowModal(false); }}
+                />
+            )}
+
+            {colorPicker && (
+                <ColorPickerPopover
+                    current={colorPicker.current}
+                    anchorRect={colorPicker.rect}
+                    onPick={(c) => handleColorPick(colorPicker.id, c)}
+                    onClose={() => setColorPicker(null)}
                 />
             )}
         </div>

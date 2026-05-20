@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     User, Palette, Building2, Users, Banknote, Image as ImageIcon,
-    FileText, Lock, Camera, CalendarDays
+    FileText, Lock, Camera, CalendarDays, SidebarOpen
 } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
@@ -12,10 +12,11 @@ import AdminRateManagement from './AdminRateManagement';
 import AdminAgencySettings from './AdminAgencySettings';
 import AppearanceSettings from './AppearanceSettings';
 import CalendarConnectionsSettings from './CalendarConnectionsSettings';
+import NavigationSettings from './NavigationSettings';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 
-type Section = 'profil' | 'design' | 'kalender' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
+type Section = 'profil' | 'design' | 'kalender' | 'navigation' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
 
 const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none text-sm transition';
 
@@ -26,6 +27,7 @@ const NAV: { group: string; adminOnly: boolean; items: { id: Section; label: str
         items: [
             { id: 'profil', label: 'Profil', icon: User },
             { id: 'design', label: 'Design & Thema', icon: Palette },
+            { id: 'navigation', label: 'Navigation', icon: SidebarOpen },
             { id: 'kalender', label: 'Kalender', icon: CalendarDays },
         ],
     },
@@ -247,6 +249,19 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                     currentUser={currentUser}
                                     organizationId={(currentUser as any).organization_id}
                                 />
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* ── NAVIGATION ── */}
+                    {section === 'navigation' && currentUser && (
+                        <div className="max-w-2xl space-y-5">
+                            <SectionHeader
+                                title="Navigation"
+                                subtitle="Welche Einträge in der Sidebar erscheinen und in welcher Reihenfolge."
+                            />
+                            <Card>
+                                <NavigationSettings currentUser={currentUser} onUpdate={onUpdate} />
                             </Card>
                         </div>
                     )}

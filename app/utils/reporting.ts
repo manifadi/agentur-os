@@ -67,7 +67,8 @@ export function aggregatePeriod(
     entries: TimeEntry[],
     from: Date,
     to: Date,
-    weeklyTarget: number,
+    /** Soll-Stunden pro Wochentag: [Mo,Di,Mi,Do,Fr,Sa,So]. Wenn nur eine Zahl: gleichmäßig auf Mo-Fr verteilt. */
+    weeklyScheduleOrTarget: number[] | number,
     projects: Project[] = [],
 ): PeriodStats {
     const inRange = entries.filter(e => {
@@ -77,10 +78,22 @@ export function aggregatePeriod(
 
     const totalHours = inRange.reduce((s, e) => s + Number(e.hours || 0), 0);
 
-    // Soll: weeklyTarget skaliert auf die Zeitspanne (Werktage Mo–Fr)
-    const businessDays = countBusinessDays(from, to);
-    const dailyTarget = weeklyTarget / 5;
-    const targetHours = businessDays * dailyTarget;
+    // Schedule normalisieren: [Mo..So]
+    const schedule = Array.isArray(weeklyScheduleOrTarget)
+        ? weeklyScheduleOrTarget
+        : [weeklyScheduleOrTarget / 5, weeklyScheduleOrTarget / 5, weeklyScheduleOrTarget / 5, weeklyScheduleOrTarget / 5, weeklyScheduleOrTarget / 5, 0, 0];
+
+    // Soll: summiere die Tages-Soll-Werte über alle Tage im Zeitraum
+    let targetHours = 0;
+    const cur = new Date(from);
+    cur.setHours(0, 0, 0, 0);
+    const end = new Date(to);
+    end.setHours(0, 0, 0, 0);
+    while (cur <= end) {
+        const dayIdx = (cur.getDay() + 6) % 7; // 0=Mo
+        targetHours += schedule[dayIdx] ?? 0;
+        cur.setDate(cur.getDate() + 1);
+    }
 
     // Projekt-Verteilung
     const projMap = new Map<string, { hours: number; title: string; client?: string }>();

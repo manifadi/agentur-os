@@ -168,17 +168,44 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Wochenstunden (Soll)</label>
-                        <input
-                            type="number"
-                            min={0}
-                            max={80}
-                            step={0.5}
-                            className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
-                            value={formData.weekly_hours ?? 40}
-                            onChange={e => setFormData({ ...formData, weekly_hours: parseFloat(e.target.value) || 0 })}
-                        />
-                        <p className="text-xs text-text-muted mt-1">Basis für Reporting Soll/Ist (Vollzeit = 40h).</p>
+                        <div className="flex items-baseline justify-between mb-1.5">
+                            <label className="block text-xs font-bold text-text-muted uppercase">Wochenplan (Soll-Stunden)</label>
+                            <span className="text-xs font-bold text-text-primary tabular-nums">
+                                Summe: {(formData.weekly_schedule || [8, 8, 8, 8, 8, 0, 0]).reduce((s: number, h: number) => s + (h || 0), 0)}h
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
+                            {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, idx) => {
+                                const schedule = formData.weekly_schedule || [8, 8, 8, 8, 8, 0, 0];
+                                const val = schedule[idx] ?? 0;
+                                return (
+                                    <div key={day} className="flex flex-col items-center">
+                                        <label className="text-[10px] font-bold uppercase mb-0.5 text-text-muted">{day}</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            max={24}
+                                            step={0.5}
+                                            className="w-full p-1.5 bg-input border border-default rounded-lg text-xs text-center tabular-nums text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                            value={val}
+                                            onChange={e => {
+                                                const newSched = [...schedule];
+                                                newSched[idx] = parseFloat(e.target.value) || 0;
+                                                const sum = newSched.reduce((s, h) => s + h, 0);
+                                                setFormData({ ...formData, weekly_schedule: newSched, weekly_hours: sum });
+                                            }}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="text-xs text-text-muted mt-1.5">
+                            Pro Wochentag Soll-Stunden setzen. Z.B. Teilzeit 4-Tage-Woche: 8/8/8/8/0/0/0.
+                            <button type="button"
+                                onClick={() => setFormData({ ...formData, weekly_schedule: [8, 8, 8, 8, 8, 0, 0], weekly_hours: 40 })}
+                                className="ml-2 underline font-semibold text-accent"
+                            >Vollzeit (40h)</button>
+                        </p>
                     </div>
                 </div>
 

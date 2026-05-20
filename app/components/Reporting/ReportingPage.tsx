@@ -171,10 +171,11 @@ interface SoloProps {
 }
 
 function SoloReport({ currentUser, entries, from, to, rangeMode, projects }: SoloProps) {
-    const weeklyTarget = currentUser.weekly_hours ?? 40;
+    const schedule = currentUser.weekly_schedule || defaultSchedule(currentUser.weekly_hours);
+    const weeklyTarget = schedule.reduce((s, h) => s + h, 0);
     const stats = useMemo(
-        () => aggregatePeriod(entries, from, to, weeklyTarget, projects),
-        [entries, from, to, weeklyTarget, projects],
+        () => aggregatePeriod(entries, from, to, schedule, projects),
+        [entries, from, to, schedule, projects],
     );
 
     const handleExport = () => {
@@ -205,7 +206,7 @@ function SoloReport({ currentUser, entries, from, to, rangeMode, projects }: Sol
                     <Download size={12} /> CSV-Export
                 </button>
             }>
-                <DayBars days={stats.days} target={weeklyTarget / 5} />
+                <DayBars days={stats.days} schedule={schedule} />
             </Card>
 
             {/* Projects */}
@@ -235,8 +236,8 @@ interface TeamProps {
 function TeamReport({ employees, entries, from, to, rangeMode, projects }: TeamProps) {
     const rows = useMemo(() => employees.map(emp => {
         const empEntries = entries.filter(e => e.employee_id === emp.id);
-        const weeklyTarget = emp.weekly_hours ?? 40;
-        const stats = aggregatePeriod(empEntries, from, to, weeklyTarget, projects);
+        const schedule = emp.weekly_schedule || defaultSchedule(emp.weekly_hours);
+        const stats = aggregatePeriod(empEntries, from, to, schedule, projects);
         return { emp, stats, entries: empEntries };
     }).sort((a, b) => b.stats.totalHours - a.stats.totalHours), [employees, entries, from, to, projects]);
 
@@ -297,7 +298,6 @@ function TeamReport({ employees, entries, from, to, rangeMode, projects }: TeamP
 
 function TeamRow({ emp, stats, entries, projects, rangeMode, from }: { emp: Employee; stats: ReturnType<typeof aggregatePeriod>; entries: TimeEntry[]; projects: any[]; rangeMode: RangeMode; from: Date }) {
     const [expanded, setExpanded] = useState(false);
-    const target = emp.weekly_hours ?? 40;
     const fillPct = stats.targetHours > 0 ? Math.min(stats.totalHours / stats.targetHours, 1.5) : 0;
     const overTarget = stats.totalHours > stats.targetHours;
 
@@ -387,14 +387,16 @@ function KpiCard({ label, value, sub, tone }: { label: string; value: string; su
     );
 }
 
-function DayBars({ days, target }: { days: { date: string; hours: number }[]; target: number }) {
-    const max = Math.max(target, ...days.map(d => d.hours), 1);
+function DayBars({ days, schedule }: { days: { date: string; hours: number }[]; schedule: number[] }) {
+    const maxTarget = Math.max(...schedule);
+    const max = Math.max(maxTarget, ...days.map(d => d.hours), 1);
     return (
         <div className="flex items-end gap-1.5 h-32">
             {days.map(d => {
                 const dt = new Date(d.date);
-                const dow = dt.getDay();
-                const isWeekend = dow === 0 || dow === 6;
+                const dayIdx = (dt.getDay() + 6) % 7; // Mo=0
+                const target = schedule[dayIdx] ?? 0;
+                const isOffDay = target === 0;
                 const heightPct = (d.hours / max) * 100;
                 const targetPct = (target / max) * 100;
                 const dayLabel = dt.toLocaleDateString('de-AT', { weekday: 'short' });
@@ -404,17 +406,17 @@ function DayBars({ days, target }: { days: { date: string; hours: number }[]; ta
                             {d.hours > 0 ? formatHours(d.hours) : ''}
                         </div>
                         <div className="relative w-full flex items-end" style={{ height: 80 }}>
-                            {/* Target line */}
-                            {target > 0 && !isWeekend && (
+                            {/* Target line — nur an arbeitstagen */}
+                            {target > 0 && (
                                 <div className="absolute left-0 right-0 border-t-2 border-dashed" style={{ bottom: `${targetPct}%`, borderColor: 'var(--text-muted)', opacity: 0.4 }} />
                             )}
                             <div className="w-full rounded-t transition-all" style={{
                                 height: `${heightPct}%`,
-                                background: isWeekend ? 'var(--border-default)' : d.hours >= target ? '#10B981' : 'var(--accent)',
-                                opacity: isWeekend ? 0.5 : 1,
-                            }} title={`${d.hours}h`} />
+                                background: isOffDay ? 'var(--border-default)' : d.hours >= target ? '#10B981' : 'var(--accent)',
+                                opacity: isOffDay ? 0.5 : 1,
+                            }} title={`${d.hours}h ${target > 0 ? `(Soll: ${formatHours(target)}h)` : '(frei)'}`} />
                         </div>
-                        <div className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-[9px] uppercase tracking-wider" style={{ color: isOffDay ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
                             {dayLabel}
                         </div>
                         <div className="text-[9px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
@@ -458,6 +460,11 @@ function ProjectBars({ projects, total }: { projects: { projectId: string; proje
 function formatHours(h: number): string {
     if (Number.isInteger(h)) return String(h);
     return h.toFixed(1).replace('.', ',');
+}
+
+function defaultSchedule(weeklyHours?: number): number[] {
+    const h = weeklyHours && weeklyHours > 0 ? weeklyHours / 5 : 8;
+    return [h, h, h, h, h, 0, 0];
 }
 
 function getWeekNumber(d: Date): number {
