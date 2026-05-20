@@ -13,13 +13,14 @@ import {
     ChevronsRight,
     Search,
     ChevronsUpDown,
-    CalendarDays
+    CalendarDays,
+    BarChart3
 } from 'lucide-react';
 import { AgencySettings, Employee } from '../types';
 import UserAvatar from './UI/UserAvatar';
 
 interface MainSidebarProps {
-    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'settings' | 'kalender';
+    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'settings' | 'kalender' | 'reporting';
     isSidebarExpanded: boolean;
     setIsSidebarExpanded: (expanded: boolean) => void;
     agencySettings: AgencySettings | null;
@@ -227,6 +228,7 @@ export default function MainSidebar({
                 <NavItem view="resource_planning" href="/ressourcen" icon={CalendarRange} label="Ressourcen" />
                 <NavItem view="time_tracking" href="/zeiterfassung" icon={Timer} label="Zeiterfassung" />
                 <NavItem view="kalender" href="/kalender" icon={CalendarDays} label="Kalender" />
+                <NavItem view="reporting" href="/reporting" icon={BarChart3} label="Reporting" />
             </div>
 
             {/* Footer */}

@@ -166,6 +166,20 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                         </select>
                         <p className="text-xs text-text-muted mt-1">Definiert den Stundensatz für diesen Mitarbeiter.</p>
                     </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Wochenstunden (Soll)</label>
+                        <input
+                            type="number"
+                            min={0}
+                            max={80}
+                            step={0.5}
+                            className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                            value={formData.weekly_hours ?? 40}
+                            onChange={e => setFormData({ ...formData, weekly_hours: parseFloat(e.target.value) || 0 })}
+                        />
+                        <p className="text-xs text-text-muted mt-1">Basis für Reporting Soll/Ist (Vollzeit = 40h).</p>
+                    </div>
                 </div>
 
                 <div className="flex gap-3 justify-end mt-8">

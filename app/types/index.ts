@@ -62,6 +62,7 @@ export interface Employee {
     organization_id?: string;
     user_id?: string;
     hourly_rate?: number;
+    weekly_hours?: number; // Soll-Stunden pro Woche (default 40)
     phone?: string;
     avatar_url?: string | null;
     dashboard_config?: DashboardConfig;

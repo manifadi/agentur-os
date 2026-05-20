@@ -58,15 +58,24 @@ Stand: Mai 2026 · Lebendiges Dokument
 - [x] Rechnungs-Status (Entwurf / Final) mit Versionierung
 - [x] Rechnungs-Empfänger pro Projekt wählbar
 
-### Kalender (v2)
+### Kalender (v2) ✅
 - [x] Tag-, Wochen-, Monatsansicht
-- [x] CalDAV-Integration (eigene Kalender-Server)
-- [x] Google Calendar (OAuth) — bidirektionale Sync
-- [x] Microsoft Outlook (OAuth) — bidirektionale Sync
+- [x] CalDAV-Integration (Troi, Apple, eigene Server) — bidirektional
+- [x] Google Calendar (OAuth) — bidirektional (POST/PATCH/DELETE)
 - [x] iCal-Feed Import (read-only)
 - [x] Sichtbarkeits-Steuerung pro Kalender
-- [x] Meeting-URLs (Zoom, Meet, Teams) im Event
-- [ ] **Wichtig:** Kalender ist aktuell noch nicht voll funktionsfähig — Bug-Fixing geplant für nächste Session
+- [x] Color-Picker pro Kalender (14er-Palette)
+- [x] Sidebar-State persistent (localStorage)
+- [x] Live-Update via Supabase Realtime (`useRealtimeTable` + `CalendarDataProvider`)
+- [x] Meeting-URL Auto-Detect (8 Provider: Teams, Meet, Zoom, Webex, Whereby, Jitsi, GoToMeeting, BlueJeans)
+- [x] EventDetailModal (read-only Click-Detail für externe + Team-Events)
+- [x] Re-Auth-Banner bei OAuth-401
+- [x] Encryption für OAuth-Tokens + CalDAV-Passwörter (AES-256-GCM)
+- [ ] Microsoft Outlook (OAuth) — Code fertig, Azure-App-Registrierung steht aus
+- [ ] Conflict-Resolution (extern + Vela gleichzeitig editiert)
+- [ ] Recurring Events (RRULE)
+- [ ] Webhooks statt Polling (Latenz < 3 min)
+- [ ] Timezone aus `agency_settings` statt hartcodiert
 
 ### Multi-Tenant SaaS
 - [x] Supabase RLS (Row-Level Security) auf allen Tabellen
@@ -138,17 +147,19 @@ Stand: Mai 2026 · Lebendiges Dokument
 - [x] Skeleton Loading States
 - [x] Leere Zustände mit CTAs auf allen Seiten
 - [x] Fehlerbehandlung mit ConfirmModals
-- [ ] **Calendar Stabilität** — bidirektionale Sync zuverlässig machen (nächster Schritt)
+- [x] **Kalender stabilisiert** — bidirektionale Sync für Google + CalDAV, Live-Updates, Detail-View
+- [x] **Live-System Architektur** — `useRealtimeTable`-Hook + Per-Tabelle-Subscriptions
 - [ ] **Penetration-Test der RLS** — kann Org A wirklich keine Daten von Org B sehen? (kritisch vor Verkaufsstart)
 
 ### Phase 2 — Killer-Features schärfen (1–2 Monate)
 
-#### Kalender funktionsfähig machen
-*Erster Schritt: nächste Session*
-- [ ] OAuth-Flow stabilisieren (Token-Refresh)
-- [ ] Bidirektionale Sync robuster (Konflikt-Resolution)
-- [ ] Event-Erstellung aus Vela → Provider
-- [ ] Provider → Vela Webhook/Polling
+#### Kalender funktionsfähig machen ✅
+- [x] OAuth-Flow stabilisieren (Token-Refresh, AES-Verschlüsselung)
+- [x] Bidirektionale Sync robuster (PATCH-Endpoints, Delete-Propagation, Target-Change)
+- [x] Event-Erstellung aus Vela → Provider (Google, CalDAV)
+- [x] Provider → Vela Polling (3 min + Tab-Focus)
+- [ ] Konflikt-Resolution (last-write-wins → updated_at-Vergleich)
+- [ ] Webhooks statt Polling (Google Calendar Push Notifications)
 
 #### Mitarbeiter-Reporting
 - [ ] Wochenübersicht pro Mitarbeiter: Stunden, Projekte, Aufgaben
@@ -313,11 +324,12 @@ Der Unterschied zwischen einem Tool das verkauft wird und einem das im Repositor
 
 ## Nächste konkrete Schritte (Empfehlung)
 
-1. **Kalender funktionsfähig machen** — bidirektionale Sync stabilisieren (nächste Session)
-2. **Mitarbeiter-Reporting** bauen — Wochen-/Monatsübersicht
+1. ~~**Kalender funktionsfähig machen**~~ ✅ erledigt (Mai 2026)
+2. **Mitarbeiter-Reporting** bauen — Wochen-/Monatsübersicht ⬅ aktuell in Arbeit
 3. **3 Pilot-Agenturen** ansprechen (parallel zur Entwicklung)
 4. **RLS-Penetration-Test** vor Verkaufsstart
 5. **Client-Portal** als Vertriebs-Hook
+6. **Microsoft/Outlook** OAuth-Integration aktivieren (Code fertig, Azure-App fehlt)
 
 ---
 
