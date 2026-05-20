@@ -1,10 +1,74 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, FileText, Clock, Users, Palette, Trash2, Plus, Globe, Lock, Video, Calendar, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import RichTextEditor from '../UI/RichTextEditor';
 import { CalendarEvent, CalendarAttendee, EventColor, Employee, ExternalCalendar, CalendarEventVisibility } from '../../types';
 import { supabase } from '../../supabaseClient';
 import UserAvatar from '../UI/UserAvatar';
+
+// ── External-Calendar Sync Helpers ─────────────────────────────────
+interface ExternalPayload {
+    title: string;
+    description?: string;
+    location?: string;
+    meeting_url?: string;
+    start_at: string;
+    end_at: string;
+    all_day: boolean;
+    attendees: CalendarAttendee[];
+}
+
+async function parseError(res: Response): Promise<string> {
+    try { const d = await res.json(); return d.error || `HTTP ${res.status}`; } catch { return `HTTP ${res.status}`; }
+}
+
+async function pushExternal(cal: ExternalCalendar, payload: ExternalPayload): Promise<string | undefined> {
+    if (cal.provider_type === 'google') {
+        const res = await fetch('/api/google-calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
+        if (!res.ok) throw new Error(await parseError(res));
+        return (await res.json()).googleEventId;
+    }
+    if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
+        const res = await fetch('/api/microsoft/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
+        if (!res.ok) throw new Error(await parseError(res));
+        return (await res.json()).microsoftEventId;
+    }
+    if (cal.provider_type === 'apple' || cal.provider_type === 'troi') {
+        const res = await fetch('/api/caldav/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
+        if (!res.ok) throw new Error(await parseError(res));
+        return (await res.json()).uid;
+    }
+    return undefined;
+}
+
+async function patchExternal(cal: ExternalCalendar, externalId: string, payload: ExternalPayload): Promise<void> {
+    if (cal.provider_type === 'google') {
+        const res = await fetch('/api/google-calendar/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, googleEventId: externalId, event: payload }) });
+        if (!res.ok) throw new Error(await parseError(res));
+        return;
+    }
+    if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
+        const res = await fetch('/api/microsoft/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, microsoftEventId: externalId, event: payload }) });
+        if (!res.ok) throw new Error(await parseError(res));
+        return;
+    }
+    if (cal.provider_type === 'apple' || cal.provider_type === 'troi') {
+        const res = await fetch('/api/caldav/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, uid: externalId, event: payload }) });
+        if (!res.ok) throw new Error(await parseError(res));
+        return;
+    }
+}
+
+async function deleteExternal(cal: ExternalCalendar, externalId: string): Promise<void> {
+    let url = '';
+    if (cal.provider_type === 'google') url = `/api/google-calendar/events?calendarId=${cal.id}&googleEventId=${encodeURIComponent(externalId)}`;
+    else if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') url = `/api/microsoft/events?calendarId=${cal.id}&microsoftEventId=${encodeURIComponent(externalId)}`;
+    else if (cal.provider_type === 'apple' || cal.provider_type === 'troi') url = `/api/caldav/events?calendarId=${cal.id}&uid=${encodeURIComponent(externalId)}`;
+    else return;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) throw new Error(await parseError(res));
+}
 
 const COLORS: { id: EventColor; label: string; hex: string }[] = [
     { id: 'blue', label: 'Blau', hex: '#3B82F6' },
@@ -166,37 +230,73 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
         };
 
         let savedEventId = event?.id;
+        let dbError: any = null;
 
         if (isEdit) {
-            await supabase.from('calendar_events').update(payload).eq('id', event!.id);
+            const { error } = await supabase.from('calendar_events').update(payload).eq('id', event!.id);
+            dbError = error;
         } else {
-            const { data } = await supabase.from('calendar_events').insert(payload).select().single();
+            const { data, error } = await supabase.from('calendar_events').insert(payload).select().single();
             savedEventId = data?.id;
+            dbError = error;
         }
 
-        // Push to external calendar if target is set
+        if (dbError) {
+            setSaving(false);
+            toast.error(`Speichern fehlgeschlagen: ${dbError.message}`);
+            return;
+        }
+
+        // ── External-Sync Flow ─────────────────────────────────────
+        const externalPayload: ExternalPayload = {
+            title: title.trim(),
+            description: description || undefined,
+            location: location || undefined,
+            meeting_url: meetingUrl || undefined,
+            start_at: start.toISOString(),
+            end_at: end.toISOString(),
+            all_day: allDay,
+            attendees,
+        };
+
+        const prevExternalId = event?.source_external_id || undefined;
+        const prevTargetId = event?.target_calendar_id || undefined;
+        const targetChanged = isEdit && prevTargetId !== (targetCalendarId || undefined);
+        let newExternalId: string | undefined = prevExternalId;
+
+        // (1) Target gewechselt → alte externe Kopie löschen (best-effort)
+        if (targetChanged && prevExternalId && prevTargetId) {
+            const oldCal = externalCalendars.find(c => c.id === prevTargetId);
+            if (oldCal) {
+                try { await deleteExternal(oldCal, prevExternalId); }
+                catch (e: any) { toast.warning(`Alte Kopie in ${oldCal.name} blieb stehen: ${e.message}`); }
+            }
+            newExternalId = undefined;
+        }
+
+        // (2) Push/Update auf aktuellem Target
         if (targetCalendarId && savedEventId) {
             const targetCal = externalCalendars.find(c => c.id === targetCalendarId);
             if (targetCal?.is_writable) {
-                const eventPayload = { title: title.trim(), description, location, start_at: start.toISOString(), end_at: end.toISOString(), all_day: allDay, attendees };
                 try {
-                    if (targetCal.provider_type === 'google') {
-                        await fetch('/api/google-calendar/events', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ calendarId: targetCalendarId, event: eventPayload }),
-                        });
-                    } else if (targetCal.provider_type === 'outlook' || targetCal.provider_type === 'teams') {
-                        await fetch('/api/microsoft/events', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ calendarId: targetCalendarId, event: eventPayload }),
-                        });
+                    if (!targetChanged && prevExternalId) {
+                        await patchExternal(targetCal, prevExternalId, externalPayload);
+                    } else {
+                        newExternalId = await pushExternal(targetCal, externalPayload);
                     }
-                } catch (err) {
-                    console.warn('[EventModal] Failed to push to external calendar:', err);
+                } catch (e: any) {
+                    toast.error(`Sync zu ${targetCal.name} fehlgeschlagen: ${e.message || 'Unbekannt'}`);
                 }
+            } else if (targetCal && !targetCal.is_writable) {
+                toast.warning(`${targetCal.name} ist schreibgeschützt — nicht synchronisiert`);
             }
+        }
+
+        // (3) source_external_id zurück in DB schreiben falls geändert
+        if (savedEventId && newExternalId !== prevExternalId) {
+            await supabase.from('calendar_events')
+                .update({ source_external_id: newExternalId || null })
+                .eq('id', savedEventId);
         }
 
         setSaving(false);
@@ -207,7 +307,22 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     const handleDelete = async () => {
         if (!event) return;
         setSaving(true);
-        await supabase.from('calendar_events').delete().eq('id', event.id);
+
+        // Externe Kopie zuerst löschen (best-effort) → kein Orphan zurück
+        if (event.source_external_id && event.target_calendar_id) {
+            const targetCal = externalCalendars.find(c => c.id === event.target_calendar_id);
+            if (targetCal?.is_writable) {
+                try { await deleteExternal(targetCal, event.source_external_id); }
+                catch (e: any) { toast.warning(`Externe Kopie blieb stehen: ${e.message}`); }
+            }
+        }
+
+        const { error } = await supabase.from('calendar_events').delete().eq('id', event.id);
+        if (error) {
+            setSaving(false);
+            toast.error(`Löschen fehlgeschlagen: ${error.message}`);
+            return;
+        }
         onDeleted?.();
         onClose();
     };

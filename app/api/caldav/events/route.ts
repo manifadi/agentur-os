@@ -122,6 +122,17 @@ export async function GET(request: NextRequest) {
     }
 }
 
+async function caldavPut(creds: { username: string; password: string; url: string }, uid: string, ics: string, isCreate: boolean): Promise<{ ok: boolean; status: number }> {
+    const eventUrl = creds.url.replace(/\/?$/, '/') + encodeURIComponent(uid) + '.ics';
+    const headers: Record<string, string> = {
+        'Authorization': buildAuth(creds.username, creds.password),
+        'Content-Type': 'text/calendar; charset=utf-8',
+    };
+    if (isCreate) headers['If-None-Match'] = '*';
+    const res = await fetch(eventUrl, { method: 'PUT', headers, body: ics });
+    return { ok: res.ok || res.status === 201 || res.status === 204, status: res.status };
+}
+
 // ── POST: create event on CalDAV server (PUT a new .ics resource) ─────
 export async function POST(request: NextRequest) {
     const body = await request.json();
@@ -140,25 +151,41 @@ export async function POST(request: NextRequest) {
 
     const uid = event.uid || `${crypto.randomUUID()}@vela`;
     const ics = buildICalEvent({ ...event, uid });
-    const eventUrl = creds.url.replace(/\/?$/, '/') + encodeURIComponent(uid) + '.ics';
 
     try {
-        const res = await fetch(eventUrl, {
-            method: 'PUT',
-            headers: {
-                'Authorization': buildAuth(creds.username, creds.password),
-                'Content-Type': 'text/calendar; charset=utf-8',
-                'If-None-Match': '*', // create only
-            },
-            body: ics,
-        });
+        const result = await caldavPut({ username: creds.username, password: creds.password, url: creds.url }, uid, ics, true);
+        if (result.status === 401) return NextResponse.json({ error: 'Anmeldung fehlgeschlagen' }, { status: 401 });
+        if (!result.ok) return NextResponse.json({ error: `CalDAV PUT fehlgeschlagen: HTTP ${result.status}` }, { status: 502 });
+        return NextResponse.json({ success: true, uid });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 502 });
+    }
+}
 
-        if (res.status === 401) return NextResponse.json({ error: 'Anmeldung fehlgeschlagen' }, { status: 401 });
-        if (!res.ok && res.status !== 201 && res.status !== 204) {
-            return NextResponse.json({ error: `CalDAV PUT fehlgeschlagen: HTTP ${res.status}` }, { status: 502 });
-        }
+// ── PATCH: update existing event on CalDAV server (overwrite .ics) ─────
+// Body: { calendarId, uid, event }
+export async function PATCH(request: NextRequest) {
+    const body = await request.json();
+    const { calendarId, uid, event } = body;
 
-        return NextResponse.json({ success: true, uid, eventUrl });
+    if (!calendarId || !uid || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+    const creds = await getCalendarCredentials(calendarId);
+    if (!creds) return NextResponse.json({ error: 'Calendar not found' }, { status: 404 });
+    if (!creds.isWritable) {
+        return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
+    }
+    if (!creds.username || !creds.password || !creds.url) {
+        return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
+    }
+
+    const ics = buildICalEvent({ ...event, uid });
+
+    try {
+        const result = await caldavPut({ username: creds.username, password: creds.password, url: creds.url }, uid, ics, false);
+        if (result.status === 401) return NextResponse.json({ error: 'Anmeldung fehlgeschlagen' }, { status: 401 });
+        if (!result.ok) return NextResponse.json({ error: `CalDAV PATCH fehlgeschlagen: HTTP ${result.status}` }, { status: 502 });
+        return NextResponse.json({ success: true });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 502 });
     }
@@ -207,6 +234,7 @@ function buildICalEvent(event: {
     all_day?: boolean;
     description?: string;
     location?: string;
+    meeting_url?: string;
 }): string {
     const fmt = (iso: string, allDay: boolean): string => {
         const d = new Date(iso);
@@ -235,8 +263,12 @@ function buildICalEvent(event: {
         allDay ? `DTEND;VALUE=DATE:${dtend}` : `DTEND:${dtend}`,
         `SUMMARY:${escapeText(event.title)}`,
     ];
-    if (event.description) lines.push(`DESCRIPTION:${escapeText(event.description)}`);
+    const descParts: string[] = [];
+    if (event.description) descParts.push(event.description);
+    if (event.meeting_url) descParts.push(`Meeting: ${event.meeting_url}`);
+    if (descParts.length) lines.push(`DESCRIPTION:${escapeText(descParts.join('\n\n'))}`);
     if (event.location) lines.push(`LOCATION:${escapeText(event.location)}`);
+    if (event.meeting_url) lines.push(`URL:${event.meeting_url}`);
     lines.push('END:VEVENT', 'END:VCALENDAR');
 
     return lines.join('\r\n');
