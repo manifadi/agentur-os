@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MapPin, Users, Clock, ExternalLink, Video, EyeOff } from 'lucide-react';
 import { Employee } from '../../types';
 import UserAvatar from '../UI/UserAvatar';
+import { detectMeetingUrl, providerLabel, providerColor } from '../../utils/meetingUrl';
 
 interface TooltipEvent {
     id: string;
@@ -49,7 +50,13 @@ export default function EventTooltip({ event, employees, isOwn, isExternal, chil
     const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
 
-    const hasActions = !!(event.meeting_url || (isExternal && onHideExternal && event.uid && event.externalCalendarId));
+    const detected = event.meeting_url ? null : detectMeetingUrl(event.description, event.location);
+    const meetingUrl = event.meeting_url || detected?.url;
+    const detectedProvider = detected?.provider || null;
+    const meetingLabel = detectedProvider ? providerLabel(detectedProvider) : 'Meeting';
+    const meetingBg = detectedProvider ? providerColor(detectedProvider) : '#5059C9';
+
+    const hasActions = !!(meetingUrl || (isExternal && onHideExternal && event.uid && event.externalCalendarId));
 
     const show = useCallback((e: React.MouseEvent) => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -153,18 +160,18 @@ export default function EventTooltip({ event, employees, isOwn, isExternal, chil
                         )}
 
                         {/* Meeting URL */}
-                        {event.meeting_url && (
+                        {meetingUrl && (
                             <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 6 }}>
                                 <a
-                                    href={event.meeting_url}
+                                    href={meetingUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-opacity hover:opacity-80"
-                                    style={{ background: '#5059C9', color: '#fff' }}
+                                    style={{ background: meetingBg, color: '#fff' }}
                                     onClick={e => e.stopPropagation()}
                                 >
                                     <Video size={11} />
-                                    Meeting beitreten
+                                    {meetingLabel} beitreten
                                 </a>
                             </div>
                         )}

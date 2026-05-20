@@ -439,10 +439,10 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                             <div className="p-4 rounded-xl space-y-2" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                                 <div className="flex items-center gap-2">
                                     <Info size={14} style={{ color: 'var(--accent)' }} />
-                                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Wie funktioniert Google OAuth?</span>
+                                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Mit Google verbinden</span>
                                 </div>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    Jeder Nutzer klickt auf „Mit Google verbinden" und gibt Google-Berechtigungen für sein eigenes Konto. Die App benötigt einmalig eine Google OAuth-App-Registrierung (durch den Agentur OS Admin).
+                                    Klicke unten auf „Mit Google verbinden" und melde dich mit deinem Google-Konto an. Termine und Meeting-Links werden automatisch synchronisiert.
                                 </p>
                             </div>
 
@@ -458,13 +458,6 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                                         style={{ background: c, outline: oauthColor === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }} />
                                 ))}
                             </div>
-
-                            {!process.env.NEXT_PUBLIC_GOOGLE_CONFIGURED && (
-                                <div className="p-3 rounded-xl text-xs space-y-1" style={{ background: '#FEF3C7', border: '1px solid #FCD34D', color: '#92400E' }}>
-                                    <p className="font-bold">Setup erforderlich</p>
-                                    <p>GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET müssen in .env.local gesetzt werden. Einmalig in der Google Cloud Console registrieren.</p>
-                                </div>
-                            )}
                         </div>
                     )}
 
@@ -477,7 +470,7 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                                     <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Microsoft 365 / Teams</span>
                                 </div>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    Jeder Nutzer verbindet sein eigenes Microsoft-Konto. Teams-Meeting-Links werden automatisch erkannt und als „Beitreten"-Button angezeigt. Erfordert einmalige App-Registrierung im Azure Portal durch den Admin.
+                                    Klicke unten auf „Mit Microsoft verbinden" und melde dich mit deinem Microsoft-Konto an. Teams-Meeting-Links werden automatisch erkannt und als „Beitreten"-Button angezeigt.
                                 </p>
                             </div>
 
@@ -493,13 +486,6 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                                         style={{ background: c, outline: oauthColor === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }} />
                                 ))}
                             </div>
-
-                            {!process.env.NEXT_PUBLIC_MICROSOFT_CONFIGURED && (
-                                <div className="p-3 rounded-xl text-xs space-y-1" style={{ background: '#FEF3C7', border: '1px solid #FCD34D', color: '#92400E' }}>
-                                    <p className="font-bold">Setup erforderlich</p>
-                                    <p>MICROSOFT_CLIENT_ID und MICROSOFT_CLIENT_SECRET müssen in .env.local gesetzt werden. App-Registrierung im Azure Portal unter portal.azure.com.</p>
-                                </div>
-                            )}
                         </div>
                     )}
 

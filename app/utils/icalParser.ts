@@ -1,4 +1,5 @@
 import { ParsedExternalEvent } from '../types';
+import { detectMeetingUrl } from './meetingUrl';
 
 function parseICalDate(raw: string): Date {
     // Handles: 20260304T100000Z, 20260304T100000, 20260304
@@ -33,9 +34,9 @@ function extractMeetingUrl(lines: string[], description: string): string | undef
         if (val.startsWith('http')) return val;
     }
 
-    // Extract Teams/Meet/Zoom URL from description
-    const urlMatch = description?.match(/https:\/\/(?:teams\.microsoft\.com\/l\/meetup-join|meet\.google\.com|[\w-]+\.zoom\.us\/j)\/[^\s<>"]+/i);
-    if (urlMatch) return urlMatch[0];
+    // Universal fallback: alle gängigen Provider via shared detector
+    const detected = detectMeetingUrl(description);
+    if (detected) return detected.url;
 
     return undefined;
 }

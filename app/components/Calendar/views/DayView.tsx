@@ -31,10 +31,11 @@ interface DayViewProps {
     externalEvents: ParsedExternalEvent[];
     onSlotClick: (date: Date) => void;
     onEventClick: (event: CalendarEvent) => void;
+    onDetailClick?: (event: any) => void;
     onHideExternal?: (uid: string, externalCalendarId: string) => void;
 }
 
-export default function DayView({ day, currentUser, employees, ownEvents, teamEvents, externalEvents, onSlotClick, onEventClick, onHideExternal }: DayViewProps) {
+export default function DayView({ day, currentUser, employees, ownEvents, teamEvents, externalEvents, onSlotClick, onEventClick, onDetailClick, onHideExternal }: DayViewProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const currentMins = useCurrentMinute();
     const today = new Date();
@@ -92,7 +93,7 @@ export default function DayView({ day, currentUser, employees, ownEvents, teamEv
                             const isOwn = e._type === 'own';
                             const isExt = e._type === 'ext';
                             return (
-                                <EventTooltip key={e.id} event={e as any} employees={employees} isOwn={isOwn} isExternal={isExt} onEventClick={() => isOwn && onEventClick(e as any)} onHideExternal={isExt ? onHideExternal : undefined}>
+                                <EventTooltip key={e.id} event={e as any} employees={employees} isOwn={isOwn} isExternal={isExt} onEventClick={() => isOwn ? onEventClick(e as any) : onDetailClick?.(e as any)} onHideExternal={isExt ? onHideExternal : undefined}>
                                     <div className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg cursor-pointer"
                                         style={{ background: hex + '22', color: hex, border: `1px solid ${hex}44`, borderStyle: isExt ? 'dashed' : undefined }}>
                                         {isExt && <ExternalLink size={10} />}
@@ -146,7 +147,7 @@ export default function DayView({ day, currentUser, employees, ownEvents, teamEv
                             const emp = e.employee_id ? employees.find(em => em.id === e.employee_id) : null;
 
                             return (
-                                <EventTooltip key={e.id} event={e as any} employees={employees} isOwn={isOwn} isExternal={isExt} onEventClick={() => isOwn && onEventClick(e as any)} onHideExternal={isExt ? onHideExternal : undefined}>
+                                <EventTooltip key={e.id} event={e as any} employees={employees} isOwn={isOwn} isExternal={isExt} onEventClick={() => isOwn ? onEventClick(e as any) : onDetailClick?.(e as any)} onHideExternal={isExt ? onHideExternal : undefined}>
                                     <div className="absolute rounded-xl px-3 py-2 overflow-hidden group transition-all"
                                         style={{
                                             top: top + 1,

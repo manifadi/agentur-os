@@ -8,6 +8,7 @@ import { getWeekDays, isSameDay } from './views/WeekView';
 import { getEmployeeColor } from './CalendarSidebar';
 import CalendarSidebar from './CalendarSidebar';
 import EventModal from './EventModal';
+import EventDetailModal from './EventDetailModal';
 import WeekView from './views/WeekView';
 import DayView from './views/DayView';
 import MonthView from './views/MonthView';
@@ -46,6 +47,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
     const [modalDefaultStart, setModalDefaultStart] = useState<Date | undefined>();
     const [modalDefaultEnd, setModalDefaultEnd] = useState<Date | undefined>();
     const [modalAllDay, setModalAllDay] = useState(false);
+    const [detailEvent, setDetailEvent] = useState<any | null>(null);
 
     const [showOwnEvents, setShowOwnEvents] = useState(true);
     const [dismissedErrors, setDismissedErrors] = useState(false);
@@ -134,6 +136,10 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         setEditEvent(ev);
         setModalDefaultStart(undefined);
         setShowModal(true);
+    };
+
+    const openDetail = (ev: any) => {
+        setDetailEvent(ev);
     };
 
     const onMonthDayClick = (d: Date) => { openCreate(d, undefined, true); };
@@ -277,6 +283,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             externalEvents={visibleExternal}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
+                            onDetailClick={openDetail}
                             onHideExternal={hideExternalEvent}
                         />
                     )}
@@ -290,6 +297,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             externalEvents={visibleExternal}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
+                            onDetailClick={openDetail}
                             onHideExternal={hideExternalEvent}
                         />
                     )}
@@ -303,6 +311,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             externalEvents={visibleExternal}
                             onDayClick={onMonthDayClick}
                             onEventClick={openEdit}
+                            onDetailClick={openDetail}
                         />
                     )}
                 </div>
@@ -322,6 +331,16 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                     onSaved={() => { /* realtime handles it */ }}
                     onDeleted={() => { /* realtime handles it */ }}
                     onHidden={hideEventLocally}
+                />
+            )}
+
+            {detailEvent && (
+                <EventDetailModal
+                    event={detailEvent}
+                    employees={employees}
+                    isExternal={!!detailEvent.externalCalendarId || !!detailEvent.uid}
+                    onClose={() => setDetailEvent(null)}
+                    onHideExternal={hideExternalEvent}
                 />
             )}
         </div>

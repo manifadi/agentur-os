@@ -1,11 +1,55 @@
 'use client';
-import React, { useState } from 'react';
-import { Plus, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Globe, Lock, Chrome, Monitor, Apple, Building2, Link, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Globe, Lock, Chrome, Monitor, Apple, Building2, Link, Check, Palette } from 'lucide-react';
 import { Employee, ExternalCalendar, CalendarProviderType } from '../../types';
 import { isSameDay } from './views/WeekView';
 import UserAvatar from '../UI/UserAvatar';
 import { supabase } from '../../supabaseClient';
 import CalendarProviderModal from './CalendarProviderModal';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+
+const CAL_COLOR_PALETTE = [
+    '#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#F59E0B', '#06B6D4', '#64748B',
+    '#EF4444', '#F97316', '#8B5CF6', '#EC4899', '#14B8A6', '#84CC16', '#0078D4',
+];
+
+interface ColorPickerPopoverProps {
+    current: string;
+    onPick: (color: string) => void;
+    onClose: () => void;
+    anchorRect: DOMRect;
+}
+
+function ColorPickerPopover({ current, onPick, onClose, anchorRect }: ColorPickerPopoverProps) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+        };
+        const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('keydown', esc);
+        return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', esc); };
+    }, [onClose]);
+
+    const x = Math.min(anchorRect.left, window.innerWidth - 200);
+    const y = anchorRect.bottom + 4;
+
+    return (
+        <div ref={ref}
+            className="fixed z-[400] p-2.5 rounded-xl shadow-2xl grid grid-cols-7 gap-1.5"
+            style={{ left: x, top: y, background: 'var(--bg-card)', border: '1px solid var(--border-default)', width: 188 }}
+        >
+            {CAL_COLOR_PALETTE.map(c => (
+                <button key={c} onClick={() => { onPick(c); onClose(); }}
+                    className="w-6 h-6 rounded-full transition-transform hover:scale-110"
+                    style={{ background: c, outline: c === current ? `2.5px solid ${c}` : 'none', outlineOffset: 2 }}
+                    title={c}
+                />
+            ))}
+        </div>
+    );
+}
 
 function providerGroupLabel(type: CalendarProviderType): string {
     switch (type) {
@@ -146,9 +190,11 @@ export default function CalendarSidebar({
         return s;
     }, [ownEvents]);
 
-    const [myCalExpanded, setMyCalExpanded] = useState(true);
+    const [myCalExpanded, setMyCalExpanded] = useLocalStorage<boolean>('cal-sidebar:myCalExpanded', true);
     const [showProviderModal, setShowProviderModal] = useState(false);
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    const [collapsedKeys, setCollapsedKeys] = useLocalStorage<string[]>('cal-sidebar:collapsedGroups', []);
+    const collapsedGroups = React.useMemo(() => new Set(collapsedKeys), [collapsedKeys]);
+    const [colorPicker, setColorPicker] = useState<{ calId: string; current: string; rect: DOMRect } | null>(null);
 
     const teammates = employees.filter(e => e.id !== currentUser.id);
 
@@ -175,11 +221,18 @@ export default function CalendarSidebar({
     };
 
     const toggleGroupCollapse = (key: string) => {
-        setCollapsedGroups(prev => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key); else next.add(key);
-            return next;
-        });
+        setCollapsedKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+    };
+
+    const handleColorPick = async (calId: string, color: string) => {
+        // Realtime sync updated row → kein Refresh nötig
+        await supabase.from('external_calendars').update({ color }).eq('id', calId);
+    };
+
+    const openColorPicker = (e: React.MouseEvent, cal: ExternalCalendar) => {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setColorPicker({ calId: cal.id, current: cal.color, rect });
     };
 
     const groups = groupExternalCalendars(externalCalendars);
@@ -237,8 +290,8 @@ export default function CalendarSidebar({
                                     return (
                                         <div key={cal.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg group transition-colors"
                                             style={{ background: visible ? cal.color + '16' : 'transparent' }}>
+                                            <button onClick={(e) => openColorPicker(e, cal)} className="w-3 h-3 rounded-sm shrink-0 transition-transform hover:scale-125" style={{ background: visible ? cal.color : 'var(--border-strong)' }} title="Farbe ändern" />
                                             <button onClick={() => onToggleExternal(cal.id)} className="flex items-center gap-2 flex-1 min-w-0">
-                                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: visible ? cal.color : 'var(--border-strong)' }} />
                                                 <span className="shrink-0">{providerIcon(cal.provider_type || 'ical')}</span>
                                                 <span className="text-xs font-medium truncate text-left" style={{ color: visible ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                                                     {cal.name}
@@ -290,8 +343,8 @@ export default function CalendarSidebar({
                                                     return (
                                                         <div key={cal.id} className="flex items-center gap-2 px-2 py-1 rounded-lg group transition-colors"
                                                             style={{ background: visible ? cal.color + '16' : 'transparent' }}>
+                                                            <button onClick={(e) => openColorPicker(e, cal)} className="w-3 h-3 rounded-sm shrink-0 transition-transform hover:scale-125" style={{ background: visible ? cal.color : 'var(--border-strong)' }} title="Farbe ändern" />
                                                             <button onClick={() => onToggleExternal(cal.id)} className="flex items-center gap-2 flex-1 min-w-0">
-                                                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: visible ? cal.color : 'var(--border-strong)' }} />
                                                                 <span className="text-xs font-medium truncate text-left" style={{ color: visible ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                                                                     {cal.name}
                                                                 </span>
@@ -362,6 +415,15 @@ export default function CalendarSidebar({
                     organizationId={organizationId}
                     onClose={() => setShowProviderModal(false)}
                     onAdded={() => { onRefreshExternals(); setShowProviderModal(false); }}
+                />
+            )}
+
+            {colorPicker && (
+                <ColorPickerPopover
+                    current={colorPicker.current}
+                    anchorRect={colorPicker.rect}
+                    onPick={(c) => handleColorPick(colorPicker.calId, c)}
+                    onClose={() => setColorPicker(null)}
                 />
             )}
         </div>

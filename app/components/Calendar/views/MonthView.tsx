@@ -12,9 +12,10 @@ interface MonthViewProps {
     externalEvents: ParsedExternalEvent[];
     onDayClick: (date: Date) => void;
     onEventClick: (event: CalendarEvent) => void;
+    onDetailClick?: (event: any) => void;
 }
 
-export default function MonthView({ anchor, currentUser, employees, ownEvents, teamEvents, externalEvents, onDayClick, onEventClick }: MonthViewProps) {
+export default function MonthView({ anchor, currentUser, employees, ownEvents, teamEvents, externalEvents, onDayClick, onEventClick, onDetailClick }: MonthViewProps) {
     const today = new Date();
     const year = anchor.getFullYear(), month = anchor.getMonth();
 
@@ -82,7 +83,7 @@ export default function MonthView({ anchor, currentUser, employees, ownEvents, t
                                     const emp = e.employee_id ? employees.find(em => em.id === e.employee_id) : null;
                                     return (
                                         <button key={e.id}
-                                            onClick={ev => { ev.stopPropagation(); if (e._own) onEventClick(e as any); }}
+                                            onClick={ev => { ev.stopPropagation(); if (e._own) onEventClick(e as any); else onDetailClick?.(e as any); }}
                                             className="w-full text-left px-1 py-0.5 rounded text-[10px] font-medium truncate leading-tight"
                                             style={{
                                                 background: e._own ? col + 'CC' : col + '33',
