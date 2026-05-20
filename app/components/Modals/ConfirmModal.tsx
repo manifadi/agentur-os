@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -26,7 +27,9 @@ export default function ConfirmModal({
     showCancel = true,
     type = 'danger'
 }: ConfirmModalProps) {
-    if (!isOpen) return null;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    if (!isOpen || !mounted) return null;
 
     const iconMap = {
         danger: <AlertTriangle size={20} />,
@@ -47,7 +50,7 @@ export default function ConfirmModal({
         success: 'bg-[var(--color-success)] hover:brightness-110',
     };
 
-    return (
+    const overlay = (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-surface rounded-2xl shadow-lg max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-border-subtle">
                 <div className="flex items-start gap-4 mb-5">
@@ -84,4 +87,6 @@ export default function ConfirmModal({
             </div>
         </div>
     );
+
+    return createPortal(overlay, document.body);
 }
