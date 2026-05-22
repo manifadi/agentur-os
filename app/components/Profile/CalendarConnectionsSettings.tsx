@@ -4,6 +4,7 @@ import { Plus, Trash2, RefreshCw, Chrome, Monitor, Apple, Building2, Link, Shiel
 import { Employee, ExternalCalendar, CalendarProviderType } from '../../types';
 import { supabase } from '../../supabaseClient';
 import CalendarProviderModal from '../Calendar/CalendarProviderModal';
+import ConfirmModal from '../Modals/ConfirmModal';
 
 const COLOR_PALETTE = [
     '#3B82F6', '#7C3AED', '#F43F5E', '#10B981', '#F59E0B', '#06B6D4', '#64748B',
@@ -87,12 +88,19 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
         fetchCalendars();
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Diese Kalenderverbindung wirklich entfernen?')) return;
-        setDeleting(id);
-        await supabase.from('external_calendars').delete().eq('id', id);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: string; name?: string } | null>(null);
+
+    const handleDelete = (cal: ExternalCalendar) => {
+        setConfirmDeleteId({ id: cal.id, name: cal.name });
+    };
+
+    const performDelete = async () => {
+        if (!confirmDeleteId) return;
+        setDeleting(confirmDeleteId.id);
+        await supabase.from('external_calendars').delete().eq('id', confirmDeleteId.id);
         await fetchCalendars();
         setDeleting(null);
+        setConfirmDeleteId(null);
     };
 
     const hasCalDavIssue = (cal: ExternalCalendar) =>
@@ -200,7 +208,7 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
                                     title={cal.is_visible ? 'Im Kalender sichtbar' : 'Im Kalender ausgeblendet'}>
                                     {cal.is_visible ? <Eye size={14} /> : <EyeOff size={14} />}
                                 </button>
-                                <button onClick={() => handleDelete(cal.id)} disabled={deleting === cal.id}
+                                <button onClick={() => handleDelete(cal)} disabled={deleting === cal.id}
                                     className="p-2 rounded-lg transition-colors"
                                     style={{ color: 'var(--text-muted)' }}
                                     onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
@@ -230,6 +238,18 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
                     onClose={() => setColorPicker(null)}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={!!confirmDeleteId}
+                title="Kalender-Verbindung entfernen?"
+                message={confirmDeleteId?.name
+                    ? `"${confirmDeleteId.name}" wird aus deinen Verbindungen entfernt. Externe Daten beim Anbieter bleiben unangetastet.`
+                    : 'Die Verbindung wird entfernt. Externe Daten beim Anbieter bleiben unangetastet.'}
+                onConfirm={performDelete}
+                onCancel={() => setConfirmDeleteId(null)}
+                type="danger"
+                confirmText="Entfernen"
+            />
         </div>
     );
 }

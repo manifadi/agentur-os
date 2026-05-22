@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import PeriodNavigator from '../UI/PeriodNavigator';
 
 interface DaySwitcherProps {
     currentDate: Date;
@@ -60,79 +60,95 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
         return date.toLocaleDateString('de-DE', { weekday: 'short' }).slice(0, 2);
     };
 
-    const isCurrentDateToday = isSameDay(currentDate, new Date());
-    const handleJumpToToday = () => onDateChange(new Date());
+    // Aktuelle Kalenderwoche (ISO)
+    const currentWeek = useMemo(() => {
+        const d = new Date(Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    }, [currentDate]);
+    const currentYear = currentDate.getFullYear();
 
     return (
-        <div className="flex items-center justify-center gap-4 w-full">
-            {/* Left Arrow */}
-            <button
-                onClick={handlePrevWeek}
-                className="p-3 bg-surface border border-default rounded-xl text-text-muted hover:text-text-primary hover:border-accent hover:bg-subtle transition-all shadow-sm"
-            >
-                <ChevronLeft size={20} />
-            </button>
+        <div className="flex items-center justify-end gap-2.5 flex-wrap">
+            {/* Period Navigator — einheitliches Vela-Pattern */}
+            <PeriodNavigator
+                onPrev={handlePrevWeek}
+                onNext={handleNextWeek}
+                centerLabel={`KW ${currentWeek} · ${currentYear}`}
+                onCenterClick={() => onDateChange(new Date())}
+                centerMinWidth={108}
+                centerTitle="Zur aktuellen Woche springen"
+                prevTitle="Vorherige Woche"
+                nextTitle="Nächste Woche"
+            />
 
             {/* Week Strip */}
-            <div className="flex bg-surface p-1.5 rounded-2xl border border-default shadow-sm gap-1">
-                {weekDays.map((date) => {
+            <div
+                className="inline-flex items-stretch gap-0.5 p-1 rounded-xl"
+                style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    boxShadow: 'var(--shadow-sm)',
+                }}
+            >
+                {weekDays.map(date => {
                     const isSelected = isSameDay(date, currentDate);
-                    const isToday = isSameDay(date, new Date());
-                    const isWeekend = date.getDay() === 0 || date.getDay() === 6; // Sun or Sat
+                    const isToday    = isSameDay(date, new Date());
+                    const isWeekend  = date.getDay() === 0 || date.getDay() === 6;
 
-                    // Base classes
-                    let wrapperClass = "flex flex-col items-center justify-center w-14 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer select-none relative ";
+                    const baseStyle: React.CSSProperties = {
+                        cursor: 'pointer',
+                        transition: 'background 150ms ease, color 150ms ease',
+                    };
 
-                    // State Styling
+                    let style: React.CSSProperties = { ...baseStyle };
                     if (isSelected) {
-                        wrapperClass += "bg-text-primary text-surface shadow-md scale-105 z-10 font-bold border-transparent";
+                        style.background = 'var(--accent)';
+                        style.color = 'var(--accent-text)';
                     } else if (isToday) {
-                        wrapperClass += "bg-accent-subtle/30 text-accent font-extrabold border border-accent/20 hover:bg-accent-subtle/50";
+                        style.background = 'var(--accent-subtle)';
+                        style.color = 'var(--accent)';
                     } else if (isWeekend) {
-                        wrapperClass += "bg-subtle text-text-placeholder hover:bg-hover hover:text-text-secondary border-transparent";
+                        style.color = 'var(--text-placeholder)';
                     } else {
-                        wrapperClass += "text-text-secondary border-transparent hover:bg-hover hover:text-text-primary";
+                        style.color = 'var(--text-secondary)';
                     }
 
+                    const dayLabelColor =
+                        isSelected ? 'rgba(255,255,255,0.7)' :
+                        isToday    ? 'var(--accent)' :
+                        isWeekend  ? 'var(--text-placeholder)' :
+                                     'var(--text-muted)';
+
                     return (
-                        <div
+                        <button
+                            type="button"
                             key={date.toISOString()}
                             onClick={() => onDateChange(date)}
-                            className={wrapperClass}
+                            className="flex flex-col items-center justify-center px-2.5 py-1 rounded-lg relative select-none min-w-[40px]"
+                            style={style}
+                            onMouseEnter={e => {
+                                if (!isSelected && !isToday) (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)';
+                            }}
+                            onMouseLeave={e => {
+                                if (!isSelected && !isToday) (e.currentTarget as HTMLElement).style.background = '';
+                            }}
                         >
-                            <span className={`text-[10px] uppercase mb-0.5 ${isSelected ? 'text-surface/70' : (isWeekend ? 'text-text-placeholder' : 'text-text-muted')}`}>
+                            <span
+                                className="text-[9px] font-bold uppercase tracking-wider leading-none mb-1"
+                                style={{ color: dayLabelColor }}
+                            >
                                 {formatDayName(date)}
                             </span>
-                            <span className="leading-none text-base">
-                                {date.getDate()}.
+                            <span className="text-[13px] font-semibold leading-none">
+                                {date.getDate()}
                             </span>
-
-                            {/* Today Dot Indicator if not active */}
-                            {isToday && !isSelected && (
-                                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full"></div>
-                            )}
-                        </div>
+                        </button>
                     );
                 })}
             </div>
-
-            {/* Right Arrow */}
-            <button
-                onClick={handleNextWeek}
-                className="p-3 bg-surface border border-default rounded-xl text-text-muted hover:text-text-primary hover:border-accent hover:bg-subtle transition-all shadow-sm"
-            >
-                <ChevronRight size={20} />
-            </button>
-
-            {/* Jump to Today - Only show if not on today */}
-            {!isCurrentDateToday && (
-                <button
-                    onClick={handleJumpToToday}
-                    className="ml-2 px-4 py-3 bg-accent/10 text-accent font-bold rounded-xl text-sm hover:bg-accent/20 transition-colors"
-                >
-                    Heute
-                </button>
-            )}
         </div>
     );
 }

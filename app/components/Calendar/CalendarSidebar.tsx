@@ -6,6 +6,7 @@ import { isSameDay } from './views/WeekView';
 import UserAvatar from '../UI/UserAvatar';
 import { supabase } from '../../supabaseClient';
 import CalendarProviderModal from './CalendarProviderModal';
+import ConfirmModal from '../Modals/ConfirmModal';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 const CAL_COLOR_PALETTE = [
@@ -195,21 +196,40 @@ export default function CalendarSidebar({
     const [collapsedKeys, setCollapsedKeys] = useLocalStorage<string[]>('cal-sidebar:collapsedGroups', []);
     const collapsedGroups = React.useMemo(() => new Set(collapsedKeys), [collapsedKeys]);
     const [colorPicker, setColorPicker] = useState<{ calId: string; current: string; rect: DOMRect } | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+        title: string;
+        message: string;
+        onConfirm: () => Promise<void>;
+    } | null>(null);
 
     const teammates = employees.filter(e => e.id !== currentUser.id);
 
-    const handleDeleteExternal = async (id: string) => {
-        if (!confirm('Kalender entfernen?')) return;
-        await supabase.from('external_calendars').delete().eq('id', id);
-        onRefreshExternals();
+    const handleDeleteExternal = (id: string, name?: string) => {
+        setDeleteConfirm({
+            title: 'Kalender entfernen?',
+            message: name
+                ? `"${name}" wird aus deiner Übersicht entfernt. Externe Daten beim Anbieter bleiben unangetastet.`
+                : 'Der Kalender wird aus deiner Übersicht entfernt. Externe Daten beim Anbieter bleiben unangetastet.',
+            onConfirm: async () => {
+                await supabase.from('external_calendars').delete().eq('id', id);
+                onRefreshExternals();
+                setDeleteConfirm(null);
+            },
+        });
     };
 
-    const handleDeleteAccount = async (group: CalendarGroup) => {
+    const handleDeleteAccount = (group: CalendarGroup) => {
         const accountName = group.accountLabel || group.calendars[0]?.name || 'diesen Account';
-        if (!confirm(`Alle ${group.calendars.length} Kalender von ${accountName} entfernen?`)) return;
-        const ids = group.calendars.map(c => c.id);
-        await supabase.from('external_calendars').delete().in('id', ids);
-        onRefreshExternals();
+        setDeleteConfirm({
+            title: 'Account entfernen?',
+            message: `Alle ${group.calendars.length} Kalender von ${accountName} werden aus deiner Übersicht entfernt.`,
+            onConfirm: async () => {
+                const ids = group.calendars.map(c => c.id);
+                await supabase.from('external_calendars').delete().in('id', ids);
+                onRefreshExternals();
+                setDeleteConfirm(null);
+            },
+        });
     };
 
     const handleToggleGroup = async (group: CalendarGroup) => {
@@ -298,7 +318,7 @@ export default function CalendarSidebar({
                                                 </span>
                                             </button>
                                             {cal.is_writable && <span title="Bidirektional synchronisiert"><Check size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /></span>}
-                                            <button onClick={() => handleDeleteExternal(cal.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded" style={{ color: 'var(--text-muted)' }}>
+                                            <button onClick={() => handleDeleteExternal(cal.id, cal.name)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded" style={{ color: 'var(--text-muted)' }}>
                                                 <Trash2 size={11} />
                                             </button>
                                         </div>
@@ -426,6 +446,16 @@ export default function CalendarSidebar({
                     onClose={() => setColorPicker(null)}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={!!deleteConfirm}
+                title={deleteConfirm?.title || ''}
+                message={deleteConfirm?.message || ''}
+                onConfirm={() => deleteConfirm?.onConfirm()}
+                onCancel={() => setDeleteConfirm(null)}
+                type="danger"
+                confirmText="Entfernen"
+            />
         </div>
     );
 }

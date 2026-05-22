@@ -5,6 +5,7 @@ import { AgencySettings, OrganizationTemplate } from '../../types';
 import { Plus, Trash2, Save, Upload } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 import { SettingsFormSkeleton } from '../UI/Skeleton';
+import { toast } from 'sonner';
 
 interface Props {
     section?: 'company' | 'branding' | 'templates';
@@ -171,7 +172,7 @@ export default function AdminAgencySettings({ section }: Props) {
                 { onConflict: 'organization_id' }
             );
         } catch (err: any) {
-            alert('Upload fehlgeschlagen: ' + err.message);
+            toast.error('Upload fehlgeschlagen: ' + err.message);
         }
         setLoading(false);
     };

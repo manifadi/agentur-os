@@ -12,6 +12,8 @@ import EventDetailModal from './EventDetailModal';
 import WeekView from './views/WeekView';
 import DayView from './views/DayView';
 import MonthView from './views/MonthView';
+import ViewSwitcher from '../UI/ViewSwitcher';
+import PeriodNavigator from '../UI/PeriodNavigator';
 
 interface Props {
     employees: Employee[];
@@ -238,33 +240,23 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                         <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-muted)' }}>Kalender</p>
                     </div>
 
-                    <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)' }}>
-                        {(['day', 'week', 'month'] as CalendarView[]).map(v => (
-                            <button key={v} onClick={() => setView(v)}
-                                className="px-3 py-1.5 text-xs font-semibold transition-all"
-                                style={view === v ? { background: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--text-muted)' }}>
-                                {VIEW_LABELS[v]}
-                            </button>
-                        ))}
-                    </div>
+                    <ViewSwitcher<CalendarView>
+                        options={[
+                            { value: 'day',   label: 'Tag' },
+                            { value: 'week',  label: 'Woche' },
+                            { value: 'month', label: 'Monat' },
+                        ]}
+                        value={view}
+                        onChange={setView}
+                    />
 
-                    <div className="flex items-center gap-1">
-                        <button onClick={() => navigate(-1)} className="p-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = '')}
-                        ><ChevronLeft size={18} /></button>
-
-                        <button onClick={goToday} className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
-                            style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-subtle)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                        >Heute</button>
-
-                        <button onClick={() => navigate(1)} className="p-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = '')}
-                        ><ChevronRight size={18} /></button>
-                    </div>
+                    <PeriodNavigator
+                        onPrev={() => navigate(-1)}
+                        onNext={() => navigate(1)}
+                        centerLabel="Heute"
+                        onCenterClick={goToday}
+                        centerTitle="Zu heute springen"
+                    />
 
                     <button onClick={() => openCreate()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
                         style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>

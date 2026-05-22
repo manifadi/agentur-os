@@ -66,7 +66,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                                             setFormData({ ...formData, avatar_url: url });
                                         } catch (err) {
                                             console.error(err);
-                                            alert('Upload fehlgeschlagen');
+                                            toast.error('Upload fehlgeschlagen');
                                         }
                                     }
                                 }}

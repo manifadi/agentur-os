@@ -5,6 +5,7 @@ import { Trash2, AlertTriangle, Building2, ArrowRight } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 import ClientModal from '../Modals/ClientModal';
 import { useApp } from '../../context/AppContext'; // Need context to refetch? Or props? Props have onUpdate.
+import { toast } from 'sonner';
 
 interface AdminClientManagementProps {
     clients: Client[];
@@ -58,8 +59,9 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
         const { error } = await supabase.from('clients').delete().eq('id', deletingId);
 
         if (error) {
-            alert('Fehler beim Löschen: ' + error.message);
+            toast.error('Fehler beim Löschen: ' + error.message);
         } else {
+            toast.success('Kunde gelöscht.');
             onUpdate();
         }
 

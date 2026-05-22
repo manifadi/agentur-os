@@ -5,6 +5,8 @@ import { Employee, Project, ResourceAllocation, AllocationRow, Client } from '..
 import { useApp } from '../../context/AppContext';
 import ResourceGrid from './ResourceGrid';
 import ResourceCards from './ResourceCards';
+import ViewSwitcher from '../UI/ViewSwitcher';
+import PeriodNavigator from '../UI/PeriodNavigator';
 
 interface ResourcePlannerProps {
     employees: Employee[];
@@ -237,11 +239,14 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
 
                 <div className="flex items-center gap-3 flex-wrap">
                     {/* Week navigation */}
-                    <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-default shadow-sm">
-                        <button onClick={() => changeWeek(-1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronLeft size={16} /></button>
-                        <div className="text-sm font-bold w-28 text-center select-none text-text-primary">KW {currentWeek} <span className="text-text-muted font-normal">· {currentYear}</span></div>
-                        <button onClick={() => changeWeek(1)} className="p-2 hover:bg-hover rounded-lg transition-colors text-text-secondary"><ChevronRight size={16} /></button>
-                    </div>
+                    <PeriodNavigator
+                        onPrev={() => changeWeek(-1)}
+                        onNext={() => changeWeek(1)}
+                        centerLabel={`KW ${currentWeek} · ${currentYear}`}
+                        onCenterClick={() => setCurrentDate(new Date())}
+                        centerMinWidth={112}
+                        centerTitle="Zur aktuellen Woche springen"
+                    />
 
                     {/* Department filter */}
                     <div className="relative group">
@@ -258,20 +263,14 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                     </div>
 
                     {/* View toggle */}
-                    <div className="flex bg-subtle rounded-xl p-1 border border-default gap-0.5">
-                        <button
-                            onClick={() => { setViewMode('cards'); localStorage.setItem('resourcePlanner.viewMode', 'cards'); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'cards' ? 'bg-surface shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
-                        >
-                            <LayoutGrid size={13} /> Karten
-                        </button>
-                        <button
-                            onClick={() => { setViewMode('table'); localStorage.setItem('resourcePlanner.viewMode', 'table'); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'table' ? 'bg-surface shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
-                        >
-                            <Table2 size={13} /> Tabelle
-                        </button>
-                    </div>
+                    <ViewSwitcher<'cards' | 'table'>
+                        options={[
+                            { value: 'cards', label: 'Karten',  icon: LayoutGrid },
+                            { value: 'table', label: 'Tabelle', icon: Table2 },
+                        ]}
+                        value={viewMode}
+                        onChange={v => { setViewMode(v); localStorage.setItem('resourcePlanner.viewMode', v); }}
+                    />
                 </div>
             </header>
 

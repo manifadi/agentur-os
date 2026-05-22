@@ -5,6 +5,8 @@ import { FileText, Eye, X, Plus, User, ChevronDown, CheckCircle, Clock, History,
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import ContractPDF from '../Contracts/ContractPDF';
 import ContactModal from '../Modals/ContactModal';
+import ConfirmModal from '../Modals/ConfirmModal';
+import { toast } from 'sonner';
 
 interface ProjectContractTabProps {
     project: Project;
@@ -92,7 +94,7 @@ export default function ProjectContractTab({ project, agencySettings, templates,
             organization_id: project.organization_id
         }]).select().single();
         if (error) {
-            alert('Fehler beim Erstellen des Kontakts: ' + error.message);
+            toast.error('Fehler beim Erstellen des Kontakts: ' + error.message);
         } else if (data) {
             setContacts([...contacts, data]);
             setSelectedContactId(data.id);
@@ -101,11 +103,18 @@ export default function ProjectContractTab({ project, agencySettings, templates,
         }
     };
 
-    const handleDeleteOffer = async (id: string) => {
-        if (!confirm('Angebot-Entwurf wirklich löschen?')) return;
-        const { error } = await supabase.from('project_offers').delete().eq('id', id);
-        if (error) alert('Fehler beim Löschen: ' + error.message);
-        else fetchHistory();
+    const [deleteOfferId, setDeleteOfferId] = useState<string | null>(null);
+
+    const handleDeleteOffer = (id: string) => {
+        setDeleteOfferId(id);
+    };
+
+    const performDeleteOffer = async () => {
+        if (!deleteOfferId) return;
+        const { error } = await supabase.from('project_offers').delete().eq('id', deleteOfferId);
+        if (error) toast.error('Fehler beim Löschen: ' + error.message);
+        else { toast.success('Angebot-Entwurf gelöscht.'); fetchHistory(); }
+        setDeleteOfferId(null);
     };
 
     const selectedContact = contacts.find(c => c.id === selectedContactId) || null;
@@ -389,6 +398,16 @@ export default function ProjectContractTab({ project, agencySettings, templates,
                 isOpen={isAddingContact}
                 onClose={() => setIsAddingContact(false)}
                 onSave={handleSaveNewContact}
+            />
+
+            <ConfirmModal
+                isOpen={!!deleteOfferId}
+                title="Angebot-Entwurf löschen?"
+                message="Der Entwurf wird unwiderruflich entfernt. Bereits versendete Angebote bleiben davon unberührt."
+                onConfirm={performDeleteOffer}
+                onCancel={() => setDeleteOfferId(null)}
+                type="danger"
+                confirmText="Löschen"
             />
         </div>
     );

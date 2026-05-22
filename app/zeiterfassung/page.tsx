@@ -95,8 +95,18 @@ export default function ZeiterfassungPage() {
         <div className="flex h-screen bg-surface">
             <main className="flex-1 flex flex-col h-full overflow-hidden">
                 {/* Header */}
-                <header className="px-8 py-6 border-b border-default flex justify-between items-center bg-surface z-10">
-                    <h1 className="text-2xl font-bold tracking-tight">Zeiterfassung</h1>
+                <header
+                    className="px-8 py-5 flex justify-between items-center flex-wrap gap-4 z-10"
+                    style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)' }}
+                >
+                    <div>
+                        <h1 className="text-xl font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+                            Zeiterfassung
+                        </h1>
+                        <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                            Stunden erfassen & überblicken
+                        </p>
+                    </div>
                     <DaySwitcher currentDate={currentDate} onDateChange={setCurrentDate} />
                 </header>
 
@@ -109,9 +119,12 @@ export default function ZeiterfassungPage() {
                             </div>
                             <button
                                 onClick={() => { setEditingEntry(null); setIsModalOpen(true); }}
-                                className="flex items-center justify-center gap-2 bg-gray-900 text-white px-6 py-4 rounded-xl font-bold shadow-lg shadow-gray-900/20 hover:scale-[1.02] transition-transform"
+                                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.98] shadow-sm"
+                                style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
+                                onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.08)')}
+                                onMouseLeave={e => (e.currentTarget.style.filter = '')}
                             >
-                                <Plus size={24} />
+                                <Plus size={16} />
                                 Zeit erfassen
                             </button>
                         </div>

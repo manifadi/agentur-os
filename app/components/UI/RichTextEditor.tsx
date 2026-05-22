@@ -11,6 +11,7 @@ import {
     Heading1, Heading2, Heading3,
     List, ListOrdered, Quote, Link as LinkIcon, Undo2, Redo2, RemoveFormatting,
 } from 'lucide-react';
+import PromptModal from '../Modals/PromptModal';
 
 interface RichTextEditorProps {
     value: string;
@@ -155,18 +156,25 @@ function Toolbar({ editor, compact }: { editor: Editor; compact?: boolean }) {
         };
     }, [editor]);
 
+    const [linkPrompt, setLinkPrompt] = useState<{ defaultValue: string } | null>(null);
+
     const handleLink = () => {
         const prev = editor.getAttributes('link').href;
-        const url = window.prompt('URL eingeben:', prev || 'https://');
-        if (url === null) return;
-        if (url === '') {
+        setLinkPrompt({ defaultValue: prev || 'https://' });
+    };
+
+    const applyLink = (url: string) => {
+        setLinkPrompt(null);
+        const trimmed = url.trim();
+        if (trimmed === '' || trimmed === 'https://') {
             editor.chain().focus().unsetLink().run();
             return;
         }
-        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run();
     };
 
     return (
+        <>
         <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5"
             style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
             <Btn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Fett (⌘B)"><Bold size={14} /></Btn>
@@ -197,6 +205,19 @@ function Toolbar({ editor, compact }: { editor: Editor; compact?: boolean }) {
             <Btn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Rückgängig (⌘Z)"><Undo2 size={14} /></Btn>
             <Btn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Wiederherstellen (⌘⇧Z)"><Redo2 size={14} /></Btn>
         </div>
+
+        <PromptModal
+            isOpen={!!linkPrompt}
+            title="Link einfügen"
+            message="URL eingeben (leer lassen, um den Link zu entfernen)."
+            placeholder="https://beispiel.de"
+            defaultValue={linkPrompt?.defaultValue}
+            confirmText="Link setzen"
+            icon={LinkIcon}
+            onConfirm={applyLink}
+            onCancel={() => setLinkPrompt(null)}
+        />
+        </>
     );
 }
 

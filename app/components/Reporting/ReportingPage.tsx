@@ -11,6 +11,8 @@ import {
 import { useRealtimeTable } from '../../hooks/useRealtimeTable';
 import UserAvatar from '../UI/UserAvatar';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import ViewSwitcher from '../UI/ViewSwitcher';
+import PeriodNavigator from '../UI/PeriodNavigator';
 
 type RangeMode = 'week' | 'month';
 type Scope = 'me' | 'team';
@@ -84,43 +86,35 @@ export default function ReportingPage({ currentUser }: Props) {
 
                 {/* Scope toggle (admin only) */}
                 {isAdmin && (
-                    <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)' }}>
-                        <button onClick={() => setScope('me')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all"
-                            style={scope === 'me' ? { background: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--text-muted)' }}
-                        >
-                            <User size={12} /> Ich
-                        </button>
-                        <button onClick={() => setScope('team')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all"
-                            style={scope === 'team' ? { background: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--text-muted)' }}
-                        >
-                            <Users size={12} /> Team
-                        </button>
-                    </div>
+                    <ViewSwitcher<Scope>
+                        options={[
+                            { value: 'me',   label: 'Ich',  icon: User },
+                            { value: 'team', label: 'Team', icon: Users },
+                        ]}
+                        value={scope}
+                        onChange={setScope}
+                    />
                 )}
 
                 {/* Range toggle */}
-                <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-subtle)' }}>
-                    {(['week', 'month'] as RangeMode[]).map(r => (
-                        <button key={r} onClick={() => setRangeMode(r)}
-                            className="px-3 py-1.5 text-xs font-semibold transition-all"
-                            style={rangeMode === r ? { background: 'var(--accent)', color: 'var(--accent-text)' } : { color: 'var(--text-muted)' }}
-                        >
-                            {r === 'week' ? 'Woche' : 'Monat'}
-                        </button>
-                    ))}
-                </div>
+                <ViewSwitcher<RangeMode>
+                    options={[
+                        { value: 'week',  label: 'Woche' },
+                        { value: 'month', label: 'Monat' },
+                    ]}
+                    value={rangeMode}
+                    onChange={setRangeMode}
+                />
 
                 {/* Navigation */}
-                <div className="flex items-center gap-1">
-                    <button onClick={() => navigate(-1)} className="p-2 rounded-xl" style={{ color: 'var(--text-muted)' }}><ChevronLeft size={16} /></button>
-                    <button onClick={goNow} className="px-3 py-1.5 rounded-xl text-xs font-bold"
-                        style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>
-                        {rangeMode === 'week' ? 'Diese Woche' : 'Dieser Monat'}
-                    </button>
-                    <button onClick={() => navigate(1)} className="p-2 rounded-xl" style={{ color: 'var(--text-muted)' }}><ChevronRight size={16} /></button>
-                </div>
+                <PeriodNavigator
+                    onPrev={() => navigate(-1)}
+                    onNext={() => navigate(1)}
+                    centerLabel={rangeMode === 'week' ? 'Diese Woche' : 'Dieser Monat'}
+                    onCenterClick={goNow}
+                    centerMinWidth={108}
+                    centerTitle="Aktuellen Zeitraum auswählen"
+                />
             </div>
 
             {/* Range Label */}
