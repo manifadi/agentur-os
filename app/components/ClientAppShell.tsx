@@ -10,6 +10,7 @@ import MainSidebar from './MainSidebar';
 import LoginScreen from './LoginScreen';
 import GlobalSearch from './GlobalSearch';
 import WelcomeModal from './UI/WelcomeModal';
+import ImpersonationBanner from './SuperAdmin/ImpersonationBanner';
 import { Toaster } from 'sonner';
 import { useTheme } from '../hooks/useTheme';
 
@@ -329,11 +330,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             setSidebarExpanded,
         }}>
             <CalendarDataProvider currentUser={currentUser} organizationId={orgId}>
+                <ImpersonationBanner />
                 <div
                     className="flex h-screen w-screen overflow-hidden antialiased"
                     style={{ background: 'var(--bg-app)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}
                 >
-                    {!['/login', '/onboarding', '/reset-password', '/auth/callback'].includes(pathname || '') && (
+                    {!['/login', '/onboarding', '/reset-password', '/auth/callback'].includes(pathname || '') && !pathname?.startsWith('/admin') && (
                         <MainSidebar
                             currentView={getSidebarView()}
                             onLogout={handleLogout}
@@ -347,12 +349,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
                     <GlobalSearch />
                     <Toaster position="bottom-right" richColors duration={3500} closeButton toastOptions={{ style: { fontFamily: 'var(--font-family)', fontSize: '13px', fontWeight: '500' } }} />
-                    {showWelcome && currentUser && (
+                    {showWelcome && currentUser && !pathname?.startsWith('/admin') && (
                         <WelcomeModal userName={currentUser.name} onDismiss={handleWelcomeDismiss} />
                     )}
 
                     <main
-                        className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${isSidebarExpanded ? 'pl-72' : 'pl-20'}`}
+                        className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${pathname?.startsWith('/admin') ? '' : (isSidebarExpanded ? 'pl-72' : 'pl-20')}`}
                         style={{ background: 'var(--bg-app)' }}
                     >
                         {children}

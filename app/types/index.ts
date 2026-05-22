@@ -77,6 +77,7 @@ export interface Employee {
     job_title?: string;
     email?: string;
     role?: 'admin' | 'user';
+    is_super_admin?: boolean;
     organization_id?: string;
     user_id?: string;
     hourly_rate?: number;
@@ -260,9 +261,74 @@ export interface AllocationRow {
     allocations: ResourceAllocation[];
 }
 
+export type OrganizationPlan = 'trial' | 'pro' | 'agency' | 'internal';
+export type OrganizationStatus = 'active' | 'read_only' | 'suspended';
+
 export interface Organization {
     id: string;
     name: string;
+    slug?: string | null;
+    industry?: string | null;
+    plan: OrganizationPlan;
+    status: OrganizationStatus;
+    max_employees?: number | null;
+    max_projects?: number | null;
+    notes?: string | null;
+    trial_ends_at?: string | null;
+    created_at?: string;
+    last_active_at?: string | null;
+}
+
+// Aggregierte Sicht für Super-Admin-Übersicht (RPC: get_super_admin_overview)
+export interface OrganizationOverview extends Organization {
+    employee_count: number;
+    project_count: number;
+}
+
+export interface OrganizationFeature {
+    organization_id: string;
+    feature_key: string;
+    enabled: boolean;
+    expires_at?: string | null;
+    updated_at?: string;
+    updated_by?: string | null;
+}
+
+// Katalog der Feature-Flags — Single Source of Truth fürs UI
+export interface FeatureDefinition {
+    key: string;
+    label: string;
+    description: string;
+    requiredPlan?: OrganizationPlan; // optionales Plan-Label im UI
+    defaultEnabled: boolean;
+}
+
+export const FEATURE_CATALOG: FeatureDefinition[] = [
+    { key: 'resource_planning', label: 'Ressourcenplanung', description: 'Karten- und Listen-Ansicht für Mitarbeiter-Allokation.', defaultEnabled: true },
+    { key: 'calendar_sync',     label: 'Kalender-Sync',     description: 'Google / Outlook / iCal-Integration.', defaultEnabled: true },
+    { key: 'reporting',         label: 'Reporting',         description: 'Mitarbeiter- und Projekt-Reporting mit Soll/Ist.', defaultEnabled: true },
+    { key: 'calculation',       label: 'Kalkulation & Rechnung', description: 'Angebots- und Rechnungs-PDF, Positionen.', requiredPlan: 'pro', defaultEnabled: true },
+    { key: 'pdf_export',        label: 'PDF-Export',        description: 'PDF-Generierung für Angebote/Rechnungen.', requiredPlan: 'pro', defaultEnabled: true },
+    { key: 'realtime',          label: 'Realtime-Updates',  description: 'Live-Synchronisierung über mehrere Geräte.', defaultEnabled: true },
+    { key: 'client_portal',     label: 'Client-Portal',     description: 'Lesezugriff für Kunden via Token-Link.', requiredPlan: 'agency', defaultEnabled: false },
+];
+
+export interface SuperAdminAuditEntry {
+    id: number;
+    actor_user_id?: string | null;
+    actor_email?: string | null;
+    action: string;
+    target_type?: string | null;
+    target_id?: string | null;
+    payload?: Record<string, any> | null;
+    created_at: string;
+}
+
+export interface ImpersonationSession {
+    target_org_id: string;
+    target_org_name: string;
+    started_at: string;
+    expires_at: string;
 }
 
 export interface RegistrationRequest {
