@@ -1,7 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
-import { Project, Client, ResourceAllocation, AllocationRow } from '../../types';
+import { Project, Client, ResourceAllocation, AllocationRow, Absence, AbsenceType, ABSENCE_TYPE_COLOR, ABSENCE_TYPE_LABEL } from '../../types';
 import UserAvatar from '../UI/UserAvatar';
+import { isDateCovered, dominantAbsenceType } from '../../utils/absences';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 const ALLOCATION_STATUS_OPTIONS = ['Prio/Asap', 'Bearbeitung möglich', 'Geplant', 'Warten auf Kundenfeedback', 'Erledigt'] as const;
@@ -36,13 +37,34 @@ interface ResourceCardsProps {
     rows: AllocationRow[];
     projects: Project[];
     allClients: Client[];
+    absences?: Absence[];
+    weekStart?: string; // YYYY-MM-DD Montag
     onUpdateAllocation: (id: string, field: string, value: any) => Promise<void>;
     onCreateAllocation: (employeeId: string, data: { type: 'existing'; projectId: string } | { type: 'new'; clientName: string; projectTitle: string }) => Promise<void>;
     onDeleteAllocation: (id: string) => void;
 }
 
+// Hilfsfunktion: gibt für einen MA pro Wochentag (Mo-Fr) den Abwesenheits-Typ
+// oder null zurück. Index 0 = Montag, 4 = Freitag.
+function buildAbsenceMap(employeeId: string, weekStart: string | undefined, absences: Absence[]): (AbsenceType | null)[] {
+    const out: (AbsenceType | null)[] = [null, null, null, null, null];
+    if (!weekStart) return out;
+    const monday = new Date(weekStart);
+    for (let i = 0; i < 5; i++) {
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+        const dayAbsences = absences.filter(a =>
+            a.employee_id === employeeId
+            && a.status === 'approved'
+            && isDateCovered(day, a)
+        );
+        out[i] = dominantAbsenceType(dayAbsences);
+    }
+    return out;
+}
+
 // ─── Root component ───────────────────────────────────────────────────────────
-export default function ResourceCards({ rows, projects, allClients, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: ResourceCardsProps) {
+export default function ResourceCards({ rows, projects, allClients, absences = [], weekStart, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: ResourceCardsProps) {
     if (rows.length === 0) {
         return (
             <div className="flex items-center justify-center h-64 text-text-muted text-sm">
@@ -59,6 +81,7 @@ export default function ResourceCards({ rows, projects, allClients, onUpdateAllo
                     row={row}
                     projects={projects}
                     allClients={allClients}
+                    absenceMap={buildAbsenceMap(row.employee.id, weekStart, absences)}
                     onUpdateAllocation={onUpdateAllocation}
                     onCreateAllocation={onCreateAllocation}
                     onDeleteAllocation={onDeleteAllocation}
@@ -69,10 +92,11 @@ export default function ResourceCards({ rows, projects, allClients, onUpdateAllo
 }
 
 // ─── Employee card ────────────────────────────────────────────────────────────
-function EmployeeCard({ row, projects, allClients, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: {
+function EmployeeCard({ row, projects, allClients, absenceMap, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: {
     row: AllocationRow;
     projects: Project[];
     allClients: Client[];
+    absenceMap: (AbsenceType | null)[];
     onUpdateAllocation: (id: string, field: string, value: any) => Promise<void>;
     onCreateAllocation: (uid: string, data: any) => Promise<void>;
     onDeleteAllocation: (id: string) => void;
@@ -141,32 +165,57 @@ function EmployeeCard({ row, projects, allClients, onUpdateAllocation, onCreateA
                         const total = dayTotals[i];
                         const over = total > MAX_H;
                         const pct = Math.min((total / MAX_H) * 100, 100);
-                        // Stacked segments: one per project allocation
                         const segments = row.allocations
                             .map(a => ({ color: projectColor(a.project_id), h: (a as any)[day] || 0 }))
                             .filter(s => s.h > 0);
+
+                        const absenceType = absenceMap[i];
+                        const absenceColor = absenceType ? ABSENCE_TYPE_COLOR[absenceType] : null;
+                        const blocksCapacity = absenceType === 'vacation' || absenceType === 'sick' || absenceType === 'other';
 
                         return (
                             <div key={day}>
                                 <div className="flex justify-between items-baseline mb-1">
                                     <span className="text-[9px] font-bold text-text-muted">{DAY_LABELS[i]}</span>
-                                    <span className={`text-[9px] font-bold tabular-nums ${over ? 'text-red-500' : total > 0 ? 'text-text-secondary' : 'text-text-placeholder'}`}>
-                                        {total > 0 ? `${total}h` : '—'}
-                                    </span>
+                                    {absenceType ? (
+                                        <span
+                                            className="text-[9px] font-bold uppercase tracking-wider"
+                                            title={ABSENCE_TYPE_LABEL[absenceType]}
+                                            style={{ color: absenceColor!.fg }}
+                                        >
+                                            {absenceColor!.emoji}
+                                        </span>
+                                    ) : (
+                                        <span className={`text-[9px] font-bold tabular-nums ${over ? 'text-red-500' : total > 0 ? 'text-text-secondary' : 'text-text-placeholder'}`}>
+                                            {total > 0 ? `${total}h` : '—'}
+                                        </span>
+                                    )}
                                 </div>
-                                <div className="h-1.5 rounded-full bg-subtle overflow-hidden flex">
-                                    {segments.map((seg, si) => (
+                                <div
+                                    className="h-1.5 rounded-full overflow-hidden flex relative"
+                                    style={{
+                                        background: blocksCapacity ? absenceColor!.bg : 'var(--bg-subtle)',
+                                    }}
+                                >
+                                    {!blocksCapacity && segments.map((seg, si) => (
                                         <div
                                             key={si}
                                             className={`h-full ${seg.color} ${si > 0 ? 'ml-px' : ''} transition-all duration-300`}
                                             style={{ width: `${Math.min((seg.h / MAX_H) * 100, 100 / segments.length)}%` }}
                                         />
                                     ))}
-                                    {total > 0 && segments.length === 0 && (
+                                    {!blocksCapacity && total > 0 && segments.length === 0 && (
                                         <div className="h-full bg-accent/50 rounded-full" style={{ width: `${pct}%` }} />
                                     )}
+                                    {blocksCapacity && (
+                                        <div className="h-full" style={{ width: '100%', background: absenceColor!.border }} />
+                                    )}
                                 </div>
-                                {over && (
+                                {/* Homeoffice-Strip unter dem normalen Balken */}
+                                {absenceType === 'home_office' && (
+                                    <div className="h-0.5 mt-0.5 rounded-full" style={{ background: absenceColor!.border }} />
+                                )}
+                                {over && !blocksCapacity && (
                                     <div className="text-[8px] text-red-500 font-bold mt-0.5">+{(total - MAX_H).toFixed(1)}h</div>
                                 )}
                             </div>

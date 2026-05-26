@@ -14,7 +14,8 @@ import {
     Search,
     ChevronsUpDown,
     CalendarDays,
-    BarChart3
+    BarChart3,
+    Plane,
 } from 'lucide-react';
 import { AgencySettings, Employee, SidebarItemId, DEFAULT_SIDEBAR_ITEMS } from '../types';
 import UserAvatar from './UI/UserAvatar';
@@ -27,6 +28,7 @@ const ICON_MAP: Record<SidebarItemId, any> = {
     time_tracking: Timer,
     kalender: CalendarDays,
     reporting: BarChart3,
+    absences: Plane,
 };
 
 const LABEL_MAP: Record<SidebarItemId, string> = {
@@ -37,6 +39,7 @@ const LABEL_MAP: Record<SidebarItemId, string> = {
     time_tracking: 'Zeiterfassung',
     kalender: 'Kalender',
     reporting: 'Reporting',
+    absences: 'Abwesenheiten',
 };
 
 const HREF_MAP: Record<SidebarItemId, string> = {
@@ -47,10 +50,11 @@ const HREF_MAP: Record<SidebarItemId, string> = {
     time_tracking: '/zeiterfassung',
     kalender: '/kalender',
     reporting: '/reporting',
+    absences: '/abwesenheiten',
 };
 
 interface MainSidebarProps {
-    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'settings' | 'kalender' | 'reporting';
+    currentView: 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'settings' | 'kalender' | 'reporting' | 'absences';
     isSidebarExpanded: boolean;
     setIsSidebarExpanded: (expanded: boolean) => void;
     agencySettings: AgencySettings | null;

@@ -20,12 +20,13 @@ interface UserModalProps {
     user: Partial<Employee>;
     departments: Department[];
     agencyPositions: any[]; // Added prop
+    allEmployees: Employee[]; // für Manager-Dropdown
     onClose: () => void;
     onSave: (user: Partial<Employee>) => Promise<void>;
     isLoading: boolean;
 }
 
-function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, onSave, isLoading }: UserModalProps) {
+function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmployees, onClose, onSave, isLoading }: UserModalProps) {
     const [formData, setFormData] = useState<Partial<Employee>>(user);
 
     useEffect(() => {
@@ -147,6 +148,57 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, onClose, 
                                 <option value="">Keine Abteilung</option>
                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                             </select>
+                        </div>
+                    </div>
+
+                    {/* Manager + Urlaubsfelder */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Vorgesetzte:r</label>
+                            <select
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                value={formData.manager_id || ''}
+                                onChange={e => setFormData({ ...formData, manager_id: e.target.value || null })}
+                            >
+                                <option value="">— Admins (Fallback)</option>
+                                {allEmployees
+                                    .filter(e => e.id !== formData.id) // nicht sich selbst
+                                    .map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Startdatum</label>
+                            <input
+                                type="date"
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                value={formData.started_at || ''}
+                                onChange={e => setFormData({ ...formData, started_at: e.target.value || null })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Urlaubstage/Jahr</label>
+                            <input
+                                type="number"
+                                min={0}
+                                max={365}
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                value={formData.vacation_days_per_year ?? 25}
+                                onChange={e => setFormData({ ...formData, vacation_days_per_year: parseInt(e.target.value, 10) || 0 })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Übertrag (Tage)</label>
+                            <input
+                                type="number"
+                                min={0}
+                                max={365}
+                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                value={formData.carryover_days ?? 0}
+                                onChange={e => setFormData({ ...formData, carryover_days: parseInt(e.target.value, 10) || 0 })}
+                            />
                         </div>
                     </div>
 
@@ -493,6 +545,7 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 user={modalState.user}
                 departments={departments}
                 agencyPositions={agencyPositions}
+                allEmployees={employees}
                 onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
                 onSave={handleModalSave}
                 isLoading={loading}

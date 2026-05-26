@@ -51,6 +51,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (pathname.startsWith('/einstellungen')) return 'settings';
         if (pathname.startsWith('/kalender')) return 'kalender';
         if (pathname.startsWith('/reporting')) return 'reporting';
+        if (pathname.startsWith('/abwesenheiten')) return 'absences';
         return 'dashboard';
     };
 

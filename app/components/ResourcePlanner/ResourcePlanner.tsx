@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, CalendarRange, Trash2, LayoutGrid, Table2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { Employee, Project, ResourceAllocation, AllocationRow, Client } from '../../types';
+import { Employee, Project, ResourceAllocation, AllocationRow, Client, Absence } from '../../types';
 import { useApp } from '../../context/AppContext';
 import ResourceGrid from './ResourceGrid';
 import ResourceCards from './ResourceCards';
@@ -19,6 +19,7 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDeptId, setSelectedDeptId] = useState<string>(currentUser?.department_id || '');
     const [allocations, setAllocations] = useState<ResourceAllocation[]>([]);
+    const [absences, setAbsences] = useState<Absence[]>([]);
     const [loading, setLoading] = useState(false);
     const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => {
         if (typeof window === 'undefined') return 'cards';
@@ -89,17 +90,42 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
         setLoading(false);
     };
 
+    // Wochen-Bereich für Absences (Montag → Sonntag)
+    const weekRange = useMemo(() => {
+        const monday = new Date(currentDate);
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        const iso = (d: Date) => d.toISOString().slice(0, 10);
+        return { from: iso(monday), to: iso(sunday) };
+    }, [currentDate]);
+
+    const fetchAbsences = async () => {
+        const { data } = await supabase
+            .from('absences')
+            .select('*')
+            .eq('status', 'approved')
+            .lte('start_date', weekRange.to)
+            .gte('end_date',   weekRange.from);
+        if (data) setAbsences(data as Absence[]);
+    };
+
     useEffect(() => {
         fetchAllocations();
+        fetchAbsences();
         const channel = supabase
             .channel('resource-allocations-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_allocations' }, () => {
                 fetchAllocations();
             })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'absences' }, () => {
+                fetchAbsences();
+            })
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [currentWeek, currentYear]);
+    }, [currentWeek, currentYear, weekRange.from, weekRange.to]);
 
     // REACTIVE JOINING
     const joinedAllocations = useMemo(() => {
@@ -282,6 +308,8 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                         rows={gridData}
                         projects={projects}
                         allClients={clients}
+                        absences={absences}
+                        weekStart={weekRange.from}
                         onUpdateAllocation={handleUpdateAllocation}
                         onCreateAllocation={handleCreateAllocation}
                         onDeleteAllocation={(id) => setDeleteConfirm({ id, open: true })}

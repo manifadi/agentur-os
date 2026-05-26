@@ -52,10 +52,10 @@ export interface DashboardConfig {
     sidebar_items?: SidebarItemId[]; // Reihenfolge + Sichtbarkeit der Sidebar-Items
 }
 
-export type SidebarItemId = 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'kalender' | 'reporting';
+export type SidebarItemId = 'dashboard' | 'projects_overview' | 'global_tasks' | 'resource_planning' | 'time_tracking' | 'kalender' | 'reporting' | 'absences';
 
 export const DEFAULT_SIDEBAR_ITEMS: SidebarItemId[] = [
-    'dashboard', 'projects_overview', 'global_tasks', 'resource_planning', 'time_tracking', 'kalender'
+    'dashboard', 'projects_overview', 'global_tasks', 'resource_planning', 'time_tracking', 'kalender', 'absences'
     // 'reporting' bewusst nicht im default — User kann es in Einstellungen aktivieren
 ];
 
@@ -66,6 +66,7 @@ export const ALL_SIDEBAR_ITEMS: { id: SidebarItemId; label: string; href: string
     { id: 'resource_planning', label: 'Ressourcen', href: '/ressourcen' },
     { id: 'time_tracking', label: 'Zeiterfassung', href: '/zeiterfassung' },
     { id: 'kalender', label: 'Kalender', href: '/kalender' },
+    { id: 'absences', label: 'Abwesenheiten', href: '/abwesenheiten' },
     { id: 'reporting', label: 'Reporting', href: '/reporting' },
 ];
 
@@ -86,7 +87,73 @@ export interface Employee {
     phone?: string;
     avatar_url?: string | null;
     dashboard_config?: DashboardConfig;
+    manager_id?: string | null;
+    vacation_days_per_year?: number;
+    carryover_days?: number;
+    started_at?: string | null;
 }
+
+// ── Abwesenheiten ─────────────────────────────────────────
+export type AbsenceType   = 'vacation' | 'sick' | 'home_office' | 'other';
+export type AbsenceStatus = 'requested' | 'approved' | 'rejected' | 'cancelled';
+export type AbsenceHalfDay = 'none' | 'start' | 'end';
+
+export interface Absence {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    type: AbsenceType;
+    start_date: string;       // YYYY-MM-DD
+    end_date:   string;
+    half_day: AbsenceHalfDay;
+    status: AbsenceStatus;
+    reason?: string | null;
+    notes?: string | null;
+    requested_at: string;
+    decided_at?: string | null;
+    decided_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+
+    // Joined (für Listen-Views)
+    employees?: Employee;
+}
+
+export interface AbsenceRequest {
+    id: string;
+    employee_id: string;
+    employee_name: string;
+    employee_email: string;
+    type: AbsenceType;
+    start_date: string;
+    end_date:   string;
+    half_day: AbsenceHalfDay;
+    reason?: string | null;
+    requested_at: string;
+}
+
+export interface VacationBalance {
+    year: number;
+    yearly_entitlement: number;
+    carryover: number;
+    total_available: number;
+    used_days: number;
+    remaining: number;
+}
+
+export const ABSENCE_TYPE_LABEL: Record<AbsenceType, string> = {
+    vacation:    'Urlaub',
+    sick:        'Krankmeldung',
+    home_office: 'Homeoffice',
+    other:       'Sonstige',
+};
+
+export const ABSENCE_TYPE_COLOR: Record<AbsenceType, { bg: string; fg: string; border: string; emoji: string }> = {
+    vacation:    { bg: 'rgba(107,114,128,0.18)',  fg: 'rgb(75,85,99)',    border: 'rgba(107,114,128,0.30)', emoji: '🌴' },
+    sick:        { bg: 'rgba(59,130,246,0.15)',   fg: 'rgb(30,64,175)',   border: 'rgba(59,130,246,0.25)',  emoji: '🤒' },
+    home_office: { bg: 'rgba(245,158,11,0.18)',   fg: 'rgb(120,53,15)',   border: 'rgba(245,158,11,0.30)',  emoji: '🏠' },
+    other:       { bg: 'rgba(99,102,241,0.15)',   fg: 'rgb(67,56,202)',   border: 'rgba(99,102,241,0.25)',  emoji: '📌' },
+};
 
 export interface Department {
     id: string;
