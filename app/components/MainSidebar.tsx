@@ -15,7 +15,7 @@ import {
     ChevronsUpDown,
     CalendarDays,
     BarChart3,
-    Plane,
+    CalendarOff,
 } from 'lucide-react';
 import { AgencySettings, Employee, SidebarItemId, DEFAULT_SIDEBAR_ITEMS, ALL_SIDEBAR_ITEMS } from '../types';
 import UserAvatar from './UI/UserAvatar';
@@ -29,7 +29,7 @@ const ICON_MAP: Record<SidebarItemId, any> = {
     time_tracking: Timer,
     kalender: CalendarDays,
     reporting: BarChart3,
-    absences: Plane,
+    absences: CalendarOff,
 };
 
 const LABEL_MAP: Record<SidebarItemId, string> = {

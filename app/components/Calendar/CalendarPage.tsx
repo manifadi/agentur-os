@@ -219,7 +219,13 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                                                 </a>
                                             )}
                                             {e.isAuthError && !reauthUrl && e.providerType !== 'ical' && (
-                                                <span className="text-[10px] italic">Bitte Passwort in den Kalender-Einstellungen aktualisieren</span>
+                                                <a
+                                                    href="/einstellungen?section=kalender"
+                                                    className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                                                    style={{ background: '#991B1B', color: '#fff' }}
+                                                >
+                                                    Passwort aktualisieren
+                                                </a>
                                             )}
                                         </li>
                                     );

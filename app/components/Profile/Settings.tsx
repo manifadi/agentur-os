@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     User, Palette, Building2, Users, Banknote, Image as ImageIcon,
     FileText, Lock, Camera, CalendarDays, SidebarOpen
@@ -51,13 +52,37 @@ interface Props {
     onUpdate: () => void;
 }
 
+const VALID_SECTIONS: Section[] = ['profil', 'design', 'kalender', 'navigation', 'unternehmen', 'team', 'stundensaetze', 'branding', 'vorlagen'];
+
 export default function Settings({ session, employees, departments, onUpdate }: Props) {
-    const [section, setSection] = useState<Section>('profil');
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Section aus URL-Param lesen — erlaubt Deep-Linking wie /einstellungen?section=navigation
+    const paramSection = searchParams?.get('section') as Section | null;
+    const initialSection: Section = paramSection && VALID_SECTIONS.includes(paramSection) ? paramSection : 'profil';
+
+    const [section, setSectionState] = useState<Section>(initialSection);
     const [loading, setLoading] = useState(false);
     const [saved, setSaved] = useState(false);
 
     const currentUser = employees.find(e => e.email === session?.user?.email) ?? null;
     const isAdmin = currentUser?.role === 'admin';
+
+    // URL → State (z.B. wenn der User über einen externen Link mit ?section=… kommt)
+    useEffect(() => {
+        if (paramSection && VALID_SECTIONS.includes(paramSection) && paramSection !== section) {
+            setSectionState(paramSection);
+        }
+    }, [paramSection]);
+
+    // State → URL (Sidebar-Klick aktualisiert URL ohne Page-Reload)
+    const setSection = (next: Section) => {
+        setSectionState(next);
+        const params = new URLSearchParams(searchParams?.toString() || '');
+        params.set('section', next);
+        router.replace(`/einstellungen?${params.toString()}`, { scroll: false });
+    };
 
     const [name, setName] = useState('');
     const [initials, setInitials] = useState('');

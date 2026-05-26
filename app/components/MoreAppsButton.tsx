@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { LayoutGrid } from 'lucide-react';
+import { Grid3x3 } from 'lucide-react';
 import { SidebarItemId } from '../types';
 
 interface HiddenItem {
@@ -72,7 +72,7 @@ export default function MoreAppsButton({ hidden, isSidebarExpanded }: Props) {
                     }}
                 >
                     <div className="shrink-0">
-                        <LayoutGrid size={22} strokeWidth={1.5} />
+                        <Grid3x3 size={22} strokeWidth={1.5} />
                     </div>
                     {isSidebarExpanded && (
                         <>
@@ -157,7 +157,7 @@ export default function MoreAppsButton({ hidden, isSidebarExpanded }: Props) {
                     </div>
                     <div className="px-2 pt-2 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                         <Link
-                            href="/einstellungen"
+                            href="/einstellungen?section=navigation"
                             onClick={() => setOpen(false)}
                             className="block text-[11px] py-1.5 px-1 transition"
                             style={{ color: 'var(--text-muted)' }}

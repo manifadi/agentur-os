@@ -63,7 +63,17 @@ export default function HourlyRatesSidebar({ isOpen, onClose, organizationId }: 
                                 <X size={20} />
                             </div>
                             <p className="text-sm font-medium text-text-muted">Keine Stundensätze hinterlegt.</p>
-                            <p className="text-xs text-text-placeholder">Stundensätze können in den Einstellungen unter „Agentur" angelegt werden.</p>
+                            <p className="text-xs text-text-placeholder">
+                                Stundensätze können in den{' '}
+                                <a
+                                    href="/einstellungen?section=stundensaetze"
+                                    className="font-semibold underline-offset-2 hover:underline"
+                                    style={{ color: 'var(--accent)' }}
+                                >
+                                    Einstellungen unter „Stundensätze"
+                                </a>{' '}
+                                angelegt werden.
+                            </p>
                         </div>
                     ) : (
                         <div className="p-4 space-y-2">
