@@ -346,6 +346,9 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                         allClients={clients}
                         weekNumber={currentWeek}
                         year={currentYear}
+                        absences={absences}
+                        weekStart={weekRange.from}
+                        onToggleHomeoffice={handleToggleHomeoffice}
                         onUpdateAllocation={handleUpdateAllocation}
                         onCreateAllocation={handleCreateAllocation}
                         onDeleteAllocation={(id) => setDeleteConfirm({ id, open: true })}

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Trash2, Plus, Search, X } from 'lucide-react';
-import { Employee, Project, Client, ResourceAllocation, AllocationRow } from '../../types';
+import { Trash2, Plus, Search, X, Home } from 'lucide-react';
+import { Employee, Project, Client, ResourceAllocation, AllocationRow, Absence, AbsenceType, ABSENCE_TYPE_COLOR, ABSENCE_TYPE_LABEL } from '../../types';
+import AbsenceIcon from '../Absences/AbsenceIcon';
+import { isDateCovered } from '../../utils/absences';
 
 // ─── Status config ──────────────────────────────────────────────────────────────
 const ALLOCATION_STATUS_OPTIONS = [
@@ -146,10 +148,40 @@ interface ResourceGridProps {
     employees: Employee[];
     weekNumber: number;
     year: number;
+    absences?: Absence[];
+    weekStart?: string;
     onUpdateAllocation: (id: string, field: string, value: any) => Promise<void>;
     onCreateAllocation: (employeeId: string, data: { type: 'existing'; projectId: string } | { type: 'new'; clientName: string; projectTitle: string }) => Promise<void>;
     onDeleteAllocation: (id: string) => void;
+    onToggleHomeoffice?: (employeeId: string, isoDate: string, existing: Absence | null) => Promise<void>;
     allClients: Client[];
+}
+
+// Liefert pro Wochentag (Mo–Fr) die dominante Abwesenheit oder null.
+function buildAbsenceMap(employeeId: string, weekStart: string | undefined, absences: Absence[]): (Absence | null)[] {
+    const out: (Absence | null)[] = [null, null, null, null, null];
+    if (!weekStart) return out;
+    const monday = new Date(weekStart);
+    const priority: Record<AbsenceType, number> = { vacation: 0, sick: 1, other: 2, home_office: 3 };
+    for (let i = 0; i < 5; i++) {
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+        const dayAbsences = absences.filter(a =>
+            a.employee_id === employeeId
+            && a.status === 'approved'
+            && isDateCovered(day, a)
+        );
+        if (dayAbsences.length === 0) continue;
+        dayAbsences.sort((a, b) => priority[a.type] - priority[b.type]);
+        out[i] = dayAbsences[0];
+    }
+    return out;
+}
+
+function dateForDay(weekStart: string, dayIdx: number): string {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + dayIdx);
+    return d.toISOString().slice(0, 10);
 }
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
@@ -158,7 +190,7 @@ const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
 const COL_COUNT = 12 as const;
 
 // ─── Main component ─────────────────────────────────────────────────────────────
-export default function ResourceGrid({ rows, projects, onUpdateAllocation, onCreateAllocation, onDeleteAllocation, allClients }: ResourceGridProps) {
+export default function ResourceGrid({ rows, projects, absences = [], weekStart, onUpdateAllocation, onCreateAllocation, onDeleteAllocation, onToggleHomeoffice, allClients }: ResourceGridProps) {
     const globalTotals = useMemo(() => {
         const t = { mo: 0, di: 0, mi: 0, do: 0, fr: 0 };
         rows.forEach(r => r.allocations.forEach(a => {
@@ -192,6 +224,12 @@ export default function ResourceGrid({ rows, projects, onUpdateAllocation, onCre
                     {rows.map(row => {
                         const dayTotals = DAYS.map(d => row.allocations.reduce((s, a) => s + ((a as any)[d] || 0), 0));
                         const empTotal  = dayTotals.reduce((s, v) => s + v, 0);
+                        const absenceMap = buildAbsenceMap(row.employee.id, weekStart, absences);
+
+                        const handleHomeofficeFor = (i: number, existing: Absence | null) => {
+                            if (!onToggleHomeoffice || !weekStart) return;
+                            onToggleHomeoffice(row.employee.id, dateForDay(weekStart, i), existing);
+                        };
 
                         return (
                             <React.Fragment key={row.employee.id}>
@@ -219,21 +257,66 @@ export default function ResourceGrid({ rows, projects, onUpdateAllocation, onCre
                                                 </div>
                                             </div>
 
-                                            {/* Per-day mini capacity bars */}
+                                            {/* Per-day mini capacity bars + Abwesenheits-Toggle */}
                                             <div className="flex items-center gap-2.5">
-                                                {dayTotals.map((v, i) => (
-                                                    <div key={i} className="flex flex-col items-center gap-1">
-                                                        <div className="w-6 h-1.5 rounded-full bg-default/40 overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all ${capacityBarColor(v)}`}
-                                                                style={{ width: `${Math.min(100, (v / 10) * 100)}%` }}
-                                                            />
+                                                {dayTotals.map((v, i) => {
+                                                    const absence = absenceMap[i];
+                                                    const absenceType = absence?.type ?? null;
+                                                    const absenceColor = absenceType ? ABSENCE_TYPE_COLOR[absenceType] : null;
+                                                    const isHomeoffice = absenceType === 'home_office';
+                                                    const canToggleHO = onToggleHomeoffice && weekStart && (!absenceType || isHomeoffice);
+
+                                                    return (
+                                                        <div key={i} className="group flex flex-col items-center gap-1 min-w-[28px]">
+                                                            {absenceType && !isHomeoffice ? (
+                                                                <div
+                                                                    className="w-6 h-3 rounded flex items-center justify-center"
+                                                                    title={ABSENCE_TYPE_LABEL[absenceType]}
+                                                                    style={{ background: absenceColor!.bg, color: absenceColor!.fg, border: `1px solid ${absenceColor!.border}` }}
+                                                                >
+                                                                    <AbsenceIcon type={absenceType} size={9} />
+                                                                </div>
+                                                            ) : isHomeoffice ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleHomeofficeFor(i, absence)}
+                                                                    title="Homeoffice entfernen"
+                                                                    className="w-6 h-3 rounded flex items-center justify-center transition"
+                                                                    style={{ background: absenceColor!.bg, color: absenceColor!.fg, border: `1px solid ${absenceColor!.border}` }}
+                                                                >
+                                                                    <Home size={9} strokeWidth={2} />
+                                                                </button>
+                                                            ) : (
+                                                                <div className="relative w-6 h-3 flex items-center justify-center">
+                                                                    <div className="w-6 h-1.5 rounded-full bg-default/40 overflow-hidden absolute">
+                                                                        <div
+                                                                            className={`h-full rounded-full transition-all ${capacityBarColor(v)}`}
+                                                                            style={{ width: `${Math.min(100, (v / 10) * 100)}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    {canToggleHO && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleHomeofficeFor(i, null)}
+                                                                            title="Homeoffice eintragen"
+                                                                            className="absolute opacity-0 group-hover:opacity-100 transition w-4 h-4 rounded flex items-center justify-center"
+                                                                            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}
+                                                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+                                                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}
+                                                                        >
+                                                                            <Home size={8} strokeWidth={2.25} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            <span
+                                                                className={`text-[9px] tabular-nums leading-none ${absenceType && absenceType !== 'home_office' ? 'text-text-placeholder opacity-50' : capacityTextColor(v)}`}
+                                                            >
+                                                                {v > 0 ? `${v}` : <span className="text-text-placeholder opacity-40">·</span>}
+                                                            </span>
                                                         </div>
-                                                        <span className={`text-[9px] tabular-nums leading-none ${capacityTextColor(v)}`}>
-                                                            {v > 0 ? `${v}` : <span className="text-text-placeholder opacity-40">·</span>}
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                                 <div className="ml-1 px-2.5 py-1 bg-surface rounded-lg border border-default shadow-sm">
                                                     <span className={`text-[11px] ${capacityTextColor(empTotal)}`}>
                                                         {empTotal > 0 ? `${empTotal}h` : '—'}
@@ -299,17 +382,28 @@ export default function ResourceGrid({ rows, projects, onUpdateAllocation, onCre
                                                 </select>
                                             </td>
 
-                                            {/* Hour cells Mo–Fr */}
-                                            {DAYS.map(day => (
-                                                <td key={day} className="border-r border-default p-0 w-12 h-9">
-                                                    <HourCell
-                                                        allocId={alloc.id}
-                                                        day={day}
-                                                        value={(alloc as any)[day] || 0}
-                                                        onSave={v => onUpdateAllocation(alloc.id, day, v)}
-                                                    />
-                                                </td>
-                                            ))}
+                                            {/* Hour cells Mo–Fr — bei Abwesenheit subtil eingefärbt */}
+                                            {DAYS.map((day, dayIdx) => {
+                                                const dayAbsence = absenceMap[dayIdx];
+                                                const tintStyle: React.CSSProperties = dayAbsence
+                                                    ? { background: ABSENCE_TYPE_COLOR[dayAbsence.type].bg }
+                                                    : {};
+                                                return (
+                                                    <td
+                                                        key={day}
+                                                        className="border-r border-default p-0 w-12 h-9"
+                                                        style={tintStyle}
+                                                        title={dayAbsence ? ABSENCE_TYPE_LABEL[dayAbsence.type] : undefined}
+                                                    >
+                                                        <HourCell
+                                                            allocId={alloc.id}
+                                                            day={day}
+                                                            value={(alloc as any)[day] || 0}
+                                                            onSave={v => onUpdateAllocation(alloc.id, day, v)}
+                                                        />
+                                                    </td>
+                                                );
+                                            })}
 
                                             {/* Row total Σ */}
                                             <td className="border-r border-default text-center w-10 px-0">
