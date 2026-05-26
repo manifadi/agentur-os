@@ -17,8 +17,9 @@ import {
     BarChart3,
     Plane,
 } from 'lucide-react';
-import { AgencySettings, Employee, SidebarItemId, DEFAULT_SIDEBAR_ITEMS } from '../types';
+import { AgencySettings, Employee, SidebarItemId, DEFAULT_SIDEBAR_ITEMS, ALL_SIDEBAR_ITEMS } from '../types';
 import UserAvatar from './UI/UserAvatar';
+import MoreAppsButton from './MoreAppsButton';
 
 const ICON_MAP: Record<SidebarItemId, any> = {
     dashboard: LayoutGrid,
@@ -256,15 +257,36 @@ export default function MainSidebar({
                     )}
                 </button>
 
-                {(activeUser?.dashboard_config?.sidebar_items ?? DEFAULT_SIDEBAR_ITEMS).map((itemId) => (
-                    <NavItem
-                        key={itemId}
-                        view={itemId}
-                        href={HREF_MAP[itemId]}
-                        icon={ICON_MAP[itemId]}
-                        label={LABEL_MAP[itemId]}
-                    />
-                ))}
+                {(() => {
+                    const visibleItems = activeUser?.dashboard_config?.sidebar_items ?? DEFAULT_SIDEBAR_ITEMS;
+                    const hiddenItems = ALL_SIDEBAR_ITEMS
+                        .filter(i => !visibleItems.includes(i.id))
+                        .map(i => ({
+                            id: i.id,
+                            label: i.label,
+                            href: i.href,
+                            icon: ICON_MAP[i.id],
+                        }));
+                    return (
+                        <>
+                            {visibleItems.map(itemId => (
+                                <NavItem
+                                    key={itemId}
+                                    view={itemId}
+                                    href={HREF_MAP[itemId]}
+                                    icon={ICON_MAP[itemId]}
+                                    label={LABEL_MAP[itemId]}
+                                />
+                            ))}
+                            {hiddenItems.length > 0 && (
+                                <>
+                                    <div className="my-1.5 mx-1 h-px" style={{ background: 'var(--sidebar-border)' }} />
+                                    <MoreAppsButton hidden={hiddenItems} isSidebarExpanded={isSidebarExpanded} />
+                                </>
+                            )}
+                        </>
+                    );
+                })()}
             </div>
 
             {/* Footer */}

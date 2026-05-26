@@ -1,8 +1,9 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Home } from 'lucide-react';
 import { Project, Client, ResourceAllocation, AllocationRow, Absence, AbsenceType, ABSENCE_TYPE_COLOR, ABSENCE_TYPE_LABEL } from '../../types';
 import UserAvatar from '../UI/UserAvatar';
-import { isDateCovered, dominantAbsenceType } from '../../utils/absences';
+import AbsenceIcon from '../Absences/AbsenceIcon';
+import { isDateCovered } from '../../utils/absences';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
 const ALLOCATION_STATUS_OPTIONS = ['Prio/Asap', 'Bearbeitung möglich', 'Geplant', 'Warten auf Kundenfeedback', 'Erledigt'] as const;
@@ -39,17 +40,20 @@ interface ResourceCardsProps {
     allClients: Client[];
     absences?: Absence[];
     weekStart?: string; // YYYY-MM-DD Montag
+    onToggleHomeoffice?: (employeeId: string, isoDate: string, existing: Absence | null) => Promise<void>;
     onUpdateAllocation: (id: string, field: string, value: any) => Promise<void>;
     onCreateAllocation: (employeeId: string, data: { type: 'existing'; projectId: string } | { type: 'new'; clientName: string; projectTitle: string }) => Promise<void>;
     onDeleteAllocation: (id: string) => void;
 }
 
-// Hilfsfunktion: gibt für einen MA pro Wochentag (Mo-Fr) den Abwesenheits-Typ
-// oder null zurück. Index 0 = Montag, 4 = Freitag.
-function buildAbsenceMap(employeeId: string, weekStart: string | undefined, absences: Absence[]): (AbsenceType | null)[] {
-    const out: (AbsenceType | null)[] = [null, null, null, null, null];
+// Hilfsfunktion: liefert pro Wochentag (Mo–Fr) die dominante Abwesenheit
+// (vollständiges Absence-Objekt, damit Stornieren möglich ist) oder null.
+// Priorität: vacation > sick > other > home_office.
+function buildAbsenceMap(employeeId: string, weekStart: string | undefined, absences: Absence[]): (Absence | null)[] {
+    const out: (Absence | null)[] = [null, null, null, null, null];
     if (!weekStart) return out;
     const monday = new Date(weekStart);
+    const priority: Record<AbsenceType, number> = { vacation: 0, sick: 1, other: 2, home_office: 3 };
     for (let i = 0; i < 5; i++) {
         const day = new Date(monday);
         day.setDate(monday.getDate() + i);
@@ -58,13 +62,22 @@ function buildAbsenceMap(employeeId: string, weekStart: string | undefined, abse
             && a.status === 'approved'
             && isDateCovered(day, a)
         );
-        out[i] = dominantAbsenceType(dayAbsences);
+        if (dayAbsences.length === 0) continue;
+        dayAbsences.sort((a, b) => priority[a.type] - priority[b.type]);
+        out[i] = dayAbsences[0];
     }
     return out;
 }
 
+// Datum für Tag-Index (0=Mo..4=Fr) basierend auf weekStart
+function dateForDay(weekStart: string, dayIdx: number): string {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + dayIdx);
+    return d.toISOString().slice(0, 10);
+}
+
 // ─── Root component ───────────────────────────────────────────────────────────
-export default function ResourceCards({ rows, projects, allClients, absences = [], weekStart, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: ResourceCardsProps) {
+export default function ResourceCards({ rows, projects, allClients, absences = [], weekStart, onToggleHomeoffice, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: ResourceCardsProps) {
     if (rows.length === 0) {
         return (
             <div className="flex items-center justify-center h-64 text-text-muted text-sm">
@@ -82,6 +95,8 @@ export default function ResourceCards({ rows, projects, allClients, absences = [
                     projects={projects}
                     allClients={allClients}
                     absenceMap={buildAbsenceMap(row.employee.id, weekStart, absences)}
+                    weekStart={weekStart}
+                    onToggleHomeoffice={onToggleHomeoffice}
                     onUpdateAllocation={onUpdateAllocation}
                     onCreateAllocation={onCreateAllocation}
                     onDeleteAllocation={onDeleteAllocation}
@@ -92,11 +107,13 @@ export default function ResourceCards({ rows, projects, allClients, absences = [
 }
 
 // ─── Employee card ────────────────────────────────────────────────────────────
-function EmployeeCard({ row, projects, allClients, absenceMap, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: {
+function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onToggleHomeoffice, onUpdateAllocation, onCreateAllocation, onDeleteAllocation }: {
     row: AllocationRow;
     projects: Project[];
     allClients: Client[];
-    absenceMap: (AbsenceType | null)[];
+    absenceMap: (Absence | null)[];
+    weekStart?: string;
+    onToggleHomeoffice?: (employeeId: string, isoDate: string, existing: Absence | null) => Promise<void>;
     onUpdateAllocation: (id: string, field: string, value: any) => Promise<void>;
     onCreateAllocation: (uid: string, data: any) => Promise<void>;
     onDeleteAllocation: (id: string) => void;
@@ -169,28 +186,75 @@ function EmployeeCard({ row, projects, allClients, absenceMap, onUpdateAllocatio
                             .map(a => ({ color: projectColor(a.project_id), h: (a as any)[day] || 0 }))
                             .filter(s => s.h > 0);
 
-                        const absenceType = absenceMap[i];
-                        const absenceColor = absenceType ? ABSENCE_TYPE_COLOR[absenceType] : null;
+                        const absence       = absenceMap[i];
+                        const absenceType   = absence?.type ?? null;
+                        const absenceColor  = absenceType ? ABSENCE_TYPE_COLOR[absenceType] : null;
                         const blocksCapacity = absenceType === 'vacation' || absenceType === 'sick' || absenceType === 'other';
+                        const isHomeoffice  = absenceType === 'home_office';
+
+                        // Quick-Toggle nur möglich wenn entweder leer oder homeoffice
+                        const canToggleHO = onToggleHomeoffice && weekStart && (!absenceType || isHomeoffice);
+
+                        const handleHomeoffice = () => {
+                            if (!canToggleHO || !weekStart) return;
+                            const isoDate = dateForDay(weekStart, i);
+                            onToggleHomeoffice!(row.employee.id, isoDate, isHomeoffice ? absence : null);
+                        };
 
                         return (
-                            <div key={day}>
-                                <div className="flex justify-between items-baseline mb-1">
+                            <div key={day} className="group">
+                                <div className="flex justify-between items-baseline mb-1 min-h-[14px]">
                                     <span className="text-[9px] font-bold text-text-muted">{DAY_LABELS[i]}</span>
-                                    {absenceType ? (
+
+                                    {/* Rechte Seite: entweder Total-h, Absence-Icon oder Quick-Toggle */}
+                                    {absenceType && !isHomeoffice ? (
                                         <span
-                                            className="text-[9px] font-bold uppercase tracking-wider"
+                                            className="inline-flex items-center"
                                             title={ABSENCE_TYPE_LABEL[absenceType]}
                                             style={{ color: absenceColor!.fg }}
                                         >
-                                            {absenceColor!.emoji}
+                                            <AbsenceIcon type={absenceType} size={11} />
                                         </span>
+                                    ) : isHomeoffice ? (
+                                        // Aktiver Homeoffice-Tag — Klick entfernt
+                                        <button
+                                            type="button"
+                                            onClick={handleHomeoffice}
+                                            title="Homeoffice entfernen"
+                                            className="inline-flex items-center rounded-md p-0.5 transition"
+                                            style={{ color: absenceColor!.fg, background: absenceColor!.bg }}
+                                        >
+                                            <Home size={10} strokeWidth={2} />
+                                        </button>
                                     ) : (
-                                        <span className={`text-[9px] font-bold tabular-nums ${over ? 'text-red-500' : total > 0 ? 'text-text-secondary' : 'text-text-placeholder'}`}>
-                                            {total > 0 ? `${total}h` : '—'}
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className={`text-[9px] font-bold tabular-nums ${over ? 'text-red-500' : total > 0 ? 'text-text-secondary' : 'text-text-placeholder'}`}>
+                                                {total > 0 ? `${total}h` : '—'}
+                                            </span>
+                                            {/* Hover-Toggle: Homeoffice setzen */}
+                                            {onToggleHomeoffice && weekStart && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleHomeoffice}
+                                                    title="Homeoffice eintragen"
+                                                    className="opacity-0 group-hover:opacity-100 transition rounded-md p-0.5"
+                                                    style={{ color: 'var(--text-muted)' }}
+                                                    onMouseEnter={e => {
+                                                        (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                                                        (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)';
+                                                    }}
+                                                    onMouseLeave={e => {
+                                                        (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+                                                        (e.currentTarget as HTMLElement).style.background = '';
+                                                    }}
+                                                >
+                                                    <Home size={10} strokeWidth={2} />
+                                                </button>
+                                            )}
                                         </span>
                                     )}
                                 </div>
+
                                 <div
                                     className="h-1.5 rounded-full overflow-hidden flex relative"
                                     style={{
@@ -211,8 +275,9 @@ function EmployeeCard({ row, projects, allClients, absenceMap, onUpdateAllocatio
                                         <div className="h-full" style={{ width: '100%', background: absenceColor!.border }} />
                                     )}
                                 </div>
+
                                 {/* Homeoffice-Strip unter dem normalen Balken */}
-                                {absenceType === 'home_office' && (
+                                {isHomeoffice && (
                                     <div className="h-0.5 mt-0.5 rounded-full" style={{ background: absenceColor!.border }} />
                                 )}
                                 {over && !blocksCapacity && (

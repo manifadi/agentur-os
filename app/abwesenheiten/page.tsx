@@ -11,6 +11,7 @@ import {
 import { usePageTitle } from '../hooks/usePageTitle';
 import ViewSwitcher from '../components/UI/ViewSwitcher';
 import AbsenceModal from '../components/Absences/AbsenceModal';
+import AbsenceIcon from '../components/Absences/AbsenceIcon';
 import ConfirmModal from '../components/Modals/ConfirmModal';
 import {
     Plane, Inbox, Users as UsersIcon, Plus, Check, X, Trash2, CalendarDays, Loader2,
@@ -336,9 +337,9 @@ function RequestsTab({ pending, onDecide, loading }: {
                         <div className="card-body">
                             <div className="flex items-start justify-between gap-4 flex-wrap">
                                 <div className="flex items-start gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-base"
+                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
                                          style={{ background: color.bg, color: color.fg, border: `1px solid ${color.border}` }}>
-                                        {color.emoji}
+                                        <AbsenceIcon type={req.type} size={16} />
                                     </div>
                                     <div className="min-w-0">
                                         <div className="text-sm font-bold text-text-primary">{req.employee_name}</div>
@@ -421,9 +422,9 @@ function AbsenceRow({ absence, country = 'DE', state, onCancel, showCancel, show
     return (
         <div className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-hover"
              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-base"
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
                  style={{ background: color.bg, color: color.fg, border: `1px solid ${color.border}` }}>
-                {color.emoji}
+                <AbsenceIcon type={absence.type} size={15} />
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">

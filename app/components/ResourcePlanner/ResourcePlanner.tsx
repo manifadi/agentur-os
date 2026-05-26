@@ -7,6 +7,7 @@ import ResourceGrid from './ResourceGrid';
 import ResourceCards from './ResourceCards';
 import ViewSwitcher from '../UI/ViewSwitcher';
 import PeriodNavigator from '../UI/PeriodNavigator';
+import { toast } from 'sonner';
 
 interface ResourcePlannerProps {
     employees: Employee[];
@@ -109,6 +110,28 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
             .lte('start_date', weekRange.to)
             .gte('end_date',   weekRange.from);
         if (data) setAbsences(data as Absence[]);
+    };
+
+    // Quick-Toggle für Homeoffice direkt im Ressourcenplan.
+    // Ohne bestehenden Eintrag → request_absence (sofort approved da home_office).
+    // Mit bestehendem → cancel_absence.
+    const handleToggleHomeoffice = async (employeeId: string, isoDate: string, existing: Absence | null) => {
+        if (existing) {
+            const { error } = await supabase.rpc('cancel_absence', { p_absence_id: existing.id });
+            if (error) toast.error('Fehler: ' + error.message);
+            else toast.success('Homeoffice entfernt.');
+        } else {
+            const { error } = await supabase.rpc('request_absence', {
+                p_employee_id: employeeId,
+                p_type:        'home_office',
+                p_start_date:  isoDate,
+                p_end_date:    isoDate,
+                p_half_day:    'none',
+                p_reason:      null,
+            });
+            if (error) toast.error('Fehler: ' + error.message);
+            else toast.success('Homeoffice eingetragen.');
+        }
     };
 
     useEffect(() => {
@@ -310,6 +333,7 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                         allClients={clients}
                         absences={absences}
                         weekStart={weekRange.from}
+                        onToggleHomeoffice={handleToggleHomeoffice}
                         onUpdateAllocation={handleUpdateAllocation}
                         onCreateAllocation={handleCreateAllocation}
                         onDeleteAllocation={(id) => setDeleteConfirm({ id, open: true })}

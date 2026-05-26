@@ -148,11 +148,13 @@ export const ABSENCE_TYPE_LABEL: Record<AbsenceType, string> = {
     other:       'Sonstige',
 };
 
-export const ABSENCE_TYPE_COLOR: Record<AbsenceType, { bg: string; fg: string; border: string; emoji: string }> = {
-    vacation:    { bg: 'rgba(107,114,128,0.18)',  fg: 'rgb(75,85,99)',    border: 'rgba(107,114,128,0.30)', emoji: '🌴' },
-    sick:        { bg: 'rgba(59,130,246,0.15)',   fg: 'rgb(30,64,175)',   border: 'rgba(59,130,246,0.25)',  emoji: '🤒' },
-    home_office: { bg: 'rgba(245,158,11,0.18)',   fg: 'rgb(120,53,15)',   border: 'rgba(245,158,11,0.30)',  emoji: '🏠' },
-    other:       { bg: 'rgba(99,102,241,0.15)',   fg: 'rgb(67,56,202)',   border: 'rgba(99,102,241,0.25)',  emoji: '📌' },
+// Icon-Component-Name aus lucide-react (als String, damit Types nicht aufgeblasen werden).
+// Konsumenten importieren das passende Icon explizit oder nutzen <AbsenceIcon type={...} />.
+export const ABSENCE_TYPE_COLOR: Record<AbsenceType, { bg: string; fg: string; border: string }> = {
+    vacation:    { bg: 'rgba(107,114,128,0.18)',  fg: 'rgb(75,85,99)',    border: 'rgba(107,114,128,0.30)' },
+    sick:        { bg: 'rgba(59,130,246,0.15)',   fg: 'rgb(30,64,175)',   border: 'rgba(59,130,246,0.25)'  },
+    home_office: { bg: 'rgba(245,158,11,0.18)',   fg: 'rgb(120,53,15)',   border: 'rgba(245,158,11,0.30)'  },
+    other:       { bg: 'rgba(99,102,241,0.15)',   fg: 'rgb(67,56,202)',   border: 'rgba(99,102,241,0.25)'  },
 };
 
 export interface Department {
