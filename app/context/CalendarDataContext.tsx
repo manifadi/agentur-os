@@ -88,15 +88,33 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
 
     const enabled = !!currentUser?.id && !!organizationId;
 
-    // Predicate: does this event fall inside the currently visible range?
-    const rangeFromRef = useRef(rangeFrom);
-    const rangeToRef = useRef(rangeTo);
-    rangeFromRef.current = rangeFrom;
-    rangeToRef.current = rangeTo;
+    // ── Gepufferter Fetch-Range ──────────────────────────────────
+    // Wir laden NICHT nur die sichtbare Woche, sondern einen monats-
+    // quantisierten Block: Anfang Vormonat → Ende Folgemonat.
+    // Solange der User innerhalb dieses Fensters navigiert (Woche/Monat
+    // vor & zurück), sind die Events bereits geladen — die Views filtern
+    // clientseitig, also kein Warten beim Wechseln. Erst beim Verlassen
+    // des Fensters quantisiert der Block neu und lädt nach.
+    const fetchFrom = useMemo(
+        () => new Date(rangeFrom.getFullYear(), rangeFrom.getMonth() - 1, 1, 0, 0, 0, 0),
+        [rangeFrom],
+    );
+    const fetchTo = useMemo(
+        () => new Date(rangeTo.getFullYear(), rangeTo.getMonth() + 2, 0, 23, 59, 59, 999),
+        [rangeTo],
+    );
+    const fetchFromMs = fetchFrom.getTime();
+    const fetchToMs = fetchTo.getTime();
+
+    // Predicate: does this event fall inside the loaded (buffered) range?
+    const fetchFromRef = useRef(fetchFrom);
+    const fetchToRef = useRef(fetchTo);
+    fetchFromRef.current = fetchFrom;
+    fetchToRef.current = fetchTo;
 
     const inRange = useCallback((row: { start_at: string }) => {
         const t = new Date(row.start_at).getTime();
-        return t >= rangeFromRef.current.getTime() && t <= rangeToRef.current.getTime();
+        return t >= fetchFromRef.current.getTime() && t <= fetchToRef.current.getTime();
     }, []);
 
     // ── Own events ───────────────────────────────────────────────
@@ -104,14 +122,14 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
         table: 'calendar_events',
         filter: enabled ? `employee_id=eq.${currentUser!.id}` : null,
         enabled,
-        deps: [currentUser?.id, rangeFrom.getTime(), rangeTo.getTime()],
+        deps: [currentUser?.id, fetchFromMs, fetchToMs],
         fetchFn: async () => {
             if (!currentUser?.id) return [];
             const { data } = await supabase.from('calendar_events')
                 .select('*')
                 .eq('employee_id', currentUser.id)
-                .gte('start_at', rangeFrom.toISOString())
-                .lte('start_at', rangeTo.toISOString())
+                .gte('start_at', fetchFromRef.current.toISOString())
+                .lte('start_at', fetchToRef.current.toISOString())
                 .order('start_at');
             return (data as CalendarEvent[]) || [];
         },
@@ -125,7 +143,7 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
         table: 'calendar_events',
         filter: visibleEmployeeIds.length > 0 ? teamFilter : null,
         enabled: enabled && visibleEmployeeIds.length > 0,
-        deps: [visibleEmployeeIds.join(','), rangeFrom.getTime(), rangeTo.getTime()],
+        deps: [visibleEmployeeIds.join(','), fetchFromMs, fetchToMs],
         // Need joined `employees` data — payload doesn't include it, so refetch on change.
         refetchOnChange: true,
         fetchFn: async () => {
@@ -134,8 +152,8 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
                 .select('*, employees(id, name, initials, avatar_url)')
                 .in('employee_id', visibleEmployeeIds)
                 .eq('visibility', 'public')
-                .gte('start_at', rangeFrom.toISOString())
-                .lte('start_at', rangeTo.toISOString())
+                .gte('start_at', fetchFromRef.current.toISOString())
+                .lte('start_at', fetchToRef.current.toISOString())
                 .order('start_at');
             return (data as CalendarEvent[]) || [];
         },
@@ -204,8 +222,8 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
             return;
         }
 
-        const from = rangeFromRef.current;
-        const to = rangeToRef.current;
+        const from = fetchFromRef.current;
+        const to = fetchToRef.current;
         const allParsed: ParsedExternalEvent[] = [];
         const errors: SyncError[] = [];
 
@@ -281,7 +299,7 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
     useEffect(() => {
         if (!enabled) return;
         refreshExternals();
-    }, [enabled, visibleCalsKey, rangeFrom.getTime(), rangeTo.getTime(), refreshExternals]);
+    }, [enabled, visibleCalsKey, fetchFromMs, fetchToMs, refreshExternals]);
 
     // Background polling for externals
     useEffect(() => {
