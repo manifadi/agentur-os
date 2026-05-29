@@ -45,14 +45,24 @@ export default function OnboardingPage() {
         const alreadyInContext = employees.find(e => e.email === session.user.email);
         if (alreadyInContext) { router.replace('/dashboard'); return; }
 
-        // Eingeladene Accounts verknüpfen (SECURITY DEFINER, idempotent, umgeht RLS).
-        // Normalerweise ist user_id bereits beim Einladen serverseitig gesetzt — dies
-        // ist der Fallback, falls eine Altdaten-Einladung noch nicht verknüpft war.
+        // Account zuverlässig mit dem Mitarbeiter-Eintrag verknüpfen — serverseitig
+        // über den Service-Role-Key. Unabhängig von der link_invited_employee-RPC
+        // (muss manuell deployed sein) und vom generateLink-user-Feld (bei magiclink
+        // nicht immer vorhanden). Das war die Ursache, warum Eingeladene auf dem
+        // "Kein Zugang"-Screen landeten.
         setStatus('linking');
-        const { data: linkedNow } = await supabase.rpc('link_invited_employee');
-        if (linkedNow) { router.replace('/dashboard'); return; }
+        try {
+            const res = await fetch('/api/link-account', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token ?? ''}` },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.linked) { router.replace('/dashboard'); return; }
+        } catch {
+            // Netzwerkfehler → unten via RLS-Query gegenprüfen
+        }
 
-        // Bereits verknüpft? Dann ist der Mitarbeiter-Eintrag jetzt via RLS sichtbar.
+        // Fallback: bereits verknüpft? Dann ist der Eintrag via RLS sichtbar.
         const { data: empRow } = await supabase
             .from('employees').select('id').eq('email', session.user.email).maybeSingle();
         if (empRow) { router.replace('/dashboard'); return; }
