@@ -105,9 +105,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             }
             // Nach erfolgreichem Login (auch beim "weitere Agentur hinzufügen") Overlay schließen
             if (event === 'SIGNED_IN') setAddingAccount(false);
+            // Passwort-vergessen-Link angeklickt → immer zur Passwort-Setzen-Seite
+            if (event === 'PASSWORD_RECOVERY') router.replace('/reset-password');
         });
         return () => subscription.unsubscribe();
-    }, [captureSession]);
+    }, [captureSession, router]);
 
     // Vault-Liste laden + auf Änderungen (auch aus anderen Tabs) hören
     useEffect(() => {

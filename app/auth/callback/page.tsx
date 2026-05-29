@@ -10,35 +10,39 @@ export default function AuthCallbackPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const code = searchParams.get('code');
-        const next = searchParams.get('next');
+        let handled = false;
 
-        if (!code) {
-            router.replace('/');
-            return;
+        // Einladung / Magic-Link: hat der User schon ein Passwort?
+        // Falls nicht (frisch eingeladen) → erst Passwort festlegen, sonst Onboarding.
+        const routeBySession = (session: any) => {
+            if (handled || !session) return;
+            handled = true;
+            const pwSet = session.user?.user_metadata?.password_set;
+            router.replace(pwSet ? '/onboarding' : '/set-password');
+        };
+
+        // PKCE-Variante (falls jemals client-seitig initiiert)
+        const code = searchParams.get('code');
+        if (code) {
+            supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+                if (error) {
+                    setError('Der Link ist abgelaufen oder ungültig. Bitte einen neuen Link anfordern.');
+                    return;
+                }
+                routeBySession(data.session);
+            });
         }
 
-        supabase.auth.exchangeCodeForSession(code).then(async ({ error }) => {
-            if (error) {
-                setError('Der Link ist abgelaufen oder ungültig. Bitte einen neuen Link anfordern.');
-                return;
-            }
+        // Implicit/Hash-Link (Standard bei server-seitig erzeugten Links): die Session
+        // wird automatisch aus dem URL-Hash erkannt → über Event + aktuellen Stand abgreifen.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => routeBySession(session));
+        supabase.auth.getSession().then(({ data: { session } }) => routeBySession(session));
 
-            // Passwort-vergessen-Link → direkt neues Passwort setzen
-            if (next === 'reset') {
-                router.replace('/reset-password');
-                return;
-            }
+        const timeout = setTimeout(() => {
+            if (!handled) setError('Der Link konnte nicht verarbeitet werden. Bitte fordere einen neuen an.');
+        }, 8000);
 
-            // Einladung / Magic-Link: hat der User schon ein Passwort?
-            // Falls nicht (frisch eingeladen) → erst Passwort festlegen.
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user?.user_metadata?.password_set) {
-                router.replace('/set-password');
-            } else {
-                router.replace('/onboarding');
-            }
-        });
+        return () => { subscription.unsubscribe(); clearTimeout(timeout); };
     }, []);
 
     if (error) {
