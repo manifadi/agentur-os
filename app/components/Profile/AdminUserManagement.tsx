@@ -83,7 +83,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         <div>
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Name</label>
                             <input
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.name || ''}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="Max Mustermann"
@@ -92,7 +92,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         <div>
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Kürzel</label>
                             <input
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition uppercase"
+                                className="input-field uppercase"
                                 value={formData.initials || ''}
                                 onChange={e => setFormData({ ...formData, initials: e.target.value })}
                                 placeholder="MM"
@@ -106,7 +106,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Email (Login)</label>
                             <div className="relative">
                                 <input
-                                    className="w-full pl-9 p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                    className="input-field pl-9"
                                     value={formData.email || ''}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="name@agentur.com"
@@ -118,7 +118,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         <div>
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Telefon</label>
                             <input
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.phone || ''}
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 placeholder="+43 123 45678"
@@ -130,7 +130,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         <div>
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Rolle</label>
                             <select
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.role || 'user'}
                                 onChange={e => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
                             >
@@ -141,7 +141,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         <div>
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Abteilung</label>
                             <select
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.department_id || ''}
                                 onChange={e => setFormData({ ...formData, department_id: e.target.value })}
                             >
@@ -156,7 +156,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         <div>
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Vorgesetzte:r</label>
                             <select
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.manager_id || ''}
                                 onChange={e => setFormData({ ...formData, manager_id: e.target.value || null })}
                             >
@@ -170,7 +170,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                             <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Startdatum</label>
                             <input
                                 type="date"
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.started_at || ''}
                                 onChange={e => setFormData({ ...formData, started_at: e.target.value || null })}
                             />
@@ -184,7 +184,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                                 type="number"
                                 min={0}
                                 max={365}
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.vacation_days_per_year ?? 25}
                                 onChange={e => setFormData({ ...formData, vacation_days_per_year: parseInt(e.target.value, 10) || 0 })}
                             />
@@ -195,7 +195,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                                 type="number"
                                 min={0}
                                 max={365}
-                                className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                className="input-field"
                                 value={formData.carryover_days ?? 0}
                                 onChange={e => setFormData({ ...formData, carryover_days: parseInt(e.target.value, 10) || 0 })}
                             />
@@ -205,7 +205,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                     <div>
                         <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Job Titel (Position)</label>
                         <select
-                            className="w-full p-2.5 bg-input border border-default rounded-xl text-sm text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                            className="input-field"
                             value={formData.job_title || ''}
                             onChange={e => setFormData({ ...formData, job_title: e.target.value })}
                         >
@@ -238,7 +238,7 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                                             min={0}
                                             max={24}
                                             step={0.5}
-                                            className="w-full p-1.5 bg-input border border-default rounded-lg text-xs text-center tabular-nums text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition"
+                                            className="w-full py-1.5 rounded-lg text-xs text-center tabular-nums bg-subtle border border-default text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
                                             value={val}
                                             onChange={e => {
                                                 const newSched = [...schedule];
@@ -262,13 +262,13 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                 </div>
 
                 <div className="flex gap-3 justify-end mt-8">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-secondary hover:bg-hover rounded-xl transition">Abbrechen</button>
+                    <button onClick={onClose} className="btn-secondary">Abbrechen</button>
                     <button
                         onClick={() => onSave(formData)}
                         disabled={isLoading}
-                        className="px-4 py-2 text-sm font-bold text-surface bg-accent hover:opacity-90 rounded-xl transition shadow-sm flex items-center gap-2"
+                        className="btn-primary"
                     >
-                        {isLoading && <div className="w-4 h-4 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />}
+                        {isLoading && <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                         {mode === 'create' ? 'Anlegen' : 'Speichern'}
                     </button>
                 </div>
@@ -313,7 +313,7 @@ function InviteModal({ isOpen, onClose, organizationId }: { isOpen: boolean; onC
 
     if (!isOpen) return null;
 
-    const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none text-sm transition';
+    const INPUT = 'input-field';
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -335,13 +335,13 @@ function InviteModal({ isOpen, onClose, organizationId }: { isOpen: boolean; onC
                         <input className={INPUT} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="max@agentur.com" required />
                     </div>
                     <div className="flex gap-3 justify-end pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-secondary hover:bg-hover rounded-xl transition">Abbrechen</button>
+                        <button type="button" onClick={onClose} className="btn-secondary">Abbrechen</button>
                         <button
                             type="submit"
                             disabled={loading || !email || !name}
-                            className="px-4 py-2 text-sm font-bold text-surface bg-accent hover:opacity-90 rounded-xl transition shadow-sm flex items-center gap-2 disabled:opacity-50"
+                            className="btn-primary"
                         >
-                            {loading ? <div className="w-4 h-4 border-2 border-surface/30 border-t-surface rounded-full animate-spin" /> : <Send size={14} />}
+                            {loading ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Send size={14} />}
                             Einladung senden
                         </button>
                     </div>
@@ -604,10 +604,10 @@ export default function AdminUserManagement({ employees, departments, currentEmp
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-text-primary">Mitarbeiter & Rollen</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-accent text-surface rounded-xl text-sm font-bold hover:opacity-90 transition shadow-sm">
+                        <button onClick={() => setShowInviteModal(true)} className="btn-primary">
                             <Send size={14} /> Einladen
                         </button>
-                        <button onClick={handleOpenCreate} className="flex items-center gap-2 px-3 py-1.5 bg-subtle border border-default text-text-primary rounded-xl text-sm font-bold hover:bg-hover transition">
+                        <button onClick={handleOpenCreate} className="btn-secondary">
                             <UserPlus size={16} /> Manuell anlegen
                         </button>
                     </div>

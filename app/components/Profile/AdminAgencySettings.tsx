@@ -11,7 +11,7 @@ interface Props {
     section?: 'company' | 'branding' | 'templates';
 }
 
-const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none transition text-sm';
+const INPUT = 'input-field';
 const CARD = 'bg-surface p-6 rounded-2xl border border-default shadow-sm';
 
 export default function AdminAgencySettings({ section }: Props) {
@@ -465,8 +465,8 @@ function SaveButton({ onClick, loading, saved }: { onClick: () => void; loading:
         <button
             onClick={onClick}
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-50"
-            style={{ background: saved ? '#22c55e' : 'var(--text-primary)', color: 'var(--bg-surface)' }}
+            className="btn-primary"
+            style={saved ? { background: '#22c55e', color: '#fff', boxShadow: 'none' } : undefined}
         >
             {!saved && <Save size={15} />}
             {saved ? 'Gespeichert ✓' : 'Speichern'}

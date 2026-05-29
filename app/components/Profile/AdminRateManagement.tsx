@@ -133,7 +133,7 @@ export default function AdminRateManagement() {
                         <label className="block text-xs text-text-secondary font-bold mb-1">Titel</label>
                         <input
                             type="text"
-                            className="w-full p-2 rounded-lg border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
+                            className="w-full p-2 rounded-lg border border-default bg-subtle text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
                             placeholder="z.B. Senior Developer"
                             value={newPos.title}
                             onChange={e => setNewPos({ ...newPos, title: e.target.value })}
@@ -143,7 +143,7 @@ export default function AdminRateManagement() {
                         <label className="block text-xs text-text-secondary font-bold mb-1">Kategorie</label>
                         <input
                             type="text"
-                            className="w-full p-2 rounded-lg border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
+                            className="w-full p-2 rounded-lg border border-default bg-subtle text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
                             placeholder="z.B. Digital"
                             list="categoriesList"
                             value={newPos.category}
@@ -157,7 +157,7 @@ export default function AdminRateManagement() {
                         <label className="block text-xs text-text-secondary font-bold mb-1">Rate (€)</label>
                         <input
                             type="number"
-                            className="w-full p-2 rounded-lg border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
+                            className="w-full p-2 rounded-lg border border-default bg-subtle text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none text-sm"
                             placeholder="0.00"
                             value={newPos.hourly_rate}
                             onChange={e => setNewPos({ ...newPos, hourly_rate: parseFloat(e.target.value) })}
@@ -187,12 +187,12 @@ export default function AdminRateManagement() {
                                     {editId === pos.id ? (
                                         <div className="flex gap-2 w-full items-center">
                                             <input
-                                                className="flex-1 p-1 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl text-sm font-bold"
+                                                className="flex-1 p-1 border border-default bg-subtle text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl text-sm font-bold"
                                                 defaultValue={pos.title}
                                                 id={`edit-title-${pos.id}`}
                                             />
                                             <input
-                                                className="w-24 p-1 border border-default bg-input text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl text-sm text-right"
+                                                className="w-24 p-1 border border-default bg-subtle text-text-primary focus:bg-surface focus:ring-1 focus:ring-accent outline-none rounded-xl text-sm text-right"
                                                 defaultValue={pos.hourly_rate}
                                                 type="number"
                                                 id={`edit-rate-${pos.id}`}

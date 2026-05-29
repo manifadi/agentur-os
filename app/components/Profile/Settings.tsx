@@ -9,6 +9,7 @@ import {
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
 import AdminUserManagement from './AdminUserManagement';
+import AdminDepartmentManagement from './AdminDepartmentManagement';
 import AdminRateManagement from './AdminRateManagement';
 import AdminAgencySettings from './AdminAgencySettings';
 import AppearanceSettings from './AppearanceSettings';
@@ -19,7 +20,7 @@ import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 
 type Section = 'profil' | 'design' | 'kalender' | 'navigation' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
 
-const INPUT = 'w-full px-3 py-2.5 border border-border-strong rounded-xl bg-subtle text-text-primary placeholder:text-text-placeholder focus:bg-surface focus:ring-2 focus:ring-accent outline-none text-sm transition';
+const INPUT = 'input-field';
 
 const NAV: { group: string; adminOnly: boolean; items: { id: Section; label: string; icon: React.ElementType }[] }[] = [
     {
@@ -320,6 +321,11 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                 title="Team"
                                 subtitle="Mitarbeiter verwalten, Rollen und Abteilungen zuweisen."
                             />
+                            <AdminDepartmentManagement
+                                departments={departments}
+                                organizationId={currentUser.organization_id || ''}
+                                onUpdate={onUpdate}
+                            />
                             <AdminUserManagement
                                 employees={employees}
                                 departments={departments}
@@ -409,11 +415,8 @@ function SaveButton({ onClick, loading, saved }: { onClick: () => void; loading:
         <button
             onClick={onClick}
             disabled={loading}
-            className="px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-50"
-            style={{
-                background: saved ? '#22c55e' : 'var(--text-primary)',
-                color: 'var(--bg-surface)',
-            }}
+            className="btn-primary"
+            style={saved ? { background: '#22c55e', color: '#fff', boxShadow: 'none' } : undefined}
         >
             {saved ? 'Gespeichert ✓' : 'Speichern'}
         </button>

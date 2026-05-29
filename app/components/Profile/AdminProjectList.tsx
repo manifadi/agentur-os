@@ -29,14 +29,14 @@ export default function AdminProjectList({ projects, clients }: AdminProjectList
                     <input
                         type="text"
                         placeholder="Suchen nach Titel oder Job Nr..."
-                        className="w-full pl-10 pr-4 py-2 bg-input text-text-primary border border-default focus:bg-surface focus:border-accent focus:ring-1 focus:ring-accent rounded-xl text-sm transition outline-none"
+                        className="w-full pl-10 pr-4 py-2 bg-subtle text-text-primary border border-default focus:bg-surface focus:border-accent focus:ring-1 focus:ring-accent rounded-xl text-sm transition outline-none"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
                 <div className="w-48">
                     <select
-                        className="w-full px-3 py-2 bg-input text-text-primary border border-default focus:bg-surface focus:border-accent focus:ring-1 focus:ring-accent rounded-xl text-sm transition outline-none"
+                        className="w-full px-3 py-2 bg-subtle text-text-primary border border-default focus:bg-surface focus:border-accent focus:ring-1 focus:ring-accent rounded-xl text-sm transition outline-none"
                         value={clientFilter}
                         onChange={e => setClientFilter(e.target.value)}
                     >
