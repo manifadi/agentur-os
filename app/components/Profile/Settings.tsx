@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     User, Palette, Building2, Users, Banknote, Image as ImageIcon,
-    FileText, Lock, Camera, CalendarDays, SidebarOpen
+    FileText, Lock, Camera, CalendarDays, SidebarOpen, Network
 } from 'lucide-react';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
@@ -18,7 +18,7 @@ import NavigationSettings from './NavigationSettings';
 import UserAvatar from '../UI/UserAvatar';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 
-type Section = 'profil' | 'design' | 'kalender' | 'navigation' | 'unternehmen' | 'team' | 'stundensaetze' | 'branding' | 'vorlagen';
+type Section = 'profil' | 'design' | 'kalender' | 'navigation' | 'unternehmen' | 'team' | 'abteilungen' | 'stundensaetze' | 'branding' | 'vorlagen';
 
 const INPUT = 'input-field';
 
@@ -39,6 +39,7 @@ const NAV: { group: string; adminOnly: boolean; items: { id: Section; label: str
         items: [
             { id: 'unternehmen', label: 'Unternehmen', icon: Building2 },
             { id: 'team', label: 'Team', icon: Users },
+            { id: 'abteilungen', label: 'Abteilungen', icon: Network },
             { id: 'stundensaetze', label: 'Stundensätze', icon: Banknote },
             { id: 'branding', label: 'Branding', icon: ImageIcon },
             { id: 'vorlagen', label: 'Vorlagen', icon: FileText },
@@ -53,7 +54,7 @@ interface Props {
     onUpdate: () => void;
 }
 
-const VALID_SECTIONS: Section[] = ['profil', 'design', 'kalender', 'navigation', 'unternehmen', 'team', 'stundensaetze', 'branding', 'vorlagen'];
+const VALID_SECTIONS: Section[] = ['profil', 'design', 'kalender', 'navigation', 'unternehmen', 'team', 'abteilungen', 'stundensaetze', 'branding', 'vorlagen'];
 
 export default function Settings({ session, employees, departments, onUpdate }: Props) {
     const router = useRouter();
@@ -321,15 +322,25 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                 title="Team"
                                 subtitle="Mitarbeiter verwalten, Rollen und Abteilungen zuweisen."
                             />
-                            <AdminDepartmentManagement
-                                departments={departments}
-                                organizationId={currentUser.organization_id || ''}
-                                onUpdate={onUpdate}
-                            />
                             <AdminUserManagement
                                 employees={employees}
                                 departments={departments}
                                 currentEmployee={currentUser}
+                                onUpdate={onUpdate}
+                            />
+                        </div>
+                    )}
+
+                    {/* ── ABTEILUNGEN ── */}
+                    {section === 'abteilungen' && isAdmin && currentUser && (
+                        <div className="max-w-2xl space-y-5">
+                            <SectionHeader
+                                title="Abteilungen"
+                                subtitle="Lege Abteilungen an, denen du Mitarbeiter im Team-Bereich zuordnen kannst."
+                            />
+                            <AdminDepartmentManagement
+                                departments={departments}
+                                organizationId={currentUser.organization_id || ''}
                                 onUpdate={onUpdate}
                             />
                         </div>

@@ -95,14 +95,7 @@ export default function AdminDepartmentManagement({ departments, organizationId,
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h2 className="text-lg font-bold text-text-primary">Abteilungen</h2>
-                    <p className="text-sm text-text-muted">Gruppen, denen du Mitarbeiter zuordnen kannst.</p>
-                </div>
-            </div>
-
-            <div className="bg-surface rounded-xl shadow-sm border border-default overflow-hidden">
+            <div className="bg-surface rounded-2xl shadow-sm border border-default overflow-hidden">
                 {sorted.length === 0 ? (
                     <div className="px-4 py-8 text-center text-sm text-text-muted">
                         Noch keine Abteilungen. Lege unten die erste an.
