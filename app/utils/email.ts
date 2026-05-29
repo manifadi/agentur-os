@@ -75,6 +75,7 @@ export function inviteEmailHtml(opts: {
 <html lang="de">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f5f5f7; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <span style="display:none!important; max-height:0; overflow:hidden; opacity:0; color:#f5f5f7; font-size:1px; line-height:1px;">Dein Zugang zu ${agency} auf Vela — in unter einer Minute startklar.</span>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f7; padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #ececef;">
@@ -83,15 +84,19 @@ export function inviteEmailHtml(opts: {
         </td></tr>
         <tr><td style="padding:24px 32px 0;">
           <p style="font-size:15px; color:#111827; line-height:1.6; margin:0 0 12px;">${greeting}</p>
+          <p style="font-size:15px; color:#374151; line-height:1.6; margin:0 0 12px;">
+            du wurdest zu <strong>${agency}</strong> auf Vela eingeladen. Vela ist das
+            Tool, mit dem ihr Projekte, Zeiten und Planung an einem Ort organisiert.
+          </p>
           <p style="font-size:15px; color:#374151; line-height:1.6; margin:0 0 24px;">
-            du wurdest zu <strong>${agency}</strong> auf Vela eingeladen. Mit dem Button unten meldest du dich
-            ohne Passwort an und legst beim ersten Login dein Konto fest.
+            Klick auf den Button, leg beim ersten Login dein Passwort fest — und du bist
+            direkt in eurer Agentur.
           </p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
             <tr><td style="border-radius:12px; background:#111827;">
               <a href="${opts.actionLink}" target="_blank"
                  style="display:inline-block; padding:13px 28px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
-                Jetzt anmelden
+                Einladung annehmen
               </a>
             </td></tr>
           </table>
@@ -130,6 +135,7 @@ export function recoveryEmailHtml(opts: {
 <html lang="de">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f5f5f7; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <span style="display:none!important; max-height:0; overflow:hidden; opacity:0; color:#f5f5f7; font-size:1px; line-height:1px;">Setze dein Vela-Passwort in einem Schritt zurück.</span>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f7; padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #ececef;">

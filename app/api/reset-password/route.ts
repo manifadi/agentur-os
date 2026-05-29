@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || supabaseUrl;
         // Direkt auf die Reset-Seite — die server-seitig erzeugten Links liefern die
         // Session im URL-Hash (implicit), nicht als ?code. /reset-password nimmt sie auf.
-        const redirectTo = `${origin}/reset-password`;
+        const redirectTo = `${origin}/reset-password?utm_source=email&utm_medium=email&utm_campaign=password_reset`;
 
         const { data, error } = await admin.auth.admin.generateLink({
             type: 'recovery',

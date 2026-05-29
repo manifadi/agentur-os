@@ -30,7 +30,9 @@ const STEPS = [
 ];
 
 export default function WelcomeModal({ userName, onDismiss }: WelcomeModalProps) {
-    const [step, setStep] = useState(0);
+    // Start beim Begrüßungs-Screen (-1), damit die Einführung mit dem persönlichen
+    // "Willkommen" beginnt und dann durch die Features führt.
+    const [step, setStep] = useState(-1);
     const isLast = step === STEPS.length - 1;
     const isIntro = step === -1;
 

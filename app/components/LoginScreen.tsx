@@ -4,6 +4,11 @@ import { ArrowLeft } from 'lucide-react';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
+// Geschlossene Testphase: keine öffentliche Selbst-Registrierung. Zugang nur per
+// Einladung (Super-Admin/Agentur-Admin laden per E-Mail ein). Später — wenn Pricing
+// & Zahlung stehen — auf true setzen, dann erscheint der "Registrieren"-Tab wieder.
+const SIGNUPS_OPEN = false;
+
 interface LoginScreenProps {
     isAddingAccount?: boolean;
     onCancel?: () => void;
@@ -59,7 +64,7 @@ export default function LoginScreen({ isAddingAccount = false, onCancel }: Login
                 body: JSON.stringify({ email }),
             }).catch(() => {});
             setSuccessMsg('Falls ein Konto mit dieser E-Mail existiert, haben wir dir einen Link zum Zurücksetzen geschickt.');
-        } else if (mode === 'signup') {
+        } else if (mode === 'signup' && SIGNUPS_OPEN) {
             const { error } = await supabase.auth.signUp({ email, password, options: { data: { password_set: true } } });
             if (error) parseError(error.message);
             else setSuccessMsg('Account erstellt! Bitte bestätige deine E-Mail-Adresse.');
@@ -136,23 +141,31 @@ export default function LoginScreen({ isAddingAccount = false, onCancel }: Login
                     </>
                 ) : (
                     <>
-                        {/* Login / Registrieren Tabs */}
-                        <div className="flex bg-subtle rounded-xl p-1 mb-6">
-                            <button
-                                type="button"
-                                onClick={() => switchMode('login')}
-                                className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition ${mode === 'login' ? 'bg-surface text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                            >
-                                Anmelden
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => switchMode('signup')}
-                                className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition ${mode === 'signup' ? 'bg-surface text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                            >
-                                Registrieren
-                            </button>
-                        </div>
+                        {/* Login / Registrieren Tabs — nur wenn Registrierung offen ist */}
+                        {SIGNUPS_OPEN ? (
+                            <div className="flex bg-subtle rounded-xl p-1 mb-6">
+                                <button
+                                    type="button"
+                                    onClick={() => switchMode('login')}
+                                    className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition ${mode === 'login' ? 'bg-surface text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                                >
+                                    Anmelden
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => switchMode('signup')}
+                                    className={`flex-1 text-sm font-medium py-1.5 rounded-lg transition ${mode === 'signup' ? 'bg-surface text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                                >
+                                    Registrieren
+                                </button>
+                            </div>
+                        ) : (
+                            !isAddingAccount && (
+                                <p className="text-sm text-text-secondary text-center mb-6 leading-relaxed">
+                                    Melde dich an, um zu deiner Agentur zu gelangen.
+                                </p>
+                            )
+                        )}
 
                         <form onSubmit={handleAuth} className="space-y-4">
                             <div>

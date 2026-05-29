@@ -78,7 +78,8 @@ export async function POST(req: NextRequest) {
 
         // ── Login-Link erzeugen (ohne Supabase-Mail) ──
         const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || supabaseUrl;
-        const redirectTo = `${origin}/auth/callback`;
+        // UTM für lückenloses Tracking der Einladungs-Mails (Brevo-Klicks + Analytics)
+        const redirectTo = `${origin}/auth/callback?utm_source=email&utm_medium=invite&utm_campaign=team_invite`;
 
         const generate = async (type: 'invite' | 'magiclink') =>
             admin.auth.admin.generateLink({ type, email: normalizedEmail, options: { redirectTo } });
@@ -99,6 +100,21 @@ export async function POST(req: NextRequest) {
                 { error: 'Login-Link konnte nicht erzeugt werden: ' + (linkRes.error?.message || 'unbekannt') },
                 { status: 500 }
             );
+        }
+
+        // ── Mitarbeiter SOFORT mit dem Auth-Account verknüpfen ──
+        // generateLink legt den Auth-User an (invite) bzw. liefert ihn (magiclink).
+        // Setzen wir user_id hier serverseitig, ist die Org-Zuordnung beim ersten
+        // Login bereits vorhanden — der Eingeladene landet direkt im Dashboard statt
+        // auf dem Auswahl-Screen. (Der nachträgliche E-Mail-Abgleich war unzuverlässig.)
+        const invitedUserId = linkRes.data.user?.id;
+        if (invitedUserId) {
+            await admin
+                .from('employees')
+                .update({ user_id: invitedUserId })
+                .eq('email', normalizedEmail)
+                .eq('organization_id', organizationId)
+                .is('user_id', null);
         }
 
         // ── Org-Name für die Mail ──
