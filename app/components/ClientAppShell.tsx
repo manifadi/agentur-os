@@ -46,8 +46,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [switchingAccount, setSwitchingAccount] = useState(false);
     const prevSessionUserIdRef = useRef<string | undefined>(undefined);
 
-    // Resolve current user after employees load
-    const currentUser = employees.find(e => e.email === session?.user?.email);
+    // Resolve current user after employees load — bevorzugt über die eindeutige
+    // user_id (robust gegen doppelte E-Mail-Zeilen), mit E-Mail-Fallback.
+    const currentUser =
+        employees.find(e => e.user_id && e.user_id === session?.user?.id)
+        ?? employees.find(e => e.email === session?.user?.email);
     const orgId = currentUser?.organization_id;
 
     // Theme — pass employeeId so prefs sync to Supabase
@@ -206,15 +209,25 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
         setLoading(true);
 
-        // Self-Heal: eingeloggten Account mit seinem Mitarbeiter-Eintrag verknüpfen.
-        // Idempotent (no-op, wenn user_id schon gesetzt). Nötig, wenn ein Account über
-        // den Agentur-Switcher hinzugefügt wurde und damit /onboarding (= Linking) übersprang.
-        await supabase.rpc('link_invited_employee');
+        // Self-Heal: Account zuverlässig serverseitig verknüpfen (Service-Role).
+        // Ersetzt die alte link_invited_employee-RPC — die hing an einer manuellen
+        // Migration und kollidierte bei Duplikat-Zeilen mit dem user_id-Unique-
+        // Constraint (409). Nötig u.a. wenn ein Account über den Agentur-Switcher
+        // hinzugefügt wurde und damit /onboarding (= Linking) übersprang.
+        try {
+            await fetch('/api/link-account', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token ?? ''}` },
+            });
+        } catch { /* best-effort, unten via Query gegengeprüft */ }
 
+        // Mitarbeiter-Eintrag über die eindeutige user_id auflösen (kein 406 bei
+        // doppelten E-Mail-Zeilen aus Alt-Tests).
         const { data: currentUserData } = await supabase.from('employees')
             .select('*')
-            .eq('email', session.user.email)
-            .single();
+            .eq('user_id', session.user.id)
+            .limit(1)
+            .maybeSingle();
 
         if (!currentUserData || !currentUserData.organization_id) {
             setLoading(false);

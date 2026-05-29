@@ -5,11 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 //
 // Läuft mit dem Service-Role-Key (umgeht RLS) und braucht KEINE DB-Migration:
 // - liest den User aus dem mitgeschickten Access-Token (id + email)
-// - setzt employees.user_id für alle noch unverknüpften Zeilen dieser E-Mail
-// - liefert die Organisation zurück
+// - ist der Account schon verknüpft → gibt direkt die Organisation zurück
+// - sonst wird genau EINE offene Mitarbeiter-Zeile dieser E-Mail verknüpft
+// - überzählige unverknüpfte Duplikat-Zeilen (aus Alt-Tests) werden best-effort
+//   aufgeräumt, damit .single()-Queries nicht an Mehrfachzeilen scheitern (406)
 //
 // Ersetzt die fragile Kette aus link_invited_employee-RPC (muss manuell deployed
-// sein) + generateLink-user-Feld (bei magiclink nicht immer vorhanden).
+// sein, kollidiert bei Duplikaten mit dem user_id-Unique-Constraint → 409) und dem
+// generateLink-user-Feld (bei magiclink nicht immer vorhanden).
 export async function POST(req: NextRequest) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.SUPABASE_URL ?? 'https://lkyqohkdxmchrjicvurn.supabase.co';
@@ -35,26 +38,49 @@ export async function POST(req: NextRequest) {
 
         const email = user.email.trim().toLowerCase();
 
-        // Noch unverknüpfte Mitarbeiter-Zeilen dieser E-Mail mit dem Account verknüpfen.
-        // ilike = case-insensitiv, falls Altdaten anders geschrieben sind.
-        await admin
-            .from('employees')
-            .update({ user_id: user.id })
-            .ilike('email', email)
-            .is('user_id', null);
-
-        // Organisation des Accounts ermitteln (jetzt via user_id sichtbar).
-        const { data: emp } = await admin
+        // 1) Schon verknüpft? (user_id ist eindeutig → genau eine Zeile)
+        const { data: linked } = await admin
             .from('employees')
             .select('organization_id')
             .eq('user_id', user.id)
             .limit(1)
             .maybeSingle();
 
-        return NextResponse.json({
-            linked: !!emp?.organization_id,
-            organizationId: emp?.organization_id ?? null,
-        });
+        if (linked?.organization_id) {
+            // Aufräumen: überzählige, nie aktivierte Einladungs-Duplikate derselben
+            // E-Mail entfernen (best-effort, FK-Fehler ignorieren).
+            await admin.from('employees').delete().ilike('email', email).is('user_id', null);
+            return NextResponse.json({ linked: true, organizationId: linked.organization_id });
+        }
+
+        // 2) Noch nicht verknüpft → genau EINE offene Zeile dieser E-Mail nehmen.
+        const { data: candidates } = await admin
+            .from('employees')
+            .select('id, organization_id')
+            .ilike('email', email)
+            .is('user_id', null)
+            .order('id', { ascending: true });
+
+        const candidate = candidates?.[0];
+        if (!candidate) {
+            return NextResponse.json({ linked: false, organizationId: null });
+        }
+
+        // Nur diese eine Zeile verknüpfen (gezielt per id → kein Mehrfach-Update-Konflikt).
+        const { error: updErr } = await admin
+            .from('employees')
+            .update({ user_id: user.id })
+            .eq('id', candidate.id);
+
+        if (updErr) {
+            console.error('[link-account] update failed:', updErr);
+            return NextResponse.json({ linked: false, organizationId: null });
+        }
+
+        // Verbleibende offene Duplikate dieser E-Mail aufräumen (best-effort).
+        await admin.from('employees').delete().ilike('email', email).is('user_id', null);
+
+        return NextResponse.json({ linked: true, organizationId: candidate.organization_id });
     } catch (e: any) {
         console.error('[link-account] error:', e);
         return NextResponse.json({ error: 'Server-Fehler: ' + (e?.message || String(e)) }, { status: 500 });
