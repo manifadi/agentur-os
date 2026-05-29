@@ -443,6 +443,10 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const isAuthCallback = pathname === '/auth/callback';
     if (!session && !isResetPassword && !isAuthCallback) return <LoginScreen />;
 
+    // Standalone-Seiten ohne Sidebar-Chrome (Login/Onboarding/Passwort/Callback):
+    // dürfen kein linkes Sidebar-Padding bekommen, sonst sind sie nicht zentriert.
+    const isChromeless = ['/login', '/onboarding', '/reset-password', '/set-password', '/auth/callback'].includes(pathname || '');
+
     return (
         <AppContext.Provider value={{
             session,
@@ -481,7 +485,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     className="flex h-screen w-screen overflow-hidden antialiased"
                     style={{ background: 'var(--bg-app)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}
                 >
-                    {!['/login', '/onboarding', '/reset-password', '/set-password', '/auth/callback'].includes(pathname || '') && !pathname?.startsWith('/admin') && (
+                    {!isChromeless && !pathname?.startsWith('/admin') && (
                         <MainSidebar
                             currentView={getSidebarView()}
                             onLogout={handleLogout}
@@ -500,13 +504,13 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     )}
 
                     {currentUser && orgId && isFeatureEnabled('feedback_button')
-                        && !['/login', '/onboarding', '/reset-password', '/set-password', '/auth/callback'].includes(pathname || '')
+                        && !isChromeless
                         && !pathname?.startsWith('/admin') && (
                         <FeedbackWidget currentUser={currentUser} organizationId={orgId} />
                     )}
 
                     <main
-                        className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${pathname?.startsWith('/admin') ? '' : (isSidebarExpanded ? 'pl-72' : 'pl-20')}`}
+                        className={`flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ${pathname?.startsWith('/admin') || isChromeless ? '' : (isSidebarExpanded ? 'pl-72' : 'pl-20')}`}
                         style={{ background: 'var(--bg-app)' }}
                     >
                         {children}

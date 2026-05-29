@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, UserPlus, ArrowRight, ArrowLeft, Upload, Check, Loader2, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
@@ -76,42 +76,53 @@ export default function OnboardingPage() {
     const [reqLastName, setReqLastName] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // ── Auto-detect state on load ─────────────────────────────────
-    useEffect(() => {
+    // ── Auto-detect state ─────────────────────────────────────────
+    const detect = useCallback(async () => {
         if (!session?.user?.email) return;
+        setStatus('checking');
 
-        const detect = async () => {
-            setStatus('checking');
+        // Schon im Kontext bekannt? → Dashboard
+        const alreadyInContext = employees.find(e => e.email === session.user.email);
+        if (alreadyInContext) { router.replace('/dashboard'); return; }
 
-            // Already a known employee? → dashboard
-            const alreadyInContext = employees.find(e => e.email === session.user.email);
-            if (alreadyInContext) { router.replace('/dashboard'); return; }
+        // Eingeladene/angenommene Accounts ZUERST verknüpfen (SECURITY DEFINER, idempotent,
+        // umgeht RLS). Vorher scheiterte der employees-SELECT an RLS (user_id noch nicht
+        // gesetzt) → der User landete fälschlich auf dem Auswahl-Screen.
+        setStatus('linking');
+        const { data: linkedNow } = await supabase.rpc('link_invited_employee');
+        if (linkedNow) { router.replace('/dashboard'); return; }
 
-            const { data: empRow } = await supabase
-                .from('employees').select('id, user_id').eq('email', session.user.email).maybeSingle();
+        // Bereits verknüpft? Dann ist der Mitarbeiter-Eintrag jetzt via RLS sichtbar.
+        const { data: empRow } = await supabase
+            .from('employees').select('id').eq('email', session.user.email).maybeSingle();
+        if (empRow) { router.replace('/dashboard'); return; }
 
-            if (empRow) {
-                if (empRow.user_id) { router.replace('/dashboard'); return; }
-                // Pre-created via invite → link silently
-                setStatus('linking');
-                const { data: linked } = await supabase.rpc('link_invited_employee');
-                if (linked) { router.replace('/dashboard'); return; }
-            }
+        // Kein Mitarbeiter-Eintrag → offene/abgelehnte Anfrage prüfen, sonst Auswahl
+        const { data: req } = await supabase
+            .from('registration_requests').select('status')
+            .eq('email', session.user.email)
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            // Check for pending / rejected request
-            const { data: req } = await supabase
-                .from('registration_requests').select('status')
-                .eq('email', session.user.email)
-                .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (req?.status === 'pending') { setStatus('submitted'); return; }
+        if (req?.status === 'rejected') { setStatus('rejected'); return; }
 
-            if (req?.status === 'pending') { setStatus('submitted'); return; }
-            if (req?.status === 'rejected') { setStatus('rejected'); return; }
-
-            setStatus('choice');
-        };
-
-        detect();
+        setStatus('choice');
     }, [session, employees, router]);
+
+    useEffect(() => { detect(); }, [detect]);
+
+    // Live: wird eine offene Anfrage angenommen, automatisch weiter zum Dashboard,
+    // statt auf dem "submitted"-Screen hängen zu bleiben.
+    useEffect(() => {
+        if (status !== 'submitted' || !session?.user?.email) return;
+        const channel = supabase
+            .channel(`onboarding:req:${session.user.email}`)
+            .on('postgres_changes' as any,
+                { event: '*', schema: 'public', table: 'registration_requests', filter: `email=eq.${session.user.email}` },
+                () => detect())
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [status, session, detect]);
 
     // ── Logo file picker ──────────────────────────────────────────
     const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
