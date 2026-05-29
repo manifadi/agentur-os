@@ -6,6 +6,7 @@ import {
     OrganizationOverview,
     SuperAdminAuditEntry,
     RegistrationRequest,
+    UserFeedback,
 } from '../../types';
 
 // ─────────────────────────────────────────────────────────────
@@ -36,10 +37,12 @@ interface SuperAdminContextValue {
     audit: SuperAdminAuditEntry[];
     requests: RegistrationRequest[];
     backups: AgencyBackup[];
+    feedback: UserFeedback[];
     loading: boolean;
     refresh: () => Promise<void>;
     refreshOrgs: () => Promise<void>;
     refreshBackups: () => Promise<void>;
+    refreshFeedback: () => Promise<void>;
 }
 
 const SuperAdminContext = createContext<SuperAdminContextValue | null>(null);
@@ -55,6 +58,7 @@ export function SuperAdminProvider({ enabled, children }: { enabled: boolean; ch
     const [audit, setAudit] = useState<SuperAdminAuditEntry[]>([]);
     const [requests, setRequests] = useState<RegistrationRequest[]>([]);
     const [backups, setBackups] = useState<AgencyBackup[]>([]);
+    const [feedback, setFeedback] = useState<UserFeedback[]>([]);
     const [loading, setLoading] = useState(true);
 
     const refreshOrgs = useCallback(async () => {
@@ -85,9 +89,14 @@ export function SuperAdminProvider({ enabled, children }: { enabled: boolean; ch
         if (data) setBackups(data as AgencyBackup[]);
     }, []);
 
+    const refreshFeedback = useCallback(async () => {
+        const { data } = await supabase.rpc('get_all_feedback_super_admin');
+        if (data) setFeedback(data as UserFeedback[]);
+    }, []);
+
     const refresh = useCallback(async () => {
-        await Promise.all([refreshOrgs(), refreshAudit(), refreshRequests(), refreshBackups()]);
-    }, [refreshOrgs, refreshAudit, refreshRequests, refreshBackups]);
+        await Promise.all([refreshOrgs(), refreshAudit(), refreshRequests(), refreshBackups(), refreshFeedback()]);
+    }, [refreshOrgs, refreshAudit, refreshRequests, refreshBackups, refreshFeedback]);
 
     // Initial load — nur einmal beim Mount, solange enabled
     useEffect(() => {
@@ -125,6 +134,11 @@ export function SuperAdminProvider({ enabled, children }: { enabled: boolean; ch
                     () => refreshBackups())
                 .subscribe(),
 
+            supabase.channel('admin:user_feedback')
+                .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'user_feedback' },
+                    () => refreshFeedback())
+                .subscribe(),
+
             // employees/projects ändern die Counts in orgs → orgs refetchen
             supabase.channel('admin:employees')
                 .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'employees' },
@@ -140,11 +154,11 @@ export function SuperAdminProvider({ enabled, children }: { enabled: boolean; ch
         return () => {
             for (const ch of channels) supabase.removeChannel(ch);
         };
-    }, [enabled, refreshOrgs, refreshAudit, refreshRequests, refreshBackups]);
+    }, [enabled, refreshOrgs, refreshAudit, refreshRequests, refreshBackups, refreshFeedback]);
 
     return (
         <SuperAdminContext.Provider
-            value={{ orgs, audit, requests, backups, loading, refresh, refreshOrgs, refreshBackups }}
+            value={{ orgs, audit, requests, backups, feedback, loading, refresh, refreshOrgs, refreshBackups, refreshFeedback }}
         >
             {children}
         </SuperAdminContext.Provider>

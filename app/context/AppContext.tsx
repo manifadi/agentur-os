@@ -17,6 +17,9 @@ interface AppContextType {
     agencySettings: AgencySettings | null;
     loading: boolean;
 
+    // Feature-Flags (pro Organisation, vom Super-Admin gesteuert)
+    isFeatureEnabled: (key: string) => boolean;
+
     // Setters / Refreshers
     setProjects: (projects: any[]) => void;
     setClients: (clients: Client[]) => void;
@@ -54,6 +57,7 @@ export const AppContext = createContext<AppContextType>({
     personalTodos: [],
     agencySettings: null,
     loading: true,
+    isFeatureEnabled: () => false,
     setProjects: () => { },
     setClients: () => { },
     setEmployees: () => { },

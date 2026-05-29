@@ -380,7 +380,45 @@ export const FEATURE_CATALOG: FeatureDefinition[] = [
     { key: 'pdf_export',        label: 'PDF-Export',        description: 'PDF-Generierung für Angebote/Rechnungen.', requiredPlan: 'pro', defaultEnabled: true },
     { key: 'realtime',          label: 'Realtime-Updates',  description: 'Live-Synchronisierung über mehrere Geräte.', defaultEnabled: true },
     { key: 'client_portal',     label: 'Client-Portal',     description: 'Lesezugriff für Kunden via Token-Link.', requiredPlan: 'agency', defaultEnabled: false },
+    { key: 'feedback_button',   label: 'Feedback & Bug-Report', description: 'Floating-Button, mit dem Mitarbeiter Fehler melden und Wünsche senden. Reports landen im Super-Admin-Panel.', defaultEnabled: false },
 ];
+
+// ── User-Feedback / Bug-Report ────────────────────────────
+export type FeedbackCategory = 'bug' | 'wish' | 'other';
+export type FeedbackStatus   = 'new' | 'in_progress' | 'done' | 'dismissed';
+
+export interface UserFeedback {
+    id: string;
+    organization_id: string;
+    employee_id?: string | null;
+    category: FeedbackCategory;
+    title?: string | null;
+    message: string;
+    page_url?: string | null;
+    image_url?: string | null;
+    status: FeedbackStatus;
+    admin_notes?: string | null;
+    created_at: string;
+    updated_at?: string;
+
+    // Joined (nur über get_all_feedback_super_admin)
+    org_name?: string | null;
+    reporter_name?: string | null;
+    reporter_email?: string | null;
+}
+
+export const FEEDBACK_CATEGORY_LABEL: Record<FeedbackCategory, string> = {
+    bug:   'Fehler',
+    wish:  'Wunsch',
+    other: 'Sonstiges',
+};
+
+export const FEEDBACK_STATUS_LABEL: Record<FeedbackStatus, string> = {
+    new:         'Neu',
+    in_progress: 'In Arbeit',
+    done:        'Erledigt',
+    dismissed:   'Verworfen',
+};
 
 export interface SuperAdminAuditEntry {
     id: number;

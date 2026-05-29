@@ -12,6 +12,7 @@ import {
     Shield,
     LogOut,
     Archive,
+    MessageSquare,
 } from 'lucide-react';
 
 interface NavLink {
@@ -24,6 +25,7 @@ interface NavLink {
 const NAV: NavLink[] = [
     { href: '/admin',           label: 'Übersicht',   icon: LayoutDashboard, match: p => p === '/admin' },
     { href: '/admin/agencies',  label: 'Agenturen',   icon: Building2,       match: p => p.startsWith('/admin/agencies') },
+    { href: '/admin/reports',   label: 'Reports',     icon: MessageSquare,   match: p => p.startsWith('/admin/reports') },
     { href: '/admin/backups',   label: 'Backups',     icon: Archive,         match: p => p.startsWith('/admin/backups') },
     { href: '/admin/requests',  label: 'Anfragen',    icon: Inbox,           match: p => p.startsWith('/admin/requests') },
     { href: '/admin/audit',     label: 'Audit-Log',   icon: ScrollText,      match: p => p.startsWith('/admin/audit') },
@@ -31,11 +33,12 @@ const NAV: NavLink[] = [
 
 interface AdminSidebarProps {
     pendingRequests?: number;
+    newFeedback?: number;
     onLogout: () => void;
     userEmail?: string;
 }
 
-export default function AdminSidebar({ pendingRequests = 0, onLogout, userEmail }: AdminSidebarProps) {
+export default function AdminSidebar({ pendingRequests = 0, newFeedback = 0, onLogout, userEmail }: AdminSidebarProps) {
     const pathname = usePathname() || '';
 
     return (
@@ -62,7 +65,10 @@ export default function AdminSidebar({ pendingRequests = 0, onLogout, userEmail 
                 {NAV.map(item => {
                     const Icon = item.icon;
                     const active = item.match(pathname);
-                    const badge = item.href === '/admin/requests' && pendingRequests > 0 ? pendingRequests : null;
+                    const badge =
+                        item.href === '/admin/requests' && pendingRequests > 0 ? pendingRequests
+                        : item.href === '/admin/reports' && newFeedback > 0 ? newFeedback
+                        : null;
 
                     return (
                         <Link

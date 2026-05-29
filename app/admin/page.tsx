@@ -3,13 +3,17 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-    Building2, Activity, AlertTriangle, Users, Inbox, ScrollText, ArrowRight, Plus, Archive,
+    Building2, Activity, AlertTriangle, Users, Inbox, ScrollText, ArrowRight, Plus, Archive, MessageSquare,
 } from 'lucide-react';
 import { SectionHeader, Card, PrimaryButton, StatusBadge, PlanBadge } from '../components/SuperAdmin/AdminUI';
+import { FEEDBACK_CATEGORY_LABEL } from '../types';
 import { useSuperAdmin } from '../components/SuperAdmin/SuperAdminContext';
 
 export default function AdminOverviewPage() {
-    const { orgs, audit, requests, backups, loading } = useSuperAdmin();
+    const { orgs, audit, requests, backups, feedback, loading } = useSuperAdmin();
+
+    const openReports = feedback.filter(f => f.status === 'new').length;
+    const reportPreview = feedback.filter(f => f.status === 'new').slice(0, 5);
 
     const totalAgencies = orgs.length;
     const activeAgencies = orgs.filter(o => o.status === 'active').length;
@@ -46,6 +50,12 @@ export default function AdminOverviewPage() {
                 <MetricCard icon={Activity}      label="Trial endet bald" value={trialEndingSoon.length} sub="in den nächsten 7 Tagen"            loading={loading} accent={trialEndingSoon.length > 0 ? 'warning' : undefined} />
                 <MetricCard icon={Archive}       label="Backups"          value={backups.length}       sub={`${backups.filter(b => !b.org_still_exists).length} von gelöschten`} loading={loading} />
             </div>
+
+            {openReports > 0 && (
+                <div className="grid grid-cols-1 gap-4">
+                    <MetricCard icon={MessageSquare} label="Offene Reports" value={openReports} sub="neue Bug-/Wunsch-Meldungen" loading={loading} accent="warning" />
+                </div>
+            )}
 
             {suspendedAgencies > 0 && (
                 <div className="grid grid-cols-1 gap-4">
@@ -102,6 +112,39 @@ export default function AdminOverviewPage() {
                 </Card>
 
                 <div className="space-y-6">
+                    <Card padded={false}>
+                        <div className="card-header">
+                            <div className="card-header-title">
+                                <div className="card-header-icon"><MessageSquare size={14} /></div>
+                                <span className="text-sm font-bold text-text-primary">Neueste Reports</span>
+                            </div>
+                            {feedback.length > 0 && (
+                                <Link href="/admin/reports" className="text-[12px] font-semibold text-text-muted hover:text-text-primary flex items-center gap-1">
+                                    Alle <ArrowRight size={12} />
+                                </Link>
+                            )}
+                        </div>
+                        <div className="p-5">
+                            {reportPreview.length === 0 ? (
+                                <div className="text-xs text-text-muted italic py-2 text-center">Keine offenen Reports.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {reportPreview.map(r => (
+                                        <Link key={r.id} href="/admin/reports" className="block p-3 rounded-xl transition hover:bg-hover" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                                            <div className="flex items-center gap-2">
+                                                <span className="badge badge-default">{FEEDBACK_CATEGORY_LABEL[r.category]}</span>
+                                                <span className="text-[12px] font-semibold text-text-primary truncate">{r.title || r.message}</span>
+                                            </div>
+                                            <div className="text-[11px] text-text-muted mt-1 truncate">
+                                                {r.org_name || 'Unbekannt'} · {new Date(r.created_at).toLocaleDateString('de-DE')}
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
                     <Card padded={false}>
                         <div className="card-header">
                             <div className="card-header-title">

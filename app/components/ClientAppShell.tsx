@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
-import { Project, Client, Employee, Todo } from '../types';
+import { Project, Client, Employee, Todo, OrganizationFeature, FEATURE_CATALOG } from '../types';
 import { AppContext } from '../context/AppContext';
 import { CalendarDataProvider } from '../context/CalendarDataContext';
 import MainSidebar from './MainSidebar';
@@ -11,6 +11,7 @@ import LoginScreen from './LoginScreen';
 import GlobalSearch from './GlobalSearch';
 import WelcomeModal from './UI/WelcomeModal';
 import ImpersonationBanner from './SuperAdmin/ImpersonationBanner';
+import FeedbackWidget from './Feedback/FeedbackWidget';
 import { Toaster } from 'sonner';
 import { useTheme } from '../hooks/useTheme';
 
@@ -32,6 +33,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [timeEntries, setTimeEntries] = useState<any[]>([]);
     const [personalTodos, setPersonalTodos] = useState<Todo[]>([]);
     const [agencySettings, setAgencySettings] = useState<any>(null);
+    const [orgFeatures, setOrgFeatures] = useState<OrganizationFeature[]>([]);
     const [showWelcome, setShowWelcome] = useState(false);
 
     // Resolve current user after employees load
@@ -138,6 +140,18 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (data) setAgencySettings(data);
     }, []);
 
+    const fetchOrgFeatures = useCallback(async (organizationId: string) => {
+        const { data } = await supabase.from('organization_features').select('*').eq('organization_id', organizationId);
+        setOrgFeatures((data as OrganizationFeature[]) || []);
+    }, []);
+
+    // Feature-Flag-Check: explizit gesetzter Wert, sonst Katalog-Default
+    const isFeatureEnabled = useCallback((key: string): boolean => {
+        const f = orgFeatures.find(x => x.feature_key === key);
+        if (f) return f.enabled;
+        return FEATURE_CATALOG.find(c => c.key === key)?.defaultEnabled ?? false;
+    }, [orgFeatures]);
+
     // Cold-load: fetches everything in parallel
     const fetchData = useCallback(async () => {
         if (!session?.user?.email) {
@@ -171,13 +185,14 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 fetchTimeEntries(employeeId),
                 fetchPersonalTodos(organizationId, employeeId),
                 fetchAgencySettings(organizationId),
+                fetchOrgFeatures(organizationId),
             ]);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
-    }, [session, fetchClients, fetchEmployees, fetchDepartments, fetchAllocations, fetchMembers, fetchProjects, fetchTimeEntries, fetchPersonalTodos, fetchAgencySettings]);
+    }, [session, fetchClients, fetchEmployees, fetchDepartments, fetchAllocations, fetchMembers, fetchProjects, fetchTimeEntries, fetchPersonalTodos, fetchAgencySettings, fetchOrgFeatures]);
 
     useEffect(() => {
         if (!session) return;
@@ -255,12 +270,18 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'agency_settings', filter: `organization_id=eq.${orgId}` },
                     () => fetchAgencySettings(orgId))
                 .subscribe(),
+
+            // Feature-Flags: Super-Admin-Toggles greifen sofort, ohne Neu-Login
+            supabase.channel(`shell:organization_features:${orgId}`)
+                .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'organization_features', filter: `organization_id=eq.${orgId}` },
+                    () => fetchOrgFeatures(orgId))
+                .subscribe(),
         ];
 
         return () => {
             for (const ch of channels) supabase.removeChannel(ch);
         };
-    }, [orgId, currentUser?.id, fetchClients, fetchEmployees, fetchDepartments, fetchProjects, fetchPersonalTodos, fetchMembers, fetchAllocations, fetchTimeEntries, fetchAgencySettings]);
+    }, [orgId, currentUser?.id, fetchClients, fetchEmployees, fetchDepartments, fetchProjects, fetchPersonalTodos, fetchMembers, fetchAllocations, fetchTimeEntries, fetchAgencySettings, fetchOrgFeatures]);
 
     // GATEKEEPER: Check if user is approved
     useEffect(() => {
@@ -316,6 +337,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             members,
             agencySettings,
             loading,
+            isFeatureEnabled,
             setProjects,
             setClients,
             setEmployees,
@@ -352,6 +374,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     <Toaster position="bottom-right" richColors duration={3500} closeButton toastOptions={{ style: { fontFamily: 'var(--font-family)', fontSize: '13px', fontWeight: '500' } }} />
                     {showWelcome && currentUser && !pathname?.startsWith('/admin') && (
                         <WelcomeModal userName={currentUser.name} onDismiss={handleWelcomeDismiss} />
+                    )}
+
+                    {currentUser && orgId && isFeatureEnabled('feedback_button')
+                        && !['/login', '/onboarding', '/reset-password', '/auth/callback'].includes(pathname || '')
+                        && !pathname?.startsWith('/admin') && (
+                        <FeedbackWidget currentUser={currentUser} organizationId={orgId} />
                     )}
 
                     <main

@@ -59,12 +59,14 @@ function AdminShell({ onLogout, userEmail, children }: {
     userEmail?: string;
     children: React.ReactNode;
 }) {
-    const { requests } = useSuperAdmin();
+    const { requests, feedback } = useSuperAdmin();
+    const newFeedback = feedback.filter(f => f.status === 'new').length;
 
     return (
         <div className="flex min-h-screen w-full" style={{ background: 'var(--bg-app)' }}>
             <AdminSidebar
                 pendingRequests={requests.length}
+                newFeedback={newFeedback}
                 onLogout={onLogout}
                 userEmail={userEmail}
             />
