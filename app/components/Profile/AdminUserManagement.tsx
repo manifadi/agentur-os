@@ -287,9 +287,13 @@ function InviteModal({ isOpen, onClose, organizationId }: { isOpen: boolean; onC
         if (!email || !name) return;
         setLoading(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/invite', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token ?? ''}`,
+                },
                 body: JSON.stringify({ email, name, organizationId }),
             });
             const data = await res.json();

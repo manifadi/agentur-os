@@ -4,7 +4,12 @@ import { ArrowLeft } from 'lucide-react';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
-export default function LoginScreen() {
+interface LoginScreenProps {
+    isAddingAccount?: boolean;
+    onCancel?: () => void;
+}
+
+export default function LoginScreen({ isAddingAccount = false, onCancel }: LoginScreenProps = {}) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -66,9 +71,23 @@ export default function LoginScreen() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-subtle font-sans p-4">
             <div className="bg-surface p-8 rounded-2xl shadow-xl w-full max-w-sm border border-default">
+                {isAddingAccount && onCancel && (
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition mb-4 -ml-0.5"
+                    >
+                        <ArrowLeft size={13} /> Zurück
+                    </button>
+                )}
                 <div className="flex flex-col items-center gap-2 mb-7">
                     <img src="/vela-logo.svg" alt="Vela" className="w-11 h-11 dark:invert" />
                     <span className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Vela</span>
+                    {isAddingAccount && (
+                        <span className="text-xs text-text-muted text-center mt-1 leading-relaxed">
+                            Melde dich mit einem weiteren Agentur-Account an.<br />Dein aktueller Account bleibt erhalten.
+                        </span>
+                    )}
                 </div>
 
                 {mode === 'forgot' ? (

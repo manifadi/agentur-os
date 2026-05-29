@@ -46,11 +46,15 @@ export default function AdminAgencySettings({ section }: Props) {
             const { data: { user }, error: authError } = await supabase.auth.getUser();
             if (authError || !user) { setErrorMsg('Authentifizierungs-Fehler'); setLoading(false); return; }
 
+            // Self-Heal: Account mit Mitarbeiter-Eintrag verknüpfen, falls noch nicht geschehen
+            await supabase.rpc('link_invited_employee');
+
+            // limit(1) statt einfachem maybeSingle: wirft nicht, falls mehrere Treffer
             const { data: emp, error: empError } = await supabase
-                .from('employees').select('organization_id').eq('user_id', user.id).maybeSingle();
+                .from('employees').select('organization_id').eq('user_id', user.id).limit(1).maybeSingle();
 
             if (empError || !emp) {
-                setErrorMsg('Kein Mitarbeiter-Profil gefunden.');
+                setErrorMsg('Kein Mitarbeiter-Profil für diesen Login gefunden. Prüfe, ob dieser Account in dieser Agentur als Mitarbeiter verknüpft ist (eine E-Mail = eine Agentur).');
                 setLoading(false);
                 return;
             }

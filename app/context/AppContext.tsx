@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { Project, Client, Employee, Department, TimeEntry, Todo, AgencySettings } from '../types';
 import { ThemePreferences } from '../hooks/useTheme';
+import { StoredAccount } from '../utils/accountVault';
 
 interface AppContextType {
     session: any;
@@ -19,6 +20,14 @@ interface AppContextType {
 
     // Feature-Flags (pro Organisation, vom Super-Admin gesteuert)
     isFeatureEnabled: (key: string) => boolean;
+
+    // Multi-Account / Agentur-Switcher
+    accounts: StoredAccount[];
+    activeAccountId?: string;
+    switchAccount: (id: string) => Promise<void>;
+    startAddAccount: () => void;
+    forgetAccount: (id: string) => void;
+    switchingAccount: boolean;
 
     // Setters / Refreshers
     setProjects: (projects: any[]) => void;
@@ -58,6 +67,12 @@ export const AppContext = createContext<AppContextType>({
     agencySettings: null,
     loading: true,
     isFeatureEnabled: () => false,
+    accounts: [],
+    activeAccountId: undefined,
+    switchAccount: async () => { },
+    startAddAccount: () => { },
+    forgetAccount: () => { },
+    switchingAccount: false,
     setProjects: () => { },
     setClients: () => { },
     setEmployees: () => { },

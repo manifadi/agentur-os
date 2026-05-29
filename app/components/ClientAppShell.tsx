@@ -12,8 +12,12 @@ import GlobalSearch from './GlobalSearch';
 import WelcomeModal from './UI/WelcomeModal';
 import ImpersonationBanner from './SuperAdmin/ImpersonationBanner';
 import FeedbackWidget from './Feedback/FeedbackWidget';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { useTheme } from '../hooks/useTheme';
+import {
+    StoredAccount, getAccounts, upsertAccount, updateAccountMeta,
+    removeAccount as removeAccountFromVault, subscribeAccounts,
+} from '../utils/accountVault';
 
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -36,6 +40,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [orgFeatures, setOrgFeatures] = useState<OrganizationFeature[]>([]);
     const [showWelcome, setShowWelcome] = useState(false);
 
+    // Multi-Account / Agentur-Switcher
+    const [accounts, setAccounts] = useState<StoredAccount[]>([]);
+    const [addingAccount, setAddingAccount] = useState(false);
+    const [switchingAccount, setSwitchingAccount] = useState(false);
+    const prevSessionUserIdRef = useRef<string | undefined>(undefined);
+
     // Resolve current user after employees load
     const currentUser = employees.find(e => e.email === session?.user?.email);
     const orgId = currentUser?.organization_id;
@@ -57,19 +67,52 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         return 'dashboard';
     };
 
+    // Aktive Session in den Account-Vault übernehmen (Tokens für Switcher)
+    const captureSession = useCallback((s: any) => {
+        if (!s?.user?.id || !s.access_token || !s.refresh_token) return;
+        upsertAccount({
+            id: s.user.id,
+            email: s.user.email || '',
+            accessToken: s.access_token,
+            refreshToken: s.refresh_token,
+        });
+        setAccounts(getAccounts());
+    }, []);
+
     // --- INIT & FETCH ---
     useEffect(() => {
         supabase.auth.getSession()
             .then(({ data: { session } }) => {
                 setSession(session);
                 setLoadingSession(false);
+                if (session) {
+                    captureSession(session);
+                    prevSessionUserIdRef.current = session.user.id;
+                }
             })
             .catch(() => setLoadingSession(false));
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
+            if (session) {
+                captureSession(session);
+                // Tatsächlicher Account-Wechsel (nicht nur Token-Refresh) → Daten neu laden,
+                // bis dahin loading=true halten, sonst springt der Gatekeeper auf /onboarding.
+                if (session.user.id !== prevSessionUserIdRef.current) setLoading(true);
+                prevSessionUserIdRef.current = session.user.id;
+            } else {
+                prevSessionUserIdRef.current = undefined;
+            }
+            // Nach erfolgreichem Login (auch beim "weitere Agentur hinzufügen") Overlay schließen
+            if (event === 'SIGNED_IN') setAddingAccount(false);
         });
         return () => subscription.unsubscribe();
+    }, [captureSession]);
+
+    // Vault-Liste laden + auf Änderungen (auch aus anderen Tabs) hören
+    useEffect(() => {
+        setAccounts(getAccounts());
+        return subscribeAccounts(() => setAccounts(getAccounts()));
     }, []);
 
     // ── Per-table refetchers (memoized so subscriptions can call them) ──
@@ -160,6 +203,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         }
 
         setLoading(true);
+
+        // Self-Heal: eingeloggten Account mit seinem Mitarbeiter-Eintrag verknüpfen.
+        // Idempotent (no-op, wenn user_id schon gesetzt). Nötig, wenn ein Account über
+        // den Agentur-Switcher hinzugefügt wurde und damit /onboarding (= Linking) übersprang.
+        await supabase.rpc('link_invited_employee');
 
         const { data: currentUserData } = await supabase.from('employees')
             .select('*')
@@ -308,8 +356,82 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         await supabase.from('employees').update({ dashboard_config: newConfig }).eq('id', currentUser.id);
     };
 
+    // Anzeige-Infos (Agenturname, Logo, Nutzername) für den Switcher nachtragen
+    useEffect(() => {
+        const id = session?.user?.id;
+        if (!id) return;
+        updateAccountMeta(id, {
+            agencyName: agencySettings?.company_name || undefined,
+            logoUrl: agencySettings?.logo_url || null,
+            userName: currentUser?.name || undefined,
+        });
+        setAccounts(getAccounts());
+    }, [session?.user?.id, agencySettings?.company_name, agencySettings?.logo_url, currentUser?.name]);
+
+    // Zu gespeichertem Account wechseln (ohne erneutes Anmelden)
+    const switchAccount = useCallback(async (id: string) => {
+        if (id === session?.user?.id) return;
+        const acc = getAccounts().find(a => a.id === id);
+        if (!acc) return;
+
+        setSwitchingAccount(true);
+        setLoading(true); // Gatekeeper blockieren, bis Daten der neuen Agentur geladen sind
+        if (session) captureSession(session); // aktuellen Stand sichern
+
+        const { data, error } = await supabase.auth.setSession({
+            access_token: acc.accessToken,
+            refresh_token: acc.refreshToken,
+        });
+
+        if (error || !data.session) {
+            setSwitchingAccount(false);
+            setLoading(false); // Wechsel fehlgeschlagen — aktive Agentur bleibt, App wieder freigeben
+            removeAccountFromVault(id);
+            setAccounts(getAccounts());
+            toast.error('Sitzung abgelaufen — bitte diese Agentur erneut hinzufügen.');
+            return;
+        }
+
+        setSession(data.session);
+        captureSession(data.session); // ggf. rotierte Tokens speichern
+        toast.success(`Gewechselt zu ${acc.agencyName || acc.email}`);
+        setSwitchingAccount(false);
+    }, [session, captureSession]);
+
+    const startAddAccount = useCallback(() => setAddingAccount(true), []);
+
+    const forgetAccount = useCallback((id: string) => {
+        if (id === session?.user?.id) return; // aktiver Account: nur über Abmelden
+        removeAccountFromVault(id);
+        setAccounts(getAccounts());
+    }, [session?.user?.id]);
+
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        const currentId = session?.user?.id;
+        await supabase.auth.signOut({ scope: 'local' });
+        if (currentId) removeAccountFromVault(currentId);
+
+        const remaining = getAccounts();
+        setAccounts(remaining);
+
+        // Noch andere Agenturen gespeichert? → direkt dorthin wechseln
+        if (remaining.length > 0) {
+            const next = remaining[0];
+            const { data, error } = await supabase.auth.setSession({
+                access_token: next.accessToken,
+                refresh_token: next.refreshToken,
+            });
+            if (!error && data.session) {
+                setSession(data.session);
+                captureSession(data.session);
+                toast.success(`Gewechselt zu ${next.agencyName || next.email}`);
+                return;
+            }
+            // Token unbrauchbar → ebenfalls entfernen und normal ausloggen
+            removeAccountFromVault(next.id);
+            setAccounts(getAccounts());
+        }
+
         setSession(null);
         setProjects([]);
         router.push('/');
@@ -338,6 +460,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             agencySettings,
             loading,
             isFeatureEnabled,
+            accounts,
+            activeAccountId: session?.user?.id,
+            switchAccount,
+            startAddAccount,
+            forgetAccount,
+            switchingAccount,
             setProjects,
             setClients,
             setEmployees,
@@ -389,6 +517,12 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                         {children}
                     </main>
                 </div>
+
+                {addingAccount && (
+                    <div className="fixed inset-0 z-[200]" style={{ background: 'var(--bg-app)' }}>
+                        <LoginScreen isAddingAccount onCancel={() => setAddingAccount(false)} />
+                    </div>
+                )}
             </CalendarDataProvider>
         </AppContext.Provider>
     );

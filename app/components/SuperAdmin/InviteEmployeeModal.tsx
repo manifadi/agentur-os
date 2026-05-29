@@ -35,9 +35,11 @@ export default function InviteEmployeeModal({
         if (!isValid) return;
         setSubmitting(true);
 
+        const finalName = name.trim() || email.split('@')[0];
+        // Anlegen + Audit + Limit-Check über die RPC (Super-Admin-geschützt)
         const { error } = await supabase.rpc('invite_employee_to_org', {
             p_org_id: orgId,
-            p_name:   name.trim() || email.split('@')[0],
+            p_name:   finalName,
             p_email:  email.trim(),
             p_role:   role,
         });
@@ -49,12 +51,19 @@ export default function InviteEmployeeModal({
         }
 
         if (sendMagicLink) {
-            const { error: linkErr } = await supabase.auth.signInWithOtp({
-                email: email.trim(),
-                options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+            // Login-Link wird server-seitig erzeugt und als gebrandete Mail über Resend versendet
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/invite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token ?? ''}`,
+                },
+                body: JSON.stringify({ email: email.trim(), name: finalName, organizationId: orgId, role }),
             });
-            if (linkErr) toast.warning('Mitarbeiter angelegt, aber Mail fehlgeschlagen: ' + linkErr.message);
-            else toast.success(`Magic-Link an ${email.trim()} verschickt.`);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) toast.warning('Mitarbeiter angelegt, aber Mail fehlgeschlagen: ' + (data.error || res.statusText));
+            else toast.success(`Einladung an ${email.trim()} verschickt.`);
         } else {
             toast.success(`Mitarbeiter ${email.trim()} angelegt.`);
         }

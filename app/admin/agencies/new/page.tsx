@@ -88,28 +88,37 @@ export default function NewAgencyWizard() {
 
         const orgId: string = (data as any).org_id;
 
-        if (sendOwnerInvite && ownerEmail.trim()) {
-            const { error: inviteErr } = await supabase.auth.signInWithOtp({
-                email: ownerEmail.trim(),
-                options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        // Login-Links werden server-seitig erzeugt und als gebrandete Mail über Resend versendet
+        const { data: { session } } = await supabase.auth.getSession();
+        const sendInvite = async (email: string, empName: string, empRole: 'admin' | 'user'): Promise<string | null> => {
+            const res = await fetch('/api/invite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token ?? ''}`,
+                },
+                body: JSON.stringify({ email, name: empName, organizationId: orgId, role: empRole }),
             });
-            if (inviteErr) toast.warning('Agentur angelegt, aber Owner-Mail fehlgeschlagen: ' + inviteErr.message);
+            if (res.ok) return null;
+            const d = await res.json().catch(() => ({}));
+            return d.error || res.statusText;
+        };
+
+        if (sendOwnerInvite && ownerEmail.trim()) {
+            const inviteErr = await sendInvite(ownerEmail.trim(), ownerName.trim() || ownerEmail.split('@')[0], 'admin');
+            if (inviteErr) toast.warning('Agentur angelegt, aber Owner-Mail fehlgeschlagen: ' + inviteErr);
         }
 
         const extras = extraEmails.split(/[,\n]/).map(e => e.trim()).filter(e => e.includes('@'));
         for (const email of extras) {
+            // RPC: Anlegen + Audit + Limit-Check; Mail dann über die Route
             const { error: empErr } = await supabase.rpc('invite_employee_to_org', {
                 p_org_id: orgId,
                 p_name:   email.split('@')[0],
                 p_email:  email,
                 p_role:   'user',
             });
-            if (!empErr) {
-                await supabase.auth.signInWithOtp({
-                    email,
-                    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-                });
-            }
+            if (!empErr) await sendInvite(email, email.split('@')[0], 'user');
         }
 
         toast.success(`Agentur "${name}" erfolgreich angelegt.`);

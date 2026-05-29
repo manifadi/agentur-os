@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
+import AccountSwitcher from './AccountSwitcher';
 import {
     LayoutGrid,
     Globe,
@@ -74,6 +77,9 @@ export default function MainSidebar({
     activeUser
 }: MainSidebarProps) {
 
+    const switcherTriggerRef = useRef<HTMLButtonElement>(null);
+    const [switcherOpen, setSwitcherOpen] = useState(false);
+
     const NavItem = ({ view, icon: Icon, label, href }: { view: string, icon: any, label: string, href: string }) => {
         const isActive = currentView === view;
         return (
@@ -132,10 +138,18 @@ export default function MainSidebar({
         >
             {/* Header / Profile Switcher */}
             <div className="p-4 mb-2 shrink-0" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
-                <div className={`flex items-center ${isSidebarExpanded ? 'gap-3 px-2' : 'justify-center'}`}>
+                <button
+                    ref={switcherTriggerRef}
+                    type="button"
+                    onClick={() => setSwitcherOpen(o => !o)}
+                    title="Agentur wechseln"
+                    className={`w-full flex items-center rounded-xl transition-all duration-200 ${isSidebarExpanded ? 'gap-3 px-2 py-1.5' : 'justify-center py-1'}`}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover-bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                >
                     <div className="relative w-10 h-10 shrink-0">
                         <div
-                            className="w-full h-full rounded-xl flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer"
+                            className="w-full h-full rounded-xl flex items-center justify-center overflow-hidden shadow-sm"
                             style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}
                         >
                             {agencySettings?.logo_url ? (
@@ -151,7 +165,7 @@ export default function MainSidebar({
 
                     {isSidebarExpanded && (
                         <div className="flex items-center justify-between flex-1 min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
-                            <div className="flex flex-col min-w-0">
+                            <div className="flex flex-col min-w-0 text-left">
                                 <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                                     {agencySettings?.company_name || 'Vela'}
                                 </span>
@@ -162,7 +176,13 @@ export default function MainSidebar({
                             <ChevronsUpDown size={14} className="shrink-0 ml-2" style={{ color: 'var(--text-muted)' }} />
                         </div>
                     )}
-                </div>
+                </button>
+
+                <AccountSwitcher
+                    open={switcherOpen}
+                    onClose={() => setSwitcherOpen(false)}
+                    anchorRef={switcherTriggerRef}
+                />
 
                 {/* Sidebar Toggle Button */}
                 <button

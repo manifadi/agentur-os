@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../supabaseClient';
 import { Organization, Employee, OrganizationFeature, FEATURE_CATALOG, OrganizationPlan, OrganizationStatus } from '../../../types';
@@ -20,9 +20,12 @@ import {
 
 type Tab = 'overview' | 'employees' | 'features' | 'usage' | 'danger';
 
+const VALID_TABS: Tab[] = ['overview', 'employees', 'features', 'usage', 'danger'];
+
 export default function AgencyDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const id = params?.id as string;
 
     const [org, setOrg] = useState<Organization | null>(null);
@@ -30,7 +33,11 @@ export default function AgencyDetailPage() {
     const [features, setFeatures] = useState<OrganizationFeature[]>([]);
     const [usage, setUsage] = useState<{ projects: number; clients: number; allocations: number; time_entries_week: number } | null>(null);
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<Tab>('overview');
+
+    // Aktiver Tab lebt in der URL (?tab=…) → bleibt bei Reload erhalten und ist teilbar
+    const tabParam = searchParams.get('tab');
+    const tab: Tab = tabParam && VALID_TABS.includes(tabParam as Tab) ? (tabParam as Tab) : 'overview';
+    const setTab = (t: Tab) => router.replace(`/admin/agencies/${id}?tab=${t}`, { scroll: false });
 
     const reload = async () => {
         const [orgRes, empRes, featRes, usageRes] = await Promise.all([
@@ -528,13 +535,25 @@ function DangerTab({ org, onChanged, onDeleted }: { org: Organization; onChanged
             return;
         }
         const ownerEmail = data[0].email as string;
-        const { error: linkErr } = await supabase.auth.signInWithOtp({
-            email: ownerEmail,
-            options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        const ownerName = (data[0].name as string) || ownerEmail.split('@')[0];
+
+        // Login-Link server-seitig erzeugen + gebrandete Mail über Resend
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/invite', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session?.access_token ?? ''}`,
+            },
+            body: JSON.stringify({ email: ownerEmail, name: ownerName, organizationId: org.id, role: 'admin' }),
         });
         setWorking(null);
-        if (linkErr) toast.error('Mail fehlgeschlagen: ' + linkErr.message);
-        else toast.success(`Magic-Link an ${ownerEmail} verschickt.`);
+        if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            toast.error('Mail fehlgeschlagen: ' + (d.error || res.statusText));
+        } else {
+            toast.success(`Login-Link an ${ownerEmail} verschickt.`);
+        }
     };
 
     return (
