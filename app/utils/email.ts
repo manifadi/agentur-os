@@ -114,6 +114,60 @@ export function inviteEmailHtml(opts: {
 </html>`;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Vorlage: Passwort-zurücksetzen
+// ─────────────────────────────────────────────────────────────
+
+export function recoveryEmailHtml(opts: {
+    actionLink: string;
+    logoUrl?: string;
+}): string {
+    const brand = opts.logoUrl
+        ? `<img src="${opts.logoUrl}" alt="Vela" height="30" style="height:30px; width:auto; display:block; border:0;" />`
+        : `<div style="font-size:20px; font-weight:800; color:#111827; letter-spacing:-0.02em;">Vela</div>`;
+
+    return `<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0; padding:0; background:#f5f5f7; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f7; padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #ececef;">
+        <tr><td style="padding:28px 32px 20px; border-bottom:1px solid #f3f4f6;">
+          ${brand}
+        </td></tr>
+        <tr><td style="padding:24px 32px 0;">
+          <p style="font-size:15px; color:#111827; line-height:1.6; margin:0 0 12px;">Passwort zurücksetzen</p>
+          <p style="font-size:15px; color:#374151; line-height:1.6; margin:0 0 24px;">
+            Du hast angefragt, dein Passwort zurückzusetzen. Klick auf den Button, um ein neues Passwort festzulegen.
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td style="border-radius:12px; background:#111827;">
+              <a href="${opts.actionLink}" target="_blank"
+                 style="display:inline-block; padding:13px 28px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
+                Neues Passwort festlegen
+              </a>
+            </td></tr>
+          </table>
+          <p style="font-size:12px; color:#9ca3af; line-height:1.6; margin:0 0 8px;">
+            Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:
+          </p>
+          <p style="font-size:12px; color:#6b7280; line-height:1.5; margin:0 0 24px; word-break:break-all;">
+            ${opts.actionLink}
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 28px; border-top:1px solid #f3f4f6;">
+          <p style="font-size:11px; color:#9ca3af; line-height:1.5; margin:0;">
+            Du hast das nicht angefordert? Dann ignoriere diese E-Mail — dein Passwort bleibt unverändert.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 function escapeHtml(s: string): string {
     return s
         .replace(/&/g, '&amp;')

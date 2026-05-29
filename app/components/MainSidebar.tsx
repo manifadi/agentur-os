@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import AccountSwitcher from './AccountSwitcher';
+import ConfirmModal from './Modals/ConfirmModal';
 import {
     LayoutGrid,
     Globe,
@@ -79,6 +80,7 @@ export default function MainSidebar({
 
     const switcherTriggerRef = useRef<HTMLButtonElement>(null);
     const [switcherOpen, setSwitcherOpen] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const NavItem = ({ view, icon: Icon, label, href }: { view: string, icon: any, label: string, href: string }) => {
         const isActive = currentView === view;
@@ -336,7 +338,7 @@ export default function MainSidebar({
                 <NavItem view="settings" href="/einstellungen" icon={SettingsIcon} label="Einstellungen" />
 
                 <button
-                    onClick={onLogout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-full relative group flex items-center"
                 >
                     <div
@@ -366,6 +368,16 @@ export default function MainSidebar({
                     )}
                 </button>
             </div>
+
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                title="Abmelden?"
+                message={`Du wirst von ${agencySettings?.company_name || 'dieser Agentur'} abgemeldet und sie wird aus der Agentur-Auswahl entfernt. Andere angemeldete Agenturen bleiben bestehen.`}
+                onConfirm={() => { setShowLogoutConfirm(false); onLogout(); }}
+                onCancel={() => setShowLogoutConfirm(false)}
+                type="warning"
+                confirmText="Abmelden"
+            />
         </aside>
     );
 }

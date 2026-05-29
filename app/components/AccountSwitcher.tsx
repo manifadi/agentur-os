@@ -2,7 +2,7 @@
 
 import React, { useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Check, X, Loader2, Building2 } from 'lucide-react';
+import { Plus, Check, Loader2, Building2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StoredAccount } from '../utils/accountVault';
 
@@ -13,7 +13,7 @@ interface AccountSwitcherProps {
 }
 
 export default function AccountSwitcher({ open, onClose, anchorRef }: AccountSwitcherProps) {
-    const { accounts, activeAccountId, switchAccount, startAddAccount, forgetAccount, switchingAccount } = useApp();
+    const { accounts, activeAccountId, switchAccount, startAddAccount, switchingAccount } = useApp();
     const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
     const [mounted, setMounted] = useState(false);
 
@@ -97,21 +97,10 @@ export default function AccountSwitcher({ open, onClose, anchorRef }: AccountSwi
                                         )}
                                     </div>
 
-                                    {active ? (
+                                    {active && (
                                         switchingAccount
                                             ? <Loader2 size={15} className="animate-spin shrink-0" style={{ color: 'var(--accent)' }} />
                                             : <Check size={16} className="shrink-0" style={{ color: 'var(--accent)' }} />
-                                    ) : (
-                                        <button
-                                            onClick={e => { e.stopPropagation(); forgetAccount(acc.id); }}
-                                            className="shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
-                                            style={{ color: 'var(--text-muted)' }}
-                                            title="Account entfernen"
-                                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-danger)'; }}
-                                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-                                        >
-                                            <X size={14} />
-                                        </button>
                                     )}
                                 </div>
                             );

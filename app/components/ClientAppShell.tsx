@@ -333,7 +333,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     // GATEKEEPER: Check if user is approved
     useEffect(() => {
-        if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password' && pathname !== '/auth/callback') {
+        if (!loadingSession && session && !loading && pathname !== '/onboarding' && pathname !== '/reset-password' && pathname !== '/set-password' && pathname !== '/auth/callback') {
             const found = employees.find(e => e.email === session.user.email);
             if (!found) router.replace('/onboarding');
         }
@@ -400,12 +400,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
     const startAddAccount = useCallback(() => setAddingAccount(true), []);
 
-    const forgetAccount = useCallback((id: string) => {
-        if (id === session?.user?.id) return; // aktiver Account: nur über Abmelden
-        removeAccountFromVault(id);
-        setAccounts(getAccounts());
-    }, [session?.user?.id]);
-
     const handleLogout = async () => {
         const currentId = session?.user?.id;
         await supabase.auth.signOut({ scope: 'local' });
@@ -464,7 +458,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             activeAccountId: session?.user?.id,
             switchAccount,
             startAddAccount,
-            forgetAccount,
             switchingAccount,
             setProjects,
             setClients,
@@ -486,7 +479,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     className="flex h-screen w-screen overflow-hidden antialiased"
                     style={{ background: 'var(--bg-app)', color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}
                 >
-                    {!['/login', '/onboarding', '/reset-password', '/auth/callback'].includes(pathname || '') && !pathname?.startsWith('/admin') && (
+                    {!['/login', '/onboarding', '/reset-password', '/set-password', '/auth/callback'].includes(pathname || '') && !pathname?.startsWith('/admin') && (
                         <MainSidebar
                             currentView={getSidebarView()}
                             onLogout={handleLogout}
@@ -505,7 +498,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     )}
 
                     {currentUser && orgId && isFeatureEnabled('feedback_button')
-                        && !['/login', '/onboarding', '/reset-password', '/auth/callback'].includes(pathname || '')
+                        && !['/login', '/onboarding', '/reset-password', '/set-password', '/auth/callback'].includes(pathname || '')
                         && !pathname?.startsWith('/admin') && (
                         <FeedbackWidget currentUser={currentUser} organizationId={orgId} />
                     )}

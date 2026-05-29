@@ -11,15 +11,30 @@ export default function AuthCallbackPage() {
 
     useEffect(() => {
         const code = searchParams.get('code');
+        const next = searchParams.get('next');
 
         if (!code) {
             router.replace('/');
             return;
         }
 
-        supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        supabase.auth.exchangeCodeForSession(code).then(async ({ error }) => {
             if (error) {
-                setError('Der Einladungslink ist abgelaufen oder ungültig. Bitte einen neuen Link anfordern.');
+                setError('Der Link ist abgelaufen oder ungültig. Bitte einen neuen Link anfordern.');
+                return;
+            }
+
+            // Passwort-vergessen-Link → direkt neues Passwort setzen
+            if (next === 'reset') {
+                router.replace('/reset-password');
+                return;
+            }
+
+            // Einladung / Magic-Link: hat der User schon ein Passwort?
+            // Falls nicht (frisch eingeladen) → erst Passwort festlegen.
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.user_metadata?.password_set) {
+                router.replace('/set-password');
             } else {
                 router.replace('/onboarding');
             }

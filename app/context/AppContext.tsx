@@ -26,7 +26,6 @@ interface AppContextType {
     activeAccountId?: string;
     switchAccount: (id: string) => Promise<void>;
     startAddAccount: () => void;
-    forgetAccount: (id: string) => void;
     switchingAccount: boolean;
 
     // Setters / Refreshers
@@ -71,7 +70,6 @@ export const AppContext = createContext<AppContextType>({
     activeAccountId: undefined,
     switchAccount: async () => { },
     startAddAccount: () => { },
-    forgetAccount: () => { },
     switchingAccount: false,
     setProjects: () => { },
     setClients: () => { },

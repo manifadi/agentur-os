@@ -1,14 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Lock, Check } from 'lucide-react';
 
-export default function ResetPassword() {
+interface ResetPasswordProps {
+    // 'reset' = Passwort vergessen (Recovery-Link), 'setup' = erstes Passwort nach Einladung
+    mode?: 'reset' | 'setup';
+}
+
+export default function ResetPassword({ mode = 'reset' }: ResetPasswordProps) {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [msgType, setMsgType] = useState<'error' | 'success'>('error');
     const [isDone, setIsDone] = useState(false);
+
+    const isSetup = mode === 'setup';
+    const title = isSetup ? 'Passwort festlegen' : 'Neues Passwort';
+    const subtitle = isSetup
+        ? 'Lege ein Passwort für deinen Account fest, damit du dich künftig direkt anmelden kannst.'
+        : 'Gib dein neues Passwort ein';
+    const submitLabel = isSetup ? 'Passwort festlegen' : 'Passwort speichern';
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -17,21 +29,28 @@ export default function ResetPassword() {
             setMsgType('error');
             return;
         }
+        if (password.length < 6) {
+            setMsg('Das Passwort muss mindestens 6 Zeichen lang sein.');
+            setMsgType('error');
+            return;
+        }
 
         setLoading(true);
         setMsg('');
-        const { error } = await supabase.auth.updateUser({ password });
+        // password_set merkt sich, dass ein Passwort existiert → kein erneuter Setup-Prompt
+        const { error } = await supabase.auth.updateUser({ password, data: { password_set: true } });
 
         if (error) {
             setMsg(error.message);
             setMsgType('error');
         } else {
-            setMsg('Passwort erfolgreich geändert!');
+            setMsg(isSetup ? 'Passwort festgelegt!' : 'Passwort erfolgreich geändert!');
             setMsgType('success');
             setIsDone(true);
             setTimeout(() => {
-                window.location.href = '/';
-            }, 2000);
+                // Nach Setup zur App (Onboarding verknüpft ggf. den Mitarbeiter), nach Reset zum Login
+                window.location.href = isSetup ? '/onboarding' : '/';
+            }, 1500);
         }
         setLoading(false);
     };
@@ -44,9 +63,9 @@ export default function ResetPassword() {
                         {isDone ? <Check size={24} /> : <Lock size={24} />}
                     </div>
                 </div>
-                <h1 className="text-2xl font-bold text-center mb-1 text-text-primary">Neues Passwort</h1>
+                <h1 className="text-2xl font-bold text-center mb-1 text-text-primary">{title}</h1>
                 <p className="text-center text-text-secondary text-sm mb-8">
-                    Gib dein neues Passwort ein
+                    {subtitle}
                 </p>
 
                 {!isDone ? (
@@ -86,13 +105,15 @@ export default function ResetPassword() {
                             disabled={loading}
                             className="w-full py-2.5 rounded-xl bg-text-primary text-surface text-sm font-medium hover:opacity-90 shadow-lg disabled:opacity-50 transition"
                         >
-                            {loading ? 'Speichere...' : 'Passwort speichern'}
+                            {loading ? 'Speichere...' : submitLabel}
                         </button>
                     </form>
                 ) : (
                     <div className="text-center py-4">
                         <div className="text-green-500 font-medium mb-2">Erfolgreich!</div>
-                        <p className="text-text-secondary text-sm text-center">Du wirst zum Login weitergeleitet...</p>
+                        <p className="text-text-secondary text-sm text-center">
+                            {isSetup ? 'Du wirst weitergeleitet...' : 'Du wirst zum Login weitergeleitet...'}
+                        </p>
                     </div>
                 )}
             </div>

@@ -52,13 +52,15 @@ export default function LoginScreen({ isAddingAccount = false, onCancel }: Login
         clearErrors();
 
         if (mode === 'forgot') {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`,
-            });
-            if (error) setEmailError(error.message);
-            else setSuccessMsg('E-Mail zum Zurücksetzen wurde gesendet!');
+            // Reset-Link via Brevo (server-seitig). Antwort ist generisch (Anti-Enumeration).
+            await fetch('/api/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            }).catch(() => {});
+            setSuccessMsg('Falls ein Konto mit dieser E-Mail existiert, haben wir dir einen Link zum Zurücksetzen geschickt.');
         } else if (mode === 'signup') {
-            const { error } = await supabase.auth.signUp({ email, password });
+            const { error } = await supabase.auth.signUp({ email, password, options: { data: { password_set: true } } });
             if (error) parseError(error.message);
             else setSuccessMsg('Account erstellt! Bitte bestätige deine E-Mail-Adresse.');
         } else {
