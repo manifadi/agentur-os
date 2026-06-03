@@ -36,6 +36,7 @@ interface CalendarDataContextValue {
     teamEvents: CalendarEvent[];
     externalCalendars: ExternalCalendar[];
     externalEvents: ParsedExternalEvent[];
+    teamExternalEvents: ParsedExternalEvent[];   // freigegebene externe Termine aktivierter Kollegen
     hiddenEventIds: Set<string>;
     hiddenExternalKeys: Set<string>;
     syncErrors: SyncError[];
@@ -291,6 +292,36 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
         setSyncErrors(errors);
     }, []);
 
+    // ── Team-externe Events (freigegebene Kalender aktivierter Kollegen) ──
+    const [teamExternalEvents, setTeamExternalEvents] = useState<ParsedExternalEvent[]>([]);
+    const otherIdsKey = useMemo(
+        () => visibleEmployeeIds.filter(id => id !== currentUser?.id).sort().join(','),
+        [visibleEmployeeIds, currentUser?.id],
+    );
+    const otherIdsRef = useRef(otherIdsKey);
+    otherIdsRef.current = otherIdsKey;
+
+    const refreshTeamExternals = useCallback(async () => {
+        const others = otherIdsRef.current;
+        if (!others) { setTeamExternalEvents([]); return; }
+        const from = fetchFromRef.current;
+        const to = fetchToRef.current;
+        try {
+            const params = new URLSearchParams({ employeeIds: others, from: from.toISOString(), to: to.toISOString() });
+            const res = await authFetch(`/api/calendar/team-external-events?${params}`);
+            if (!res.ok) { setTeamExternalEvents([]); return; }
+            const data = await res.json();
+            setTeamExternalEvents((data.events || []) as ParsedExternalEvent[]);
+        } catch {
+            setTeamExternalEvents([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!enabled) return;
+        refreshTeamExternals();
+    }, [enabled, otherIdsKey, fetchFromMs, fetchToMs, refreshTeamExternals]);
+
     // Refresh externals when: visible-cal set changes, or range changes
     const visibleCalsKey = useMemo(
         () => externalCalsTable.data.filter(c => c.is_visible).map(c => c.id).sort().join(','),
@@ -305,15 +336,15 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
     // Background polling for externals
     useEffect(() => {
         if (!enabled) return;
-        const id = window.setInterval(() => { refreshExternals(); }, EXTERNAL_POLL_MS);
+        const id = window.setInterval(() => { refreshExternals(); refreshTeamExternals(); }, EXTERNAL_POLL_MS);
         return () => window.clearInterval(id);
-    }, [enabled, refreshExternals]);
+    }, [enabled, refreshExternals, refreshTeamExternals]);
 
     // Refresh on tab focus
     useEffect(() => {
         if (!enabled) return;
-        const onFocus = () => { refreshExternals(); };
-        const onVisibility = () => { if (document.visibilityState === 'visible') refreshExternals(); };
+        const onFocus = () => { refreshExternals(); refreshTeamExternals(); };
+        const onVisibility = () => { if (document.visibilityState === 'visible') { refreshExternals(); refreshTeamExternals(); } };
         window.addEventListener('focus', onFocus);
         document.addEventListener('visibilitychange', onVisibility);
         return () => {
@@ -381,6 +412,7 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
         teamEvents: teamTable.data,
         externalCalendars: externalCalsTable.data,
         externalEvents,
+        teamExternalEvents,
         hiddenEventIds, hiddenExternalKeys,
         syncErrors,
         initialLoading: enabled && (ownTable.loading || externalCalsTable.loading || hiddenTable.loading),

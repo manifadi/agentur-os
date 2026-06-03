@@ -460,6 +460,24 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                             className="flex-1 bg-transparent text-sm font-semibold outline-none" style={{ color: 'var(--text-primary)' }} />
                     </div>
 
+                    {/* Kalender-Auswahl — primäre Wahl, wo der Termin stehen soll */}
+                    {!isExternalEdit && writableCalendars.length > 0 && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                            <Calendar size={15} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
+                            <select
+                                value={targetCalendarId}
+                                onChange={e => setTargetCalendarId(e.target.value)}
+                                className="flex-1 bg-transparent text-xs font-medium outline-none"
+                                style={{ color: 'var(--text-primary)' }}
+                            >
+                                <option value="">Vela (interner Kalender)</option>
+                                {writableCalendars.map(cal => (
+                                    <option key={cal.id} value={cal.id}>{cal.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     {/* All Day + Dates */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -561,26 +579,6 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                         </div>
                     </div>
 
-                    {/* Target calendar (only shown if writable calendars exist) */}
-                    {!isExternalEdit && writableCalendars.length > 0 && (
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
-                                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>In Kalender synchronisieren</span>
-                            </div>
-                            <select
-                                value={targetCalendarId}
-                                onChange={e => setTargetCalendarId(e.target.value)}
-                                className="w-full p-2 rounded-xl text-xs outline-none"
-                                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                            >
-                                <option value="">Nur intern speichern</option>
-                                {writableCalendars.map(cal => (
-                                    <option key={cal.id} value={cal.id}>{cal.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
 
                     {/* Color */}
                     {!isExternalEdit && (

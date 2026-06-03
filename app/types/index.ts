@@ -91,6 +91,7 @@ export interface Employee {
     vacation_days_per_year?: number;
     carryover_days?: number;
     started_at?: string | null;
+    calendar_shared_with_team?: boolean; // interner Vela-Kalender für Kollegen sichtbar
 }
 
 // ── Abwesenheiten ─────────────────────────────────────────
@@ -535,6 +536,7 @@ export interface ExternalCalendar {
     is_visible: boolean;
     provider_type: CalendarProviderType;
     is_writable: boolean;
+    shared_with_team?: boolean;   // für Kollegen sichtbar (wenn sie einen aktivieren)
     external_calendar_id?: string | null;
     caldav_username?: string | null;
     account_label?: string | null;
@@ -555,6 +557,7 @@ export interface ParsedExternalEvent {
     location?: string;
     meeting_url?: string;
     uid?: string;
+    ownerEmployeeId?: string;   // gesetzt bei geteilten Team-Terminen (Kollegen-Kalender)
 }
 
 export interface HiddenCalendarEvent {

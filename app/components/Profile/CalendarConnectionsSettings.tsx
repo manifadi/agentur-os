@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Trash2, RefreshCw, Chrome, Monitor, Apple, Building2, Link, Shield, Check, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, Chrome, Monitor, Apple, Building2, Link, Shield, Check, Eye, EyeOff, AlertCircle, Users, Calendar as CalIcon } from 'lucide-react';
 import { Employee, ExternalCalendar, CalendarProviderType } from '../../types';
 import { supabase } from '../../supabaseClient';
 import CalendarProviderModal from '../Calendar/CalendarProviderModal';
@@ -88,6 +88,20 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
         fetchCalendars();
     };
 
+    // Für Kollegen sichtbar (wenn sie einen aktivieren) — unabhängig von is_visible (eigene Ansicht).
+    const handleToggleShared = async (cal: ExternalCalendar) => {
+        await supabase.from('external_calendars').update({ shared_with_team: !cal.shared_with_team }).eq('id', cal.id);
+        fetchCalendars();
+    };
+
+    // Interner Vela-Kalender: Team-Sichtbarkeit pro Mitarbeiter.
+    const [velaShared, setVelaShared] = useState(currentUser.calendar_shared_with_team !== false);
+    const toggleVelaShared = async () => {
+        const next = !velaShared;
+        setVelaShared(next);
+        await supabase.from('employees').update({ calendar_shared_with_team: next }).eq('id', currentUser.id);
+    };
+
     const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: string; name?: string } | null>(null);
 
     const handleDelete = (cal: ExternalCalendar) => {
@@ -140,6 +154,31 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
                     <p><strong style={{ color: 'var(--text-secondary)' }}>Google / Outlook:</strong> Du klickst auf „Verbinden" und gibst Zugriff über OAuth. Jeder Nutzer verbindet sein eigenes Konto — du brauchst kein gemeinsames Login.</p>
                     <p><strong style={{ color: 'var(--text-secondary)' }}>iCal URL:</strong> Öffentliche Kalender (z.B. Feiertage) per Link abonnieren.</p>
                 </div>
+            </div>
+
+            {/* Legende: zwei getrennte Sichtbarkeiten */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] px-1" style={{ color: 'var(--text-muted)' }}>
+                <span className="flex items-center gap-1"><Eye size={12} /> = in deinem Kalender sichtbar</span>
+                <span className="flex items-center gap-1"><Users size={12} /> = für Kollegen sichtbar</span>
+            </div>
+
+            {/* Vela interner Kalender — Team-Sichtbarkeit */}
+            <div className="flex items-center gap-4 p-4 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                <div className="w-4 h-4 rounded-full shrink-0" style={{ background: 'var(--accent)' }} />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <CalIcon size={14} style={{ color: 'var(--accent)' }} />
+                    <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>Vela (interner Kalender)</div>
+                        <div className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                            Deine in Vela erstellten Termine · privat markierte bleiben immer verborgen
+                        </div>
+                    </div>
+                </div>
+                <button onClick={toggleVelaShared} className="p-2 rounded-lg transition-colors shrink-0"
+                    style={{ color: velaShared ? 'var(--accent)' : 'var(--text-muted)' }}
+                    title={velaShared ? 'Für Team sichtbar — Kollegen sehen deine öffentlichen Vela-Termine' : 'Privat — Kollegen sehen deine Vela-Termine nicht'}>
+                    <Users size={14} />
+                </button>
             </div>
 
             {/* Calendar list */}
@@ -203,9 +242,14 @@ export default function CalendarConnectionsSettings({ currentUser, organizationI
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 shrink-0">
+                                <button onClick={() => handleToggleShared(cal)} className="p-2 rounded-lg transition-colors"
+                                    style={{ color: cal.shared_with_team ? 'var(--accent)' : 'var(--text-muted)' }}
+                                    title={cal.shared_with_team ? 'Für Team sichtbar — Kollegen sehen diese Termine' : 'Privat — nur du siehst diese Termine'}>
+                                    <Users size={14} />
+                                </button>
                                 <button onClick={() => handleToggleVisible(cal)} className="p-2 rounded-lg transition-colors"
                                     style={{ color: cal.is_visible ? 'var(--accent)' : 'var(--text-muted)' }}
-                                    title={cal.is_visible ? 'Im Kalender sichtbar' : 'Im Kalender ausgeblendet'}>
+                                    title={cal.is_visible ? 'In deinem Kalender sichtbar' : 'In deinem Kalender ausgeblendet'}>
                                     {cal.is_visible ? <Eye size={14} /> : <EyeOff size={14} />}
                                 </button>
                                 <button onClick={() => handleDelete(cal)} disabled={deleting === cal.id}

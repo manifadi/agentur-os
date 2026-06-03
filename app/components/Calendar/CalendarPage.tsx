@@ -33,7 +33,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         setRange,
         visibleEmployeeIds, setVisibleEmployeeIds,
         ownEvents, teamEvents,
-        externalCalendars, externalEvents,
+        externalCalendars, externalEvents, teamExternalEvents,
         hiddenEventIds, hiddenExternalKeys,
         syncErrors,
         refreshExternals,
@@ -195,17 +195,38 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         ? ownEvents.filter(e => !hiddenEventIds.has(e.id))
         : [];
 
+    // Vela-Kalender-Freigabe des Besitzers respektieren (default: erlaubt).
+    const teamShareDenied = new Set(
+        employees.filter(e => e.calendar_shared_with_team === false).map(e => e.id),
+    );
+    const coloredTeamEvents = teamEvents
+        .filter(e => !teamShareDenied.has(e.employee_id))
+        .map(e => ({ ...e, color: getEmployeeColor(e.employee_id) as any }));
+
+    // Dedup intern ↔ extern: ein in Vela gespeicherter & nach extern gespiegelter
+    // Termin kommt vom Provider zurück — wir zeigen nur die interne Kopie.
+    const internalExtIds = new Set(
+        [...filteredOwnEvents, ...coloredTeamEvents]
+            .map(e => e.source_external_id)
+            .filter(Boolean) as string[],
+    );
+
     const visibleExternal = externalEvents.filter(e => {
         if (!externalCalendars.find(c => c.id === e.externalCalendarId && c.is_visible)) return false;
+        if (e.uid && internalExtIds.has(e.uid)) return false;
         const key = `${e.uid || ''}|${e.externalCalendarId}`;
         if (hiddenExternalKeys.has(key)) return false;
         return true;
     });
 
-    const coloredTeamEvents = teamEvents.map(e => ({
-        ...e,
-        color: getEmployeeColor(e.employee_id) as any,
-    }));
+    // Freigegebene externe Termine aktivierter Kollegen — pro Mitarbeiter eingefärbt,
+    // Herkunfts-Kalender bewusst nicht differenziert.
+    const visibleTeamExternal = teamExternalEvents
+        .filter(e => !(e.uid && internalExtIds.has(e.uid)))
+        .filter(e => !hiddenExternalKeys.has(`${e.uid || ''}|${e.externalCalendarId}`))
+        .map(e => ({ ...e, color: getEmployeeColor(e.ownerEmployeeId || '') as any }));
+
+    const allExternalEvents = [...visibleExternal, ...visibleTeamExternal];
 
     return (
         <div className="flex h-full overflow-hidden" style={{ background: 'var(--bg-app)' }}>
@@ -311,7 +332,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             employees={employees}
                             ownEvents={filteredOwnEvents}
                             teamEvents={coloredTeamEvents}
-                            externalEvents={visibleExternal}
+                            externalEvents={allExternalEvents}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
                             onDetailClick={openDetail}
@@ -325,7 +346,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             employees={employees}
                             ownEvents={filteredOwnEvents}
                             teamEvents={coloredTeamEvents}
-                            externalEvents={visibleExternal}
+                            externalEvents={allExternalEvents}
                             onSlotClick={d => openCreate(d, new Date(d.getTime() + 60 * 60 * 1000))}
                             onEventClick={openEdit}
                             onDetailClick={openDetail}
@@ -339,7 +360,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             employees={employees}
                             ownEvents={filteredOwnEvents}
                             teamEvents={coloredTeamEvents}
-                            externalEvents={visibleExternal}
+                            externalEvents={allExternalEvents}
                             onDayClick={onMonthDayClick}
                             onEventClick={openEdit}
                             onDetailClick={openDetail}
