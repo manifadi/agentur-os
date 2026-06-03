@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { encrypt, safeDecrypt } from '../../../utils/crypto';
+import { safeDecrypt } from '../../../utils/crypto';
+import { serviceClient, requireUser, loadOwnedCalendar, apiError } from '../../../utils/apiAuth';
 import crypto from 'crypto';
-
-const SUPABASE_URL = 'https://lkyqohkdxmchrjicvurn.supabase.co';
 
 function formatDateUTC(d: Date): string {
     // CalDAV time-range format: 20260101T000000Z
@@ -33,11 +31,11 @@ function parseCalDavXml(xml: string): string[] {
     return blocks;
 }
 
-async function getCalendarCredentials(calendarId: string) {
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const { data: calRaw } = await supabase.from('external_calendars').select('*').eq('id', calendarId).single();
-    const cal = calRaw as any;
-    if (!cal) return null;
+// Authentifiziert den Aufrufer, prüft Kalender-Ownership und liefert die CalDAV-Credentials.
+async function getOwnedCredentials(request: NextRequest, calendarId: string) {
+    const supabase = serviceClient();
+    const caller = await requireUser(request, supabase);
+    const cal: any = await loadOwnedCalendar(supabase, calendarId, caller);
     return {
         cal,
         username: cal.caldav_username,
@@ -50,23 +48,23 @@ async function getCalendarCredentials(calendarId: string) {
 
 // ── GET: fetch events ─────────────────────────────────────────
 export async function GET(request: NextRequest) {
-    const sp = request.nextUrl.searchParams;
-    const calendarId = sp.get('calendarId');
-    const from = sp.get('from');
-    const to = sp.get('to');
+    try {
+        const sp = request.nextUrl.searchParams;
+        const calendarId = sp.get('calendarId');
+        const from = sp.get('from');
+        const to = sp.get('to');
 
-    if (!calendarId) return NextResponse.json({ error: 'Missing calendarId' }, { status: 400 });
+        if (!calendarId) return NextResponse.json({ error: 'Missing calendarId' }, { status: 400 });
 
-    const creds = await getCalendarCredentials(calendarId);
-    if (!creds) return NextResponse.json({ error: 'Calendar not found' }, { status: 404 });
-    if (!creds.username || !creds.password || !creds.url) {
-        return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
-    }
+        const creds = await getOwnedCredentials(request, calendarId);
+        if (!creds.username || !creds.password || !creds.url) {
+            return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
+        }
 
-    const fromDate = from ? new Date(from) : new Date();
-    const toDate = to ? new Date(to) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const fromDate = from ? new Date(from) : new Date();
+        const toDate = to ? new Date(to) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const reportBody = `<?xml version="1.0" encoding="UTF-8"?>
+        const reportBody = `<?xml version="1.0" encoding="UTF-8"?>
 <C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
   <D:prop>
     <D:getetag/>
@@ -81,7 +79,6 @@ export async function GET(request: NextRequest) {
   </C:filter>
 </C:calendar-query>`;
 
-    try {
         const res = await fetch(creds.url, {
             method: 'REPORT',
             headers: {
@@ -117,8 +114,8 @@ export async function GET(request: NextRequest) {
             color: creds.cal.color,
             eventCount: icalBlocks.length,
         });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message || 'Unbekannter Fehler beim CalDAV-Abruf' }, { status: 502 });
+    } catch (e) {
+        return apiError(e);
     }
 }
 
@@ -135,82 +132,79 @@ async function caldavPut(creds: { username: string; password: string; url: strin
 
 // ── POST: create event on CalDAV server (PUT a new .ics resource) ─────
 export async function POST(request: NextRequest) {
-    const body = await request.json();
-    const { calendarId, event } = body;
-
-    if (!calendarId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
-
-    const creds = await getCalendarCredentials(calendarId);
-    if (!creds) return NextResponse.json({ error: 'Calendar not found' }, { status: 404 });
-    if (!creds.isWritable) {
-        return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
-    }
-    if (!creds.username || !creds.password || !creds.url) {
-        return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
-    }
-
-    const uid = event.uid || `${crypto.randomUUID()}@vela`;
-    const ics = buildICalEvent({ ...event, uid });
-
     try {
+        const body = await request.json();
+        const { calendarId, event } = body;
+
+        if (!calendarId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+        const creds = await getOwnedCredentials(request, calendarId);
+        if (!creds.isWritable) {
+            return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
+        }
+        if (!creds.username || !creds.password || !creds.url) {
+            return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
+        }
+
+        const uid = event.uid || `${crypto.randomUUID()}@vela`;
+        const ics = buildICalEvent({ ...event, uid });
+
         const result = await caldavPut({ username: creds.username, password: creds.password, url: creds.url }, uid, ics, true);
         if (result.status === 401) return NextResponse.json({ error: 'Anmeldung fehlgeschlagen' }, { status: 401 });
         if (!result.ok) return NextResponse.json({ error: `CalDAV PUT fehlgeschlagen: HTTP ${result.status}` }, { status: 502 });
         return NextResponse.json({ success: true, uid });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 502 });
+    } catch (e) {
+        return apiError(e);
     }
 }
 
 // ── PATCH: update existing event on CalDAV server (overwrite .ics) ─────
 // Body: { calendarId, uid, event }
 export async function PATCH(request: NextRequest) {
-    const body = await request.json();
-    const { calendarId, uid, event } = body;
-
-    if (!calendarId || !uid || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
-
-    const creds = await getCalendarCredentials(calendarId);
-    if (!creds) return NextResponse.json({ error: 'Calendar not found' }, { status: 404 });
-    if (!creds.isWritable) {
-        return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
-    }
-    if (!creds.username || !creds.password || !creds.url) {
-        return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
-    }
-
-    const ics = buildICalEvent({ ...event, uid });
-
     try {
+        const body = await request.json();
+        const { calendarId, uid, event } = body;
+
+        if (!calendarId || !uid || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+        const creds = await getOwnedCredentials(request, calendarId);
+        if (!creds.isWritable) {
+            return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
+        }
+        if (!creds.username || !creds.password || !creds.url) {
+            return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
+        }
+
+        const ics = buildICalEvent({ ...event, uid });
+
         const result = await caldavPut({ username: creds.username, password: creds.password, url: creds.url }, uid, ics, false);
         if (result.status === 401) return NextResponse.json({ error: 'Anmeldung fehlgeschlagen' }, { status: 401 });
         if (!result.ok) return NextResponse.json({ error: `CalDAV PATCH fehlgeschlagen: HTTP ${result.status}` }, { status: 502 });
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 502 });
+    } catch (e) {
+        return apiError(e);
     }
 }
 
 // ── DELETE: remove event from CalDAV server ─────────────────────────
 export async function DELETE(request: NextRequest) {
-    const sp = request.nextUrl.searchParams;
-    const calendarId = sp.get('calendarId');
-    const uid = sp.get('uid');
-
-    if (!calendarId || !uid) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
-
-    const creds = await getCalendarCredentials(calendarId);
-    if (!creds) return NextResponse.json({ error: 'Calendar not found' }, { status: 404 });
-    if (!creds.isWritable) {
-        return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
-    }
-    if (!creds.username || !creds.password || !creds.url) {
-        return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
-    }
-
-    const eventUrl = creds.url.replace(/\/?$/, '/') + encodeURIComponent(uid) + '.ics';
-
     try {
+        const sp = request.nextUrl.searchParams;
+        const calendarId = sp.get('calendarId');
+        const uid = sp.get('uid');
+
+        if (!calendarId || !uid) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+        const creds = await getOwnedCredentials(request, calendarId);
+        if (!creds.isWritable) {
+            return NextResponse.json({ error: 'Dieser Kalender ist schreibgeschützt.' }, { status: 403 });
+        }
+        if (!creds.username || !creds.password || !creds.url) {
+            return NextResponse.json({ error: 'Missing CalDAV credentials' }, { status: 400 });
+        }
+
+        const eventUrl = creds.url.replace(/\/?$/, '/') + encodeURIComponent(uid) + '.ics';
+
         const res = await fetch(eventUrl, {
             method: 'DELETE',
             headers: { 'Authorization': buildAuth(creds.username, creds.password) },
@@ -220,8 +214,8 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: `CalDAV DELETE fehlgeschlagen: HTTP ${res.status}` }, { status: 502 });
         }
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 502 });
+    } catch (e) {
+        return apiError(e);
     }
 }
 

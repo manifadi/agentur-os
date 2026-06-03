@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { encrypt } from '../../../../utils/crypto';
+import { verifyState } from '../../../../utils/apiAuth';
 
 const SUPABASE_URL = 'https://lkyqohkdxmchrjicvurn.supabase.co';
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     let state: { employeeId: string; organizationId: string; name: string; color: string; returnUrl: string };
     try {
-        state = JSON.parse(Buffer.from(stateRaw, 'base64url').toString());
+        state = verifyState(stateRaw); // HMAC-Signatur prüfen → kein gefälschter State
     } catch {
         return NextResponse.redirect(`${getAppUrl(request)}/kalender?error=invalid_state`);
     }

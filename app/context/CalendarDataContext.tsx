@@ -8,6 +8,7 @@ import {
     CalendarEvent, ExternalCalendar, ParsedExternalEvent, HiddenCalendarEvent, Employee,
 } from '../types';
 import { parseICalText } from '../utils/icalParser';
+import { authFetch } from '../utils/authFetch';
 import { useRealtimeTable } from '../hooks/useRealtimeTable';
 
 const EXTERNAL_POLL_MS = 3 * 60 * 1000; // 3 min
@@ -188,7 +189,7 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
         deps: [currentUser?.id],
         fetchFn: async () => {
             if (!currentUser?.id || !organizationId) return [];
-            const res = await fetch(`/api/calendar/hidden-events?employeeId=${currentUser.id}&organizationId=${organizationId}`);
+            const res = await authFetch('/api/calendar/hidden-events');
             if (!res.ok) return [];
             const data = await res.json();
             return (data.hidden || []) as HiddenCalendarEvent[];
@@ -252,17 +253,17 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
             try {
                 if (cal.provider_type === 'google') {
                     const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
-                    const res = await fetch(`/api/google-calendar/events?${params}`);
+                    const res = await authFetch(`/api/google-calendar/events?${params}`);
                     const data = await handleResponse(cal, res);
                     if (data) allParsed.push(...(data.events || []));
                 } else if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
                     const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
-                    const res = await fetch(`/api/microsoft/events?${params}`);
+                    const res = await authFetch(`/api/microsoft/events?${params}`);
                     const data = await handleResponse(cal, res);
                     if (data) allParsed.push(...(data.events || []));
                 } else if ((cal.provider_type === 'troi' || cal.provider_type === 'apple') && cal.caldav_username) {
                     const params = new URLSearchParams({ calendarId: cal.id, from: from.toISOString(), to: to.toISOString() });
-                    const res = await fetch(`/api/caldav/events?${params}`);
+                    const res = await authFetch(`/api/caldav/events?${params}`);
                     const data = await handleResponse(cal, res);
                     if (data?.ical) {
                         const parsed = parseICalText(data.ical, cal.id, cal.name, cal.color);
@@ -356,10 +357,10 @@ export function CalendarDataProvider({ currentUser, organizationId, children }: 
             },
         ]);
         try {
-            const res = await fetch('/api/calendar/hidden-events', {
+            const res = await authFetch('/api/calendar/hidden-events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employeeId: currentUser.id, organizationId, externalEventUid: uid, externalCalendarId }),
+                body: JSON.stringify({ externalEventUid: uid, externalCalendarId }),
             });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));

@@ -49,7 +49,13 @@ function getKey(): Buffer | null {
 export function encrypt(plaintext: string): string {
     if (!plaintext) return plaintext;
     const key = getKey();
-    if (!key) return plaintext; // graceful degradation
+    if (!key) {
+        // In Produktion NIEMALS Klartext-Tokens/Passwörter speichern → hart fehlschlagen.
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('CALENDAR_ENCRYPTION_KEY fehlt — Verschlüsselung in Produktion zwingend erforderlich.');
+        }
+        return plaintext; // nur in Dev: graceful degradation
+    }
 
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);

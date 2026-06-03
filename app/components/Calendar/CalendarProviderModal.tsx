@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { X, Link, Chrome, Monitor, Apple, Building2, Eye, EyeOff, AlertCircle, Loader, Shield, Info, Check, Lock } from 'lucide-react';
 import { Employee, CalendarProviderType } from '../../types';
 import { supabase } from '../../supabaseClient';
+import { authFetch, currentAccessToken } from '../../utils/authFetch';
 
 interface DiscoveredCalendar {
     url: string;
@@ -149,12 +150,10 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
 
         // Save via dedicated endpoint so password gets encrypted server-side
         try {
-            const res = await fetch('/api/caldav/save', {
+            const res = await authFetch('/api/caldav/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    organizationId,
-                    employeeId: currentUser.id,
                     providerType,
                     username: username.trim(),
                     password,
@@ -214,10 +213,11 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
         onClose();
     };
 
-    const handleConnectGoogle = () => {
+    const handleConnectGoogle = async () => {
+        // Access-Token mitgeben → Init-Route leitet Identität aus der Session ab.
+        const at = await currentAccessToken();
         const params = new URLSearchParams({
-            employeeId: currentUser.id,
-            organizationId,
+            at,
             name: oauthName || 'Google Kalender',
             color: oauthColor,
             returnUrl: '/kalender',
@@ -225,10 +225,10 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
         window.location.href = `/api/auth/google-calendar?${params}`;
     };
 
-    const handleConnectMicrosoft = () => {
+    const handleConnectMicrosoft = async () => {
+        const at = await currentAccessToken();
         const params = new URLSearchParams({
-            employeeId: currentUser.id,
-            organizationId,
+            at,
             name: oauthName || 'Outlook',
             color: oauthColor,
             returnUrl: '/kalender',

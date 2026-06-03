@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { encrypt, safeDecrypt } from '../../../utils/crypto';
-
-const SUPABASE_URL = 'https://lkyqohkdxmchrjicvurn.supabase.co';
+import { serviceClient, requireUser, loadOwnedCalendar, apiError } from '../../../utils/apiAuth';
 
 async function refreshMicrosoftToken(refreshToken: string): Promise<string | null> {
     const res = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
@@ -21,9 +19,8 @@ async function refreshMicrosoftToken(refreshToken: string): Promise<string | nul
     return data.access_token;
 }
 
-async function getValidToken(supabase: any, calendarId: string): Promise<string | null> {
-    const { data: calRaw } = await supabase.from('external_calendars').select('*').eq('id', calendarId).single();
-    const cal = calRaw as any;
+// Erwartet die bereits per loadOwnedCalendar geprüfte Kalender-Zeile.
+async function getValidToken(supabase: any, cal: any): Promise<string | null> {
     if (!cal) return null;
 
     let token = safeDecrypt(cal.oauth_access_token);
@@ -43,7 +40,7 @@ async function getValidToken(supabase: any, calendarId: string): Promise<string 
                     .eq('provider_type', 'outlook')
                     .eq('account_label', cal.account_label);
             } else {
-                await query.eq('id', calendarId);
+                await query.eq('id', cal.id);
             }
         }
     }
@@ -61,66 +58,70 @@ function extractTeamsUrl(event: any): string | undefined {
 
 // GET /api/microsoft/events?calendarId=...&from=...&to=...
 export async function GET(request: NextRequest) {
-    const sp = request.nextUrl.searchParams;
-    const calendarId = sp.get('calendarId');
-    const from = sp.get('from');
-    const to = sp.get('to');
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const sp = request.nextUrl.searchParams;
+        const calendarId = sp.get('calendarId');
+        const from = sp.get('from');
+        const to = sp.get('to');
 
-    if (!calendarId) return NextResponse.json({ error: 'Missing calendarId' }, { status: 400 });
+        if (!calendarId) return NextResponse.json({ error: 'Missing calendarId' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const token = await getValidToken(supabase, calendarId);
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const token = await getValidToken(admin, cal);
+        if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const { data: cal } = await supabase.from('external_calendars').select('color, name, external_calendar_id').eq('id', calendarId).single();
+        const filter: string[] = [];
+        if (from) filter.push(`start/dateTime ge '${new Date(from).toISOString()}'`);
+        if (to) filter.push(`end/dateTime le '${new Date(to).toISOString()}'`);
 
-    const filter: string[] = [];
-    if (from) filter.push(`start/dateTime ge '${new Date(from).toISOString()}'`);
-    if (to) filter.push(`end/dateTime le '${new Date(to).toISOString()}'`);
+        const params = new URLSearchParams({
+            $select: 'id,subject,start,end,location,body,onlineMeeting,onlineMeetingUrl,isAllDay,attendees',
+            $orderby: 'start/dateTime',
+            $top: '100',
+            ...(filter.length && { $filter: filter.join(' and ') }),
+        });
 
-    const params = new URLSearchParams({
-        $select: 'id,subject,start,end,location,body,onlineMeeting,onlineMeetingUrl,isAllDay,attendees',
-        $orderby: 'start/dateTime',
-        $top: '100',
-        ...(filter.length && { $filter: filter.join(' and ') }),
-    });
+        // Use specific calendar endpoint if external_calendar_id is set (multi-calendar support).
+        // Otherwise fall back to /me/events (legacy single-calendar rows).
+        const msCalId = (cal as any)?.external_calendar_id;
+        const endpoint = msCalId && msCalId !== 'me'
+            ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(msCalId)}/events`
+            : `https://graph.microsoft.com/v1.0/me/events`;
 
-    // Use specific calendar endpoint if external_calendar_id is set (multi-calendar support).
-    // Otherwise fall back to /me/events (legacy single-calendar rows).
-    const msCalId = (cal as any)?.external_calendar_id;
-    const endpoint = msCalId && msCalId !== 'me'
-        ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(msCalId)}/events`
-        : `https://graph.microsoft.com/v1.0/me/events`;
+        const res = await fetch(`${endpoint}?${params}`, {
+            headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="Europe/Vienna"' },
+        });
 
-    const res = await fetch(`${endpoint}?${params}`, {
-        headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="Europe/Vienna"' },
-    });
+        if (!res.ok) return NextResponse.json({ error: 'Microsoft API error' }, { status: 502 });
 
-    if (!res.ok) return NextResponse.json({ error: 'Microsoft API error' }, { status: 502 });
+        const data = await res.json();
+        const events = (data.value || []).map((ev: any) => {
+            const allDay = ev.isAllDay;
+            return {
+                id: `ext-${calendarId}-${ev.id}`,
+                uid: ev.id,
+                externalCalendarId: calendarId,
+                title: ev.subject || '(Kein Titel)',
+                start_at: new Date(ev.start.dateTime + (ev.start.timeZone === 'UTC' ? 'Z' : '')).toISOString(),
+                end_at: new Date(ev.end.dateTime + (ev.end.timeZone === 'UTC' ? 'Z' : '')).toISOString(),
+                all_day: allDay,
+                color: cal?.color || '#0078D4',
+                calendarName: cal?.name || 'Outlook',
+                description: ev.body?.content?.replace(/<[^>]+>/g, '') || undefined,
+                location: ev.location?.displayName || undefined,
+                meeting_url: extractTeamsUrl(ev),
+            };
+        });
 
-    const data = await res.json();
-    const events = (data.value || []).map((ev: any) => {
-        const allDay = ev.isAllDay;
-        return {
-            id: `ext-${calendarId}-${ev.id}`,
-            uid: ev.id,
-            externalCalendarId: calendarId,
-            title: ev.subject || '(Kein Titel)',
-            start_at: new Date(ev.start.dateTime + (ev.start.timeZone === 'UTC' ? 'Z' : '')).toISOString(),
-            end_at: new Date(ev.end.dateTime + (ev.end.timeZone === 'UTC' ? 'Z' : '')).toISOString(),
-            all_day: allDay,
-            color: cal?.color || '#0078D4',
-            calendarName: cal?.name || 'Outlook',
-            description: ev.body?.content?.replace(/<[^>]+>/g, '') || undefined,
-            location: ev.location?.displayName || undefined,
-            meeting_url: extractTeamsUrl(ev),
-        };
-    });
-
-    return NextResponse.json({ events });
+        return NextResponse.json({ events });
+    } catch (e) {
+        return apiError(e);
+    }
 }
 
-function buildMsEventBody(event: any, calMsId?: string | null): any {
+function buildMsEventBody(event: any): any {
     const descParts = [event.description || ''];
     if (event.meeting_url) descParts.push(`Meeting: ${event.meeting_url}`);
     const description = descParts.filter(Boolean).join('\n\n');
@@ -154,78 +155,93 @@ function msEndpoint(calMsId?: string | null): string {
 
 // POST /api/microsoft/events — create event in Outlook/Teams
 export async function POST(request: NextRequest) {
-    const body = await request.json();
-    const { calendarId, event } = body;
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const body = await request.json();
+        const { calendarId, event } = body;
 
-    if (!calendarId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        if (!calendarId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const token = await getValidToken(supabase, calendarId);
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const token = await getValidToken(admin, cal);
+        if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const { data: cal } = await supabase.from('external_calendars').select('external_calendar_id').eq('id', calendarId).single();
-    const endpoint = msEndpoint((cal as any)?.external_calendar_id);
+        const endpoint = msEndpoint((cal as any)?.external_calendar_id);
 
-    const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildMsEventBody(event)),
-    });
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildMsEventBody(event)),
+        });
 
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return NextResponse.json({ error: 'Microsoft API error', details: err }, { status: 502 });
+        if (!res.ok) {
+            return NextResponse.json({ error: 'Microsoft API error' }, { status: 502 });
+        }
+
+        const created = await res.json();
+        return NextResponse.json({ success: true, microsoftEventId: created.id });
+    } catch (e) {
+        return apiError(e);
     }
-
-    const created = await res.json();
-    return NextResponse.json({ success: true, microsoftEventId: created.id });
 }
 
 // PATCH /api/microsoft/events — update event
 // Body: { calendarId, microsoftEventId, event }
 export async function PATCH(request: NextRequest) {
-    const body = await request.json();
-    const { calendarId, microsoftEventId, event } = body;
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const body = await request.json();
+        const { calendarId, microsoftEventId, event } = body;
 
-    if (!calendarId || !microsoftEventId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        if (!calendarId || !microsoftEventId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const token = await getValidToken(supabase, calendarId);
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const token = await getValidToken(admin, cal);
+        if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    // Single-event endpoint accepts /me/events/{id} regardless of which calendar — Graph API resolves it.
-    const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(microsoftEventId)}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildMsEventBody(event)),
-    });
+        // Single-event endpoint accepts /me/events/{id} regardless of which calendar — Graph API resolves it.
+        const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(microsoftEventId)}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildMsEventBody(event)),
+        });
 
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return NextResponse.json({ error: 'Microsoft API error', details: err }, { status: 502 });
+        if (!res.ok) {
+            return NextResponse.json({ error: 'Microsoft API error' }, { status: 502 });
+        }
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        return apiError(e);
     }
-    return NextResponse.json({ success: true });
 }
 
 // DELETE /api/microsoft/events?calendarId=...&microsoftEventId=...
 export async function DELETE(request: NextRequest) {
-    const sp = request.nextUrl.searchParams;
-    const calendarId = sp.get('calendarId');
-    const microsoftEventId = sp.get('microsoftEventId');
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const sp = request.nextUrl.searchParams;
+        const calendarId = sp.get('calendarId');
+        const microsoftEventId = sp.get('microsoftEventId');
 
-    if (!calendarId || !microsoftEventId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        if (!calendarId || !microsoftEventId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const token = await getValidToken(supabase, calendarId);
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const token = await getValidToken(admin, cal);
+        if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(microsoftEventId)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-    });
+        const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(microsoftEventId)}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+        });
 
-    if (!res.ok && res.status !== 404) {
-        return NextResponse.json({ error: `Microsoft DELETE failed: HTTP ${res.status}` }, { status: 502 });
+        if (!res.ok && res.status !== 404) {
+            return NextResponse.json({ error: `Microsoft DELETE failed: HTTP ${res.status}` }, { status: 502 });
+        }
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        return apiError(e);
     }
-    return NextResponse.json({ success: true });
 }

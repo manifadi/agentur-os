@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { encrypt, safeDecrypt } from '../../../utils/crypto';
-
-const SUPABASE_URL = 'https://lkyqohkdxmchrjicvurn.supabase.co';
+import { serviceClient, requireUser, loadOwnedCalendar, apiError } from '../../../utils/apiAuth';
 
 async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
     const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -20,9 +18,8 @@ async function refreshGoogleToken(refreshToken: string): Promise<string | null> 
     return data.access_token;
 }
 
-async function getValidToken(supabase: any, calendarId: string): Promise<{ token: string; calId: string } | null> {
-    const { data: calRaw } = await supabase.from('external_calendars').select('*').eq('id', calendarId).single();
-    const cal = calRaw as any;
+// Erwartet die bereits per loadOwnedCalendar geprüfte Kalender-Zeile.
+async function getValidToken(supabase: any, cal: any): Promise<{ token: string; calId: string } | null> {
     if (!cal) return null;
 
     let token = safeDecrypt(cal.oauth_access_token);
@@ -44,7 +41,7 @@ async function getValidToken(supabase: any, calendarId: string): Promise<{ token
                     .eq('provider_type', 'google')
                     .eq('account_label', cal.account_label);
             } else {
-                await query.eq('id', calendarId);
+                await query.eq('id', cal.id);
             }
         }
     }
@@ -54,56 +51,60 @@ async function getValidToken(supabase: any, calendarId: string): Promise<{ token
 
 // GET /api/google-calendar/events?calendarId=...&from=...&to=...
 export async function GET(request: NextRequest) {
-    const sp = request.nextUrl.searchParams;
-    const calendarId = sp.get('calendarId');
-    const from = sp.get('from');
-    const to = sp.get('to');
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const sp = request.nextUrl.searchParams;
+        const calendarId = sp.get('calendarId');
+        const from = sp.get('from');
+        const to = sp.get('to');
 
-    if (!calendarId) return NextResponse.json({ error: 'Missing calendarId' }, { status: 400 });
+        if (!calendarId) return NextResponse.json({ error: 'Missing calendarId' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const auth = await getValidToken(supabase, calendarId);
-    if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const auth = await getValidToken(admin, cal);
+        if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const { data: cal } = await supabase.from('external_calendars').select('color, name').eq('id', calendarId).single();
+        const params = new URLSearchParams({
+            singleEvents: 'true',
+            orderBy: 'startTime',
+            ...(from && { timeMin: new Date(from).toISOString() }),
+            ...(to && { timeMax: new Date(to).toISOString() }),
+        });
 
-    const params = new URLSearchParams({
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        ...(from && { timeMin: new Date(from).toISOString() }),
-        ...(to && { timeMax: new Date(to).toISOString() }),
-    });
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events?${params}`, {
+            headers: { Authorization: `Bearer ${auth.token}` },
+        });
 
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events?${params}`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-    });
+        if (!res.ok) return NextResponse.json({ error: 'Google API error', status: res.status }, { status: 502 });
 
-    if (!res.ok) return NextResponse.json({ error: 'Google API error', status: res.status }, { status: 502 });
+        const data = await res.json();
+        const events = (data.items || []).map((ev: any) => {
+            const allDay = !!ev.start?.date;
+            const start = allDay ? ev.start.date + 'T00:00:00' : ev.start?.dateTime;
+            const end = allDay ? (ev.end?.date || ev.start?.date) + 'T23:59:59' : ev.end?.dateTime;
+            const meetingUrl = ev.hangoutLink || ev.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri;
 
-    const data = await res.json();
-    const events = (data.items || []).map((ev: any) => {
-        const allDay = !!ev.start?.date;
-        const start = allDay ? ev.start.date + 'T00:00:00' : ev.start?.dateTime;
-        const end = allDay ? (ev.end?.date || ev.start?.date) + 'T23:59:59' : ev.end?.dateTime;
-        const meetingUrl = ev.hangoutLink || ev.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri;
+            return {
+                id: `ext-${calendarId}-${ev.id}`,
+                uid: ev.id,
+                externalCalendarId: calendarId,
+                title: ev.summary || '(Kein Titel)',
+                start_at: new Date(start).toISOString(),
+                end_at: new Date(end).toISOString(),
+                all_day: allDay,
+                color: cal?.color || '#3B82F6',
+                calendarName: cal?.name || 'Google Kalender',
+                description: ev.description,
+                location: ev.location,
+                meeting_url: meetingUrl,
+            };
+        });
 
-        return {
-            id: `ext-${calendarId}-${ev.id}`,
-            uid: ev.id,
-            externalCalendarId: calendarId,
-            title: ev.summary || '(Kein Titel)',
-            start_at: new Date(start).toISOString(),
-            end_at: new Date(end).toISOString(),
-            all_day: allDay,
-            color: cal?.color || '#3B82F6',
-            calendarName: cal?.name || 'Google Kalender',
-            description: ev.description,
-            location: ev.location,
-            meeting_url: meetingUrl,
-        };
-    });
-
-    return NextResponse.json({ events });
+        return NextResponse.json({ events });
+    } catch (e) {
+        return apiError(e);
+    }
 }
 
 function buildGoogleEventBody(event: any): any {
@@ -131,76 +132,92 @@ function buildGoogleEventBody(event: any): any {
 
 // POST /api/google-calendar/events — create event on Google Calendar
 export async function POST(request: NextRequest) {
-    const body = await request.json();
-    const { calendarId, event } = body;
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const body = await request.json();
+        const { calendarId, event } = body;
 
-    if (!calendarId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        if (!calendarId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const auth = await getValidToken(supabase, calendarId);
-    if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const auth = await getValidToken(admin, cal);
+        if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildGoogleEventBody(event)),
-    });
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildGoogleEventBody(event)),
+        });
 
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return NextResponse.json({ error: 'Google API error', details: err }, { status: 502 });
+        if (!res.ok) {
+            return NextResponse.json({ error: 'Google API error' }, { status: 502 });
+        }
+
+        const created = await res.json();
+        return NextResponse.json({ success: true, googleEventId: created.id });
+    } catch (e) {
+        return apiError(e);
     }
-
-    const created = await res.json();
-    return NextResponse.json({ success: true, googleEventId: created.id });
 }
 
 // PATCH /api/google-calendar/events — update existing event
 // Body: { calendarId, googleEventId, event }
 export async function PATCH(request: NextRequest) {
-    const body = await request.json();
-    const { calendarId, googleEventId, event } = body;
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const body = await request.json();
+        const { calendarId, googleEventId, event } = body;
 
-    if (!calendarId || !googleEventId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        if (!calendarId || !googleEventId || !event) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const auth = await getValidToken(supabase, calendarId);
-    if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const auth = await getValidToken(admin, cal);
+        if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events/${encodeURIComponent(googleEventId)}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildGoogleEventBody(event)),
-    });
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events/${encodeURIComponent(googleEventId)}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildGoogleEventBody(event)),
+        });
 
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return NextResponse.json({ error: 'Google API error', details: err }, { status: 502 });
+        if (!res.ok) {
+            return NextResponse.json({ error: 'Google API error' }, { status: 502 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        return apiError(e);
     }
-
-    return NextResponse.json({ success: true });
 }
 
 // DELETE /api/google-calendar/events?calendarId=...&googleEventId=...
 export async function DELETE(request: NextRequest) {
-    const sp = request.nextUrl.searchParams;
-    const calendarId = sp.get('calendarId');
-    const googleEventId = sp.get('googleEventId');
+    try {
+        const admin = serviceClient();
+        const caller = await requireUser(request, admin);
+        const sp = request.nextUrl.searchParams;
+        const calendarId = sp.get('calendarId');
+        const googleEventId = sp.get('googleEventId');
 
-    if (!calendarId || !googleEventId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        if (!calendarId || !googleEventId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+        const cal = await loadOwnedCalendar(admin, calendarId, caller);
 
-    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const auth = await getValidToken(supabase, calendarId);
-    if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+        const auth = await getValidToken(admin, cal);
+        if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events/${encodeURIComponent(googleEventId)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${auth.token}` },
-    });
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(auth.calId)}/events/${encodeURIComponent(googleEventId)}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${auth.token}` },
+        });
 
-    // 410 = already deleted → idempotent OK
-    if (!res.ok && res.status !== 410 && res.status !== 404) {
-        return NextResponse.json({ error: `Google DELETE failed: HTTP ${res.status}` }, { status: 502 });
+        // 410 = already deleted → idempotent OK
+        if (!res.ok && res.status !== 410 && res.status !== 404) {
+            return NextResponse.json({ error: `Google DELETE failed: HTTP ${res.status}` }, { status: 502 });
+        }
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        return apiError(e);
     }
-    return NextResponse.json({ success: true });
 }

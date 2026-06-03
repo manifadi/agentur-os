@@ -48,8 +48,11 @@ export async function POST(req: NextRequest) {
 
         if (linked?.organization_id) {
             // Aufräumen: überzählige, nie aktivierte Einladungs-Duplikate derselben
-            // E-Mail entfernen (best-effort, FK-Fehler ignorieren).
-            await admin.from('employees').delete().ilike('email', email).is('user_id', null);
+            // E-Mail entfernen — NUR in der eigenen Organisation (sonst löscht man
+            // offene Einladungen fremder Agenturen mit gleicher E-Mail).
+            await admin.from('employees').delete()
+                .ilike('email', email).is('user_id', null)
+                .eq('organization_id', linked.organization_id);
             return NextResponse.json({ linked: true, organizationId: linked.organization_id });
         }
 
@@ -77,8 +80,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ linked: false, organizationId: null });
         }
 
-        // Verbleibende offene Duplikate dieser E-Mail aufräumen (best-effort).
-        await admin.from('employees').delete().ilike('email', email).is('user_id', null);
+        // Verbleibende offene Duplikate dieser E-Mail aufräumen — nur in DERSELBEN
+        // Organisation (kein Cross-Tenant-Delete).
+        await admin.from('employees').delete()
+            .ilike('email', email).is('user_id', null)
+            .eq('organization_id', candidate.organization_id);
 
         return NextResponse.json({ linked: true, organizationId: candidate.organization_id });
     } catch (e: any) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Building2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { Client } from '../../types';
 import ConfirmModal from './ConfirmModal';
 
@@ -102,27 +103,9 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
         }
 
         setIsUploading(true);
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = fileName;
-
         try {
-            const { error: uploadError } = await supabase.storage
-                .from('client-logos')
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: true
-                });
-
-            if (uploadError) {
-                console.error('Supabase Upload Error:', uploadError);
-                throw uploadError;
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('client-logos')
-                .getPublicUrl(filePath);
-
+            // Org-namespaced Upload (siehe supabaseUtils) → mandantensaubere Storage-Pfade.
+            const publicUrl = await uploadFileToSupabase(file, 'client-logos');
             setLogoUrl(publicUrl);
         } catch (error: any) {
             console.error('Full catch error:', error);
