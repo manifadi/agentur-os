@@ -4,6 +4,7 @@ import { Search, Briefcase, Users, User, FileText, X, Layout, CheckSquare, Chevr
 import { useApp } from '../context/AppContext';
 import { Project, Client, Employee, Todo } from '../types';
 import { supabase } from '../supabaseClient';
+import ClientLogo from './UI/ClientLogo';
 
 export default function GlobalSearch() {
     const router = useRouter();
@@ -180,9 +181,7 @@ export default function GlobalSearch() {
                                                 onClick={() => handleSelect(`/clients/${c.id}`)}
                                                 className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
-                                                <div className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center text-sm font-bold border border-default group-hover:bg-accent-subtle group-hover:text-accent overflow-hidden shadow-sm text-text-primary">
-                                                    {c.logo_url ? <img src={c.logo_url} className="w-full h-full object-cover" /> : c.name.substring(0, 2).toUpperCase()}
-                                                </div>
+                                                <ClientLogo src={c.logo_url} name={c.name} size={40} rounded="rounded-full" />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="font-bold text-text-primary group-hover:text-accent transition truncate">{c.name}</div>
                                                     <div className="text-[10px] text-text-muted truncate tracking-wide">KUNDE • {c.address || 'Keine Adresse'}</div>

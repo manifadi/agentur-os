@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronRight, FolderOpen } from 'lucide-react';
 import { Project, Client, Todo } from '../../types';
 import { getStatusDot, getDeadlineColorClass } from '../../utils';
+import ClientLogo from '../UI/ClientLogo';
 import UserAvatar from '../UI/UserAvatar';
 
 interface ProjectListProps {
@@ -41,12 +42,7 @@ export default function ProjectList({ projects, selectedClient, onSelectProject,
                                 <td className="py-4 px-5 align-top">
                                     <div className="flex items-center gap-3">
                                         {!selectedClient && (
-                                            <div className="w-7 h-7 rounded-lg bg-subtle border border-border-subtle flex items-center justify-center overflow-hidden shrink-0">
-                                                {project.clients?.logo_url
-                                                    ? <img src={project.clients.logo_url} className="w-full h-full object-contain p-0.5" />
-                                                    : <span className="text-[10px] font-bold text-text-muted">{project.clients?.name.substring(0, 2).toUpperCase()}</span>
-                                                }
-                                            </div>
+                                            <ClientLogo src={project.clients?.logo_url} name={project.clients?.name} size={28} />
                                         )}
                                         <span className="text-[14px] font-semibold text-text-primary leading-snug">{project.title}</span>
                                     </div>

@@ -10,6 +10,7 @@ import { supabase } from '../../supabaseClient';
 import TaskHistoryModal from './TaskHistoryModal';
 import MultiSelectDropdown, { MultiSelectItem } from '../Dashboard/MultiSelectDropdown';
 import UserAvatar from '../UI/UserAvatar';
+import ClientLogo from '../UI/ClientLogo';
 
 interface GlobalTasksProps {
     projects: Project[];
@@ -251,12 +252,7 @@ export default function GlobalTasks({
         projectsWithTasks.map(p => ({
             id: p.id,
             label: p.title,
-            leading: p.clients?.logo_url
-                ? <img src={p.clients.logo_url} className="w-5 h-5 rounded object-contain bg-white border" style={{ borderColor: 'var(--border-default)' }} />
-                : <div className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
-                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
-                    {p.clients?.name?.slice(0, 2).toUpperCase() || 'NA'}
-                </div>,
+            leading: <ClientLogo src={p.clients?.logo_url} name={p.clients?.name || 'NA'} size={20} rounded="rounded" />,
             sublabel: p.job_number,
         }))
         , [projectsWithTasks]);
@@ -715,14 +711,8 @@ function TaskRow({
                             className="inline-flex items-center gap-1.5 hover:underline transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                         >
-                            {task._project?.clients?.logo_url ? (
-                                <img src={task._project.clients.logo_url} className="w-3.5 h-3.5 rounded object-contain bg-white" />
-                            ) : (
-                                <div className="w-3.5 h-3.5 rounded flex items-center justify-center text-[7px] font-bold"
-                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
-                                    {task._project?.clients?.name?.slice(0, 2).toUpperCase() || 'NA'}
-                                </div>
-                            )}
+                            <ClientLogo src={task._project?.clients?.logo_url} name={task._project?.clients?.name || 'NA'} size={14} rounded="rounded" />
+
                             <span className="font-medium truncate max-w-[160px]">{task._project?.title}</span>
                         </button>
                     )}

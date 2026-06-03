@@ -650,7 +650,8 @@ export default function ClientDetailPage() {
                                 />
                                 {/* Logo with Upload Overlay */}
                                 <div
-                                    className={`relative w-20 h-20 md:w-24 md:h-24 bg-surface rounded-2xl flex items-center justify-center p-2 shadow-lg shrink-0 group/logo overflow-hidden ${isAdmin ? 'cursor-pointer' : ''}`}
+                                    className={`relative w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center p-2 shadow-lg shrink-0 group/logo overflow-hidden ${isAdmin ? 'cursor-pointer' : ''}`}
+                                    style={{ background: client?.logo_url ? '#ffffff' : 'var(--bg-subtle)' }}
                                     onClick={() => isAdmin && fileInputRef.current?.click()}
                                 >
                                     {client?.logo_url ? (

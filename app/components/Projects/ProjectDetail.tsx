@@ -648,7 +648,9 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 {/* Client + Job Number breadcrumb */}
                 <div className="flex items-center gap-2 mb-2">
                     {project.clients?.logo_url ? (
-                        <img src={project.clients.logo_url} alt={project.clients.name} className="h-4 w-auto max-w-[60px] object-contain opacity-70" />
+                        <span className="inline-flex items-center rounded-md px-1.5 py-1" style={{ background: '#ffffff', border: '1px solid var(--border-subtle)' }}>
+                            <img src={project.clients.logo_url} alt={project.clients.name} className="h-4 w-auto max-w-[60px] object-contain" />
+                        </span>
                     ) : (
                         <span className="text-xs font-bold uppercase tracking-widest text-text-muted">{project.clients?.name || 'Kein Kunde'}</span>
                     )}

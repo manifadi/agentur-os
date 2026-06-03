@@ -6,6 +6,7 @@ import { Client, Employee } from '../../types';
 import { STATUS_OPTIONS, getStatusDot } from '../../utils';
 import MultiSelectDropdown, { MultiSelectItem } from './MultiSelectDropdown';
 import UserAvatar from '../UI/UserAvatar';
+import ClientLogo from '../UI/ClientLogo';
 
 export type SortOrder = 'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc';
 
@@ -60,12 +61,7 @@ export default function ProjectFilterBar({
         clients.map(c => ({
             id: c.id,
             label: c.name,
-            leading: c.logo_url
-                ? <img src={c.logo_url} className="w-5 h-5 rounded object-contain bg-white border" style={{ borderColor: 'var(--border-default)' }} />
-                : <div className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
-                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
-                    {c.name.slice(0, 2).toUpperCase()}
-                </div>,
+            leading: <ClientLogo src={c.logo_url} name={c.name} size={20} rounded="rounded" />,
         }))
         , [clients]);
 
@@ -182,9 +178,7 @@ export default function ProjectFilterBar({
                     )}
                     {selectedClientsResolved.map(c => (
                         <FilterChip key={c.id} onRemove={() => setSelectedClientIds(selectedClientIds.filter(id => id !== c.id))}>
-                            {c.logo_url
-                                ? <img src={c.logo_url} className="w-3.5 h-3.5 rounded object-contain" />
-                                : <Building2 size={11} />}
+                            <ClientLogo src={c.logo_url} name={c.name} size={16} rounded="rounded" fallback="icon" />
                             {c.name}
                         </FilterChip>
                     ))}

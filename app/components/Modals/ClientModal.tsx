@@ -138,11 +138,12 @@ export default function ClientModal({ isOpen, onClose, onSave, client }: ClientM
                             onChange={handleImageUpload}
                         />
                         <div
-                            className="w-16 h-16 bg-subtle border-2 border-dashed border-default rounded-xl flex items-center justify-center cursor-pointer hover:border-text-muted transition relative overflow-hidden group"
+                            className="w-16 h-16 border-2 border-dashed border-default rounded-xl flex items-center justify-center cursor-pointer hover:border-text-muted transition relative overflow-hidden group"
+                            style={{ background: logoUrl ? '#ffffff' : 'var(--bg-subtle)' }}
                             onClick={() => fileInputRef.current?.click()}
                         >
                             {logoUrl ? (
-                                <img src={logoUrl} className="w-full h-full object-contain" />
+                                <img src={logoUrl} className="w-full h-full object-contain p-1" />
                             ) : (
                                 <Building2 size={24} className="text-text-muted" />
                             )}

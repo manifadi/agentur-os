@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Client } from '../../types';
 import { supabase } from '../../supabaseClient';
+import ClientLogo from '../UI/ClientLogo';
 import { Trash2, AlertTriangle, Building2, ArrowRight } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 import ClientModal from '../Modals/ClientModal';
@@ -97,15 +98,7 @@ export default function AdminClientManagement({ clients, onUpdate }: AdminClient
                         ) : clients.map(client => (
                             <tr key={client.id} className="hover:bg-hover transition">
                                 <td className="p-4 w-16">
-                                    {client.logo_url ? (
-                                        <div className="w-8 h-8 rounded-xl bg-surface border border-default flex items-center justify-center p-0.5">
-                                            <img src={client.logo_url} className="w-full h-full object-contain" />
-                                        </div>
-                                    ) : (
-                                        <div className="w-8 h-8 rounded-xl bg-subtle flex items-center justify-center text-[10px] font-bold text-text-muted">
-                                            {client.name.substring(0, 2).toUpperCase()}
-                                        </div>
-                                    )}
+                                    <ClientLogo src={client.logo_url} name={client.name} size={32} rounded="rounded-xl" />
                                 </td>
                                 <td className="p-4 font-medium text-text-primary">{client.name}</td>
                                 <td className="p-4 text-right flex justify-end gap-2">
