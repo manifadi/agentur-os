@@ -7,7 +7,7 @@ import { useCalendarData } from '../../context/CalendarDataContext';
 import { getWeekDays, isSameDay } from './views/WeekView';
 import { getEmployeeColor } from './CalendarSidebar';
 import CalendarSidebar from './CalendarSidebar';
-import EventModal from './EventModal';
+import EventModal, { ExternalEditContext } from './EventModal';
 import EventDetailModal from './EventDetailModal';
 import WeekView from './views/WeekView';
 import DayView from './views/DayView';
@@ -36,6 +36,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         externalCalendars, externalEvents,
         hiddenEventIds, hiddenExternalKeys,
         syncErrors,
+        refreshExternals,
         refreshExternalCalendars,
         hideEventLocally, hideExternalEvent,
     } = useCalendarData();
@@ -46,6 +47,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const [showModal, setShowModal] = useState(false);
     const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
+    const [externalEditCtx, setExternalEditCtx] = useState<ExternalEditContext | null>(null);
     const [modalDefaultStart, setModalDefaultStart] = useState<Date | undefined>();
     const [modalDefaultEnd, setModalDefaultEnd] = useState<Date | undefined>();
     const [modalAllDay, setModalAllDay] = useState(false);
@@ -128,6 +130,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const openCreate = (start?: Date, end?: Date, allDay?: boolean) => {
         setEditEvent(null);
+        setExternalEditCtx(null);
         setModalDefaultStart(start);
         setModalDefaultEnd(end);
         setModalAllDay(allDay ?? false);
@@ -136,12 +139,42 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const openEdit = (ev: CalendarEvent) => {
         setEditEvent(ev);
+        setExternalEditCtx(null);
         setModalDefaultStart(undefined);
         setShowModal(true);
     };
 
     const openDetail = (ev: any) => {
         setDetailEvent(ev);
+    };
+
+    // Externes Event (Google/Outlook/CalDAV) direkt bearbeiten — sofern der
+    // zugehörige Kalender beschreibbar ist. Schreibt direkt zum Provider zurück.
+    const openExternalEdit = (ev: any) => {
+        const cal = externalCalendars.find(c => c.id === ev.externalCalendarId);
+        if (!cal || !cal.is_writable || !ev.uid) return;
+        const synthetic: CalendarEvent = {
+            id: ev.id,
+            organization_id: organizationId,
+            employee_id: currentUser.id,
+            title: ev.title,
+            description: ev.description ?? null,
+            location: ev.location ?? null,
+            start_at: ev.start_at,
+            end_at: ev.end_at,
+            all_day: ev.all_day,
+            color: 'blue',
+            attendees: [],
+            visibility: 'public',
+            meeting_url: ev.meeting_url ?? null,
+            source_external_id: ev.uid,
+            target_calendar_id: cal.id,
+        } as CalendarEvent;
+        setEditEvent(synthetic);
+        setExternalEditCtx({ calendar: cal, uid: ev.uid });
+        setDetailEvent(null);
+        setModalDefaultStart(undefined);
+        setShowModal(true);
     };
 
     const onMonthDayClick = (d: Date) => { openCreate(d, undefined, true); };
@@ -325,9 +358,10 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                     employees={employees}
                     organizationId={organizationId}
                     externalCalendars={externalCalendars}
-                    onClose={() => setShowModal(false)}
-                    onSaved={() => { /* realtime handles it */ }}
-                    onDeleted={() => { /* realtime handles it */ }}
+                    externalEdit={externalEditCtx}
+                    onClose={() => { setShowModal(false); setExternalEditCtx(null); }}
+                    onSaved={() => { if (externalEditCtx) refreshExternals(); /* sonst: realtime */ }}
+                    onDeleted={() => { if (externalEditCtx) refreshExternals(); /* sonst: realtime */ }}
                     onHidden={hideEventLocally}
                 />
             )}
@@ -337,7 +371,9 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                     event={detailEvent}
                     employees={employees}
                     isExternal={!!detailEvent.externalCalendarId || !!detailEvent.uid}
+                    canEdit={!!externalCalendars.find(c => c.id === detailEvent.externalCalendarId && c.is_writable)}
                     onClose={() => setDetailEvent(null)}
+                    onEdit={() => openExternalEdit(detailEvent)}
                     onHideExternal={hideExternalEvent}
                 />
             )}

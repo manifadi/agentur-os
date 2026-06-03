@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect } from 'react';
-import { X, MapPin, Clock, ExternalLink, Video, EyeOff, FileText, Users, Calendar as CalIcon } from 'lucide-react';
+import { X, MapPin, Clock, ExternalLink, Video, EyeOff, FileText, Users, Calendar as CalIcon, Pencil } from 'lucide-react';
 import { Employee } from '../../types';
 import UserAvatar from '../UI/UserAvatar';
 import { detectMeetingUrl, providerLabel, providerColor } from '../../utils/meetingUrl';
@@ -26,7 +26,9 @@ interface Props {
     event: DetailEvent;
     employees: Employee[];
     isExternal?: boolean;
+    canEdit?: boolean;
     onClose: () => void;
+    onEdit?: () => void;
     onHideExternal?: (uid: string, externalCalendarId: string) => void;
 }
 
@@ -44,7 +46,7 @@ function formatRange(start: string, end: string, allDay: boolean): string {
     return `${s.toLocaleDateString('de-AT', { day: 'numeric', month: 'short' })} ${time(s)} – ${e.toLocaleDateString('de-AT', { day: 'numeric', month: 'short', year: 'numeric' })} ${time(e)}`;
 }
 
-export default function EventDetailModal({ event, employees, isExternal, onClose, onHideExternal }: Props) {
+export default function EventDetailModal({ event, employees, isExternal, canEdit, onClose, onEdit, onHideExternal }: Props) {
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', onKey);
@@ -171,18 +173,30 @@ export default function EventDetailModal({ event, employees, isExternal, onClose
                 </div>
 
                 {/* Footer */}
-                {isExternal && onHideExternal && event.uid && event.externalCalendarId && (
-                    <div className="flex justify-end p-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                        <button
-                            onClick={() => { onHideExternal(event.uid!, event.externalCalendarId!); onClose(); }}
-                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = '')}
-                        >
-                            <EyeOff size={12} />
-                            Ausblenden
-                        </button>
+                {isExternal && (canEdit || (onHideExternal && event.uid && event.externalCalendarId)) && (
+                    <div className="flex items-center justify-between gap-2 p-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                        {onHideExternal && event.uid && event.externalCalendarId ? (
+                            <button
+                                onClick={() => { onHideExternal(event.uid!, event.externalCalendarId!); onClose(); }}
+                                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                                style={{ color: 'var(--text-muted)' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = '')}
+                            >
+                                <EyeOff size={12} />
+                                Ausblenden
+                            </button>
+                        ) : <span />}
+                        {canEdit && onEdit && (
+                            <button
+                                onClick={() => { onEdit(); }}
+                                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
+                                style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
+                            >
+                                <Pencil size={12} />
+                                Bearbeiten
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

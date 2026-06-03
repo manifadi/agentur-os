@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import RichTextEditor from '../UI/RichTextEditor';
 import { CalendarEvent, CalendarAttendee, EventColor, Employee, ExternalCalendar, CalendarEventVisibility } from '../../types';
 import { supabase } from '../../supabaseClient';
+import { authFetch } from '../../utils/authFetch';
 import UserAvatar from '../UI/UserAvatar';
 
 // ── External-Calendar Sync Helpers ─────────────────────────────────
@@ -25,17 +26,17 @@ async function parseError(res: Response): Promise<string> {
 
 async function pushExternal(cal: ExternalCalendar, payload: ExternalPayload): Promise<string | undefined> {
     if (cal.provider_type === 'google') {
-        const res = await fetch('/api/google-calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
+        const res = await authFetch('/api/google-calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
         if (!res.ok) throw new Error(await parseError(res));
         return (await res.json()).googleEventId;
     }
     if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
-        const res = await fetch('/api/microsoft/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
+        const res = await authFetch('/api/microsoft/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
         if (!res.ok) throw new Error(await parseError(res));
         return (await res.json()).microsoftEventId;
     }
     if (cal.provider_type === 'apple' || cal.provider_type === 'troi') {
-        const res = await fetch('/api/caldav/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
+        const res = await authFetch('/api/caldav/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, event: payload }) });
         if (!res.ok) throw new Error(await parseError(res));
         return (await res.json()).uid;
     }
@@ -44,17 +45,17 @@ async function pushExternal(cal: ExternalCalendar, payload: ExternalPayload): Pr
 
 async function patchExternal(cal: ExternalCalendar, externalId: string, payload: ExternalPayload): Promise<void> {
     if (cal.provider_type === 'google') {
-        const res = await fetch('/api/google-calendar/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, googleEventId: externalId, event: payload }) });
+        const res = await authFetch('/api/google-calendar/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, googleEventId: externalId, event: payload }) });
         if (!res.ok) throw new Error(await parseError(res));
         return;
     }
     if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') {
-        const res = await fetch('/api/microsoft/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, microsoftEventId: externalId, event: payload }) });
+        const res = await authFetch('/api/microsoft/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, microsoftEventId: externalId, event: payload }) });
         if (!res.ok) throw new Error(await parseError(res));
         return;
     }
     if (cal.provider_type === 'apple' || cal.provider_type === 'troi') {
-        const res = await fetch('/api/caldav/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, uid: externalId, event: payload }) });
+        const res = await authFetch('/api/caldav/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ calendarId: cal.id, uid: externalId, event: payload }) });
         if (!res.ok) throw new Error(await parseError(res));
         return;
     }
@@ -66,7 +67,7 @@ async function deleteExternal(cal: ExternalCalendar, externalId: string): Promis
     else if (cal.provider_type === 'outlook' || cal.provider_type === 'teams') url = `/api/microsoft/events?calendarId=${cal.id}&microsoftEventId=${encodeURIComponent(externalId)}`;
     else if (cal.provider_type === 'apple' || cal.provider_type === 'troi') url = `/api/caldav/events?calendarId=${cal.id}&uid=${encodeURIComponent(externalId)}`;
     else return;
-    const res = await fetch(url, { method: 'DELETE' });
+    const res = await authFetch(url, { method: 'DELETE' });
     if (!res.ok) throw new Error(await parseError(res));
 }
 
@@ -95,6 +96,23 @@ function toLocalDateString(iso: string) {
     return d.toISOString().slice(0, 10);
 }
 
+// Wird gesetzt, wenn ein Event bearbeitet wird, das NUR im externen Provider
+// lebt (Google/Outlook/CalDAV) und nicht in der internen calendar_events-Tabelle.
+// Dann gehen Speichern/Löschen direkt an den Provider zurück.
+export interface ExternalEditContext {
+    calendar: ExternalCalendar;
+    uid: string;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+    google: 'Google Kalender',
+    outlook: 'Outlook',
+    teams: 'Microsoft Teams',
+    apple: 'Apple / iCloud',
+    troi: 'Troi',
+    ical: 'iCal-Abo',
+};
+
 interface Props {
     event?: CalendarEvent | null;
     defaultStart?: Date;
@@ -104,14 +122,20 @@ interface Props {
     employees: Employee[];
     organizationId: string;
     externalCalendars?: ExternalCalendar[];
+    externalEdit?: ExternalEditContext | null;
     onClose: () => void;
     onSaved: () => void;
     onDeleted?: () => void;
     onHidden?: (eventId: string) => void;
 }
 
-export default function EventModal({ event, defaultStart, defaultEnd, defaultAllDay, currentUser, employees, organizationId, externalCalendars = [], onClose, onSaved, onDeleted, onHidden }: Props) {
+export default function EventModal({ event, defaultStart, defaultEnd, defaultAllDay, currentUser, employees, organizationId, externalCalendars = [], externalEdit, onClose, onSaved, onDeleted, onHidden }: Props) {
     const isEdit = !!event;
+    const isExternalEdit = !!externalEdit;
+    // CalDAV überschreibt die komplette .ics ohne Teilnehmer-Properties → Attendees nur
+    // für Provider zeigen, die sie verlustfrei via PATCH übernehmen.
+    const providerSupportsAttendees = !isExternalEdit
+        || ['google', 'outlook', 'teams'].includes(externalEdit!.calendar.provider_type);
 
     const defaultStartStr = (defaultStart || new Date()).toISOString();
     const defaultEndDate = defaultEnd || new Date((defaultStart || new Date()).getTime() + 60 * 60 * 1000);
@@ -211,6 +235,39 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
 
     const handleSave = async () => {
         if (!title.trim()) return;
+
+        // ── Externer Direkt-Edit: kein interner DB-Write, direkt zum Provider ──
+        if (externalEdit) {
+            if (!externalEdit.calendar.is_writable) {
+                toast.error('Dieser Kalender ist schreibgeschützt.');
+                return;
+            }
+            setSaving(true);
+            const { start, end } = buildDates();
+            const externalPayload: ExternalPayload = {
+                title: title.trim(),
+                description: description || undefined,
+                location: location || undefined,
+                meeting_url: meetingUrl || undefined,
+                start_at: start.toISOString(),
+                end_at: end.toISOString(),
+                all_day: allDay,
+                attendees,
+            };
+            try {
+                await patchExternal(externalEdit.calendar, externalEdit.uid, externalPayload);
+            } catch (e: any) {
+                setSaving(false);
+                toast.error(`Aktualisierung fehlgeschlagen: ${e.message || 'Unbekannt'}`);
+                return;
+            }
+            setSaving(false);
+            toast.success(`Termin in ${externalEdit.calendar.name} aktualisiert`);
+            onSaved();
+            onClose();
+            return;
+        }
+
         setSaving(true);
         const { start, end } = buildDates();
         const payload = {
@@ -306,6 +363,28 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
 
     const handleDelete = async () => {
         if (!event) return;
+
+        // ── Externer Direkt-Edit: nur beim Provider löschen ──
+        if (externalEdit) {
+            if (!externalEdit.calendar.is_writable) {
+                toast.error('Dieser Kalender ist schreibgeschützt.');
+                return;
+            }
+            setSaving(true);
+            try {
+                await deleteExternal(externalEdit.calendar, externalEdit.uid);
+            } catch (e: any) {
+                setSaving(false);
+                toast.error(`Löschen fehlgeschlagen: ${e.message || 'Unbekannt'}`);
+                return;
+            }
+            setSaving(false);
+            toast.success(`Termin in ${externalEdit.calendar.name} gelöscht`);
+            onDeleted?.();
+            onClose();
+            return;
+        }
+
         setSaving(true);
 
         // Externe Kopie zuerst löschen (best-effort) → kein Orphan zurück
@@ -330,7 +409,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     const handleHide = async () => {
         if (!event) return;
         setSaving(true);
-        await fetch('/api/calendar/hidden-events', {
+        await authFetch('/api/calendar/hidden-events', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ employeeId: currentUser.id, organizationId, eventId: event.id }),
@@ -352,14 +431,28 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
             <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', maxHeight: '90vh' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 pb-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Termin bearbeiten' : 'Neuer Termin'}</h2>
-                    <button onClick={handleCloseIntent} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
+                    <div className="min-w-0">
+                        <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{isExternalEdit ? 'Externen Termin bearbeiten' : isEdit ? 'Termin bearbeiten' : 'Neuer Termin'}</h2>
+                        {isExternalEdit && (
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                <Calendar size={11} />
+                                <span className="truncate">{externalEdit!.calendar.name} · {PROVIDER_LABELS[externalEdit!.calendar.provider_type] || 'Extern'}</span>
+                            </div>
+                        )}
+                    </div>
+                    <button onClick={handleCloseIntent} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: 'var(--text-muted)' }}>
                         <X size={18} />
                     </button>
                 </div>
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                    {isExternalEdit && (
+                        <div className="flex items-start gap-2 p-3 rounded-xl text-[11px]" style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
+                            <Globe size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
+                            <span>Änderungen werden direkt in <strong>{externalEdit!.calendar.name}</strong> gespeichert und sind für alle sichtbar, die diesen Kalender nutzen.</span>
+                        </div>
+                    )}
                     {/* Title */}
                     <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ background: COLOR_HEX[color] }} />
@@ -406,6 +499,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                     </div>
 
                     {/* Visibility toggle */}
+                    {!isExternalEdit && (
                     <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                         <button
                             onClick={() => setVisibility('public')}
@@ -427,6 +521,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                             {visibility === 'private' ? 'Nur du siehst diesen Termin' : 'Team kann sehen'}
                         </span>
                     </div>
+                    )}
 
                     {/* Location */}
                     <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
@@ -467,7 +562,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                     </div>
 
                     {/* Target calendar (only shown if writable calendars exist) */}
-                    {writableCalendars.length > 0 && (
+                    {!isExternalEdit && writableCalendars.length > 0 && (
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
@@ -488,6 +583,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                     )}
 
                     {/* Color */}
+                    {!isExternalEdit && (
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Palette size={14} style={{ color: 'var(--text-muted)' }} />
@@ -503,8 +599,10 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                             ))}
                         </div>
                     </div>
+                    )}
 
                     {/* Attendees */}
+                    {providerSupportsAttendees && (
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Users size={14} style={{ color: 'var(--text-muted)' }} />
@@ -566,6 +664,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                             )}
                         </div>
                     </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -576,11 +675,13 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                                 <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors" style={{ color: '#EF4444' }}>
                                     <Trash2 size={13} /> Löschen
                                 </button>
-                                <button onClick={() => setShowHideConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
-                                    title="Termin ausblenden (bleibt erhalten, wird nur versteckt)"
-                                >
-                                    <EyeOff size={13} /> Ausblenden
-                                </button>
+                                {!isExternalEdit && (
+                                    <button onClick={() => setShowHideConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-colors" style={{ color: 'var(--text-muted)' }}
+                                        title="Termin ausblenden (bleibt erhalten, wird nur versteckt)"
+                                    >
+                                        <EyeOff size={13} /> Ausblenden
+                                    </button>
+                                )}
                             </>
                         )}
                     </div>
