@@ -30,6 +30,12 @@ const config: Config = {
         'border-default': 'var(--border-default)',
         'border-strong': 'var(--border-strong)',
         'border-subtle': 'var(--border-subtle)',
+        // Kurz-Aliase: die App nutzt durchgehend `border-default` / `border-strong`
+        // (statt `border-border-default`). Ohne diese Aliase fällt Tailwind auf
+        // `currentColor` zurück → im Dark Mode rein-weiße Borders. Diese Aliase
+        // mappen die Klassen korrekt auf die Theme-Tokens (hell + dunkel).
+        default: 'var(--border-default)',
+        strong: 'var(--border-strong)',
         accent: {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
@@ -37,6 +43,11 @@ const config: Config = {
           subtle: 'var(--accent-subtle)',
           'subtle-hover': 'var(--accent-subtle-hover)',
         },
+      },
+      // Default-Border-Farbe auf Theme-Token statt Tailwinds currentColor —
+      // verhindert weiße Borders im Dark Mode bei bloßem `border`/`border-t` etc.
+      borderColor: {
+        DEFAULT: 'var(--border-default)',
       },
       borderRadius: {
         sm: 'var(--radius-sm)',

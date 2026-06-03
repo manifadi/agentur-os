@@ -556,7 +556,7 @@ function BucketSection({ title, icon, color, count, children }: {
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
                     style={{ background: `${color}15`, color }}>{count}</span>
             </header>
-            <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            <div className="divide-y divide-[color:var(--border-subtle)]">
                 {children}
             </div>
         </section>
@@ -568,7 +568,7 @@ function ListView({ tasks, ...rowProps }: { tasks: UnifiedTask[] } & RowProps) {
     return (
         <section className="rounded-2xl overflow-hidden shadow-sm"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-            <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            <div className="divide-y divide-[color:var(--border-subtle)]">
                 {tasks.map(t => <TaskRow key={t.id} task={t} {...rowProps} />)}
             </div>
         </section>
