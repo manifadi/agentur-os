@@ -114,9 +114,9 @@ function RequestRow({ request, organizations }: { request: RegistrationRequest; 
                             onChange={handleOrgChange}
                             className={INPUT_CLS}
                             style={orgAssigned ? {} : {
-                                background: 'var(--color-danger-subtle)',
-                                borderColor: 'var(--color-danger-border)',
-                                color: 'var(--color-danger-text)',
+                                background: 'var(--color-warning-subtle)',
+                                borderColor: 'var(--color-warning-border)',
+                                color: 'var(--color-warning-text)',
                             }}
                         >
                             <option value="">-- Nicht zugewiesen --</option>

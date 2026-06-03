@@ -228,13 +228,13 @@ export default function CalendarPage({ employees, currentUser }: Props) {
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* Sync error banner */}
                 {syncErrors.length > 0 && !dismissedErrors && (
-                    <div className="px-6 py-2 flex items-start gap-3 shrink-0" style={{ background: '#FEF2F2', borderBottom: '1px solid #FECACA' }}>
-                        <AlertCircle size={16} className="mt-0.5 shrink-0" style={{ color: '#DC2626' }} />
+                    <div className="px-6 py-2 flex items-start gap-3 shrink-0" style={{ background: 'var(--color-danger-subtle)', borderBottom: '1px solid var(--color-danger-border)' }}>
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--color-danger-text)' }} />
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold" style={{ color: '#991B1B' }}>
+                            <p className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>
                                 {syncErrors.length === 1 ? 'Ein Kalender konnte nicht synchronisiert werden:' : `${syncErrors.length} Kalender konnten nicht synchronisiert werden:`}
                             </p>
-                            <ul className="text-[11px] mt-0.5 space-y-1" style={{ color: '#7F1D1D' }}>
+                            <ul className="text-[11px] mt-0.5 space-y-1" style={{ color: 'var(--color-danger-text)' }}>
                                 {syncErrors.slice(0, 3).map((e, i) => {
                                     const reauthUrl = e.isAuthError
                                         ? (e.providerType === 'google'
@@ -247,7 +247,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                                         <li key={i} className="flex items-start gap-2 flex-wrap">
                                             <span><span className="font-semibold">{e.calendarName}:</span> {e.message}</span>
                                             {reauthUrl && (
-                                                <a href={reauthUrl} className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#991B1B', color: '#fff' }}>
+                                                <a href={reauthUrl} className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'var(--color-danger)', color: '#fff' }}>
                                                     Erneut anmelden
                                                 </a>
                                             )}
@@ -255,7 +255,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                                                 <a
                                                     href="/einstellungen?section=kalender"
                                                     className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                                                    style={{ background: '#991B1B', color: '#fff' }}
+                                                    style={{ background: 'var(--color-danger)', color: '#fff' }}
                                                 >
                                                     Passwort aktualisieren
                                                 </a>
@@ -266,7 +266,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                                 {syncErrors.length > 3 && <li className="italic">…und {syncErrors.length - 3} weitere</li>}
                             </ul>
                         </div>
-                        <button onClick={() => setDismissedErrors(true)} className="p-1 rounded-lg shrink-0" style={{ color: '#991B1B' }}>
+                        <button onClick={() => setDismissedErrors(true)} className="p-1 rounded-lg shrink-0" style={{ color: 'var(--color-danger-text)' }}>
                             <X size={14} />
                         </button>
                     </div>

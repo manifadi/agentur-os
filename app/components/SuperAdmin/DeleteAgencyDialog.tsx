@@ -180,9 +180,9 @@ function Stage1({ org, usage, onCancel, onContinue }: {
                 </div>
 
                 <div className="flex items-start gap-3 p-3 rounded-xl" style={{
-                    background: 'var(--color-danger-subtle)',
-                    border: '1px solid var(--color-danger-border)',
-                    color: 'var(--color-danger-text)',
+                    background: 'var(--color-warning-subtle)',
+                    border: '1px solid var(--color-warning-border)',
+                    color: 'var(--color-warning-text)',
                 }}>
                     <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                     <div className="text-xs">

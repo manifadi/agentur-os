@@ -698,7 +698,7 @@ function DangerRow({ icon: Icon, tone, title, subtitle, action }: {
         info:    { bg: 'var(--color-info-subtle)',    fg: 'var(--color-info-text)' },
         success: { bg: 'var(--color-success-subtle)', fg: 'var(--color-success-text)' },
         warning: { bg: 'var(--color-warning-subtle)', fg: 'var(--color-warning-text)' },
-        danger:  { bg: 'rgba(255,255,255,0.5)',       fg: 'var(--color-danger-text)' },
+        danger:  { bg: 'var(--color-danger-subtle)',  fg: 'var(--color-danger-text)' },
     }[tone];
 
     return (

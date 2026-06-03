@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Project, AgencySettings, OrganizationTemplate, ClientContact, ProjectInvoice, ProjectPosition } from '../../types';
 import { supabase } from '../../supabaseClient';
-import { FileText, Eye, X, Plus, User, Calculator, History, Download, Trash2, CheckCircle, AlertCircle, Receipt, Edit3, ChevronDown, TrendingUp, Layers, Circle } from 'lucide-react';
+import { FileText, Eye, X, Plus, User, Calculator, History, Download, Trash2, CheckCircle, AlertCircle, Info, Receipt, Edit3, ChevronDown, TrendingUp, Layers, Circle } from 'lucide-react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import InvoicePDF from '../Contracts/InvoicePDF';
 import ContactModal from '../Modals/ContactModal';
@@ -319,8 +319,8 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-xs font-bold">%</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-accent font-medium bg-accent/10 px-3 py-2 rounded-xl w-fit">
-                                <AlertCircle size={13} />
+                            <div className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-2 rounded-xl w-fit" style={{ color: 'var(--color-info-text)', background: 'var(--color-info-subtle)', border: '1px solid var(--color-info-border)' }}>
+                                <Info size={13} />
                                 Prozentsatz bezieht sich auf den verbleibenden Restbetrag.
                             </div>
                         </div>

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { X, Link, Chrome, Monitor, Apple, Building2, Eye, EyeOff, AlertCircle, Loader, Shield, Info, Check, Lock } from 'lucide-react';
+import { X, Link, Chrome, Monitor, Apple, Building2, Eye, EyeOff, AlertTriangle, Loader, Shield, Info, Check, Lock } from 'lucide-react';
 import { Employee, CalendarProviderType } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { authFetch, currentAccessToken } from '../../utils/authFetch';
@@ -327,8 +327,8 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                                     })}
                                 </div>
                                 {error && (
-                                    <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: '#FEE2E2', color: '#991B1B' }}>
-                                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                                    <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: 'var(--color-danger-subtle)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger-text)' }}>
+                                        <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                                         {error}
                                     </div>
                                 )}
@@ -425,8 +425,8 @@ export default function CalendarProviderModal({ currentUser, organizationId, onC
                             </div>
 
                             {error && (
-                                <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: '#FEE2E2', color: '#991B1B' }}>
-                                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                                <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: 'var(--color-danger-subtle)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger-text)' }}>
+                                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                                     {error}
                                 </div>
                             )}

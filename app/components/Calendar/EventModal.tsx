@@ -7,6 +7,7 @@ import { CalendarEvent, CalendarAttendee, EventColor, Employee, ExternalCalendar
 import { supabase } from '../../supabaseClient';
 import { authFetch } from '../../utils/authFetch';
 import UserAvatar from '../UI/UserAvatar';
+import InlineNotice from '../UI/InlineNotice';
 
 // ── External-Calendar Sync Helpers ─────────────────────────────────
 interface ExternalPayload {
@@ -448,10 +449,9 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                     {isExternalEdit && (
-                        <div className="flex items-start gap-2 p-3 rounded-xl text-[11px]" style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                            <Globe size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
-                            <span>Änderungen werden direkt in <strong>{externalEdit!.calendar.name}</strong> gespeichert und sind für alle sichtbar, die diesen Kalender nutzen.</span>
-                        </div>
+                        <InlineNotice type="warning">
+                            Änderungen werden direkt in <strong>{externalEdit!.calendar.name}</strong> gespeichert und sind für alle sichtbar, die diesen Kalender nutzen.
+                        </InlineNotice>
                     )}
                     {/* Title */}
                     <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>

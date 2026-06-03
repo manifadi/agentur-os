@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Calendar, Search, Check, AlertCircle } from 'lucide-react';
+import { X, Calendar, Search, Check, AlertCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { Project, Employee, TimeEntry } from '../../types';
 import ConfirmModal from './ConfirmModal';
@@ -252,8 +252,9 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
                             )}
                         </div>
                         {!agencyPositionId && currentUser.job_title && (
-                            <p className="text-[11px] mt-1.5 pl-1" style={{ color: 'var(--color-warning-text)' }}>
-                                Hinweis: "{currentUser.job_title}" wurde nicht in den Agentur-Positionen gefunden.
+                            <p className="text-[11px] mt-1.5 pl-1 flex items-start gap-1.5" style={{ color: 'var(--color-warning-text)' }}>
+                                <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                                <span>"{currentUser.job_title}" wurde nicht in den Agentur-Positionen gefunden.</span>
                             </p>
                         )}
                     </div>
