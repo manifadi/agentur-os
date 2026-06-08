@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import ClientAppShell from './components/ClientAppShell';
+import I18nProvider from './i18n/I18nProvider';
 
 export const metadata: Metadata = {
   title: 'Vela',
@@ -27,9 +28,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ClientAppShell>
-          {children}
-        </ClientAppShell>
+        <I18nProvider>
+          <ClientAppShell>
+            {children}
+          </ClientAppShell>
+        </I18nProvider>
       </body>
     </html>
   );

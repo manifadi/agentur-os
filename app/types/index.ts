@@ -92,6 +92,7 @@ export interface Employee {
     carryover_days?: number;
     started_at?: string | null;
     calendar_shared_with_team?: boolean; // interner Vela-Kalender für Kollegen sichtbar
+    locale?: string | null;              // UI-Sprache ('de' | 'en')
 }
 
 // ── Abwesenheiten ─────────────────────────────────────────

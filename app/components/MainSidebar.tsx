@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 import AccountSwitcher from './AccountSwitcher';
 import ConfirmModal from './Modals/ConfirmModal';
 import {
@@ -36,6 +37,8 @@ const ICON_MAP: Record<SidebarItemId, any> = {
     absences: CalendarOff,
 };
 
+// Deutsche Default-Labels (Fallback). Angezeigt werden die i18n-Übersetzungen
+// via NAV_I18N_KEY — siehe Verwendung mit t(...).
 const LABEL_MAP: Record<SidebarItemId, string> = {
     dashboard: 'Mein Bereich',
     projects_overview: 'Projekte',
@@ -45,6 +48,17 @@ const LABEL_MAP: Record<SidebarItemId, string> = {
     kalender: 'Kalender',
     reporting: 'Reporting',
     absences: 'Abwesenheiten',
+};
+
+const NAV_I18N_KEY: Record<SidebarItemId, string> = {
+    dashboard: 'nav.dashboard',
+    projects_overview: 'nav.projects',
+    global_tasks: 'nav.tasks',
+    resource_planning: 'nav.resources',
+    time_tracking: 'nav.timeTracking',
+    kalender: 'nav.calendar',
+    reporting: 'nav.reporting',
+    absences: 'nav.absences',
 };
 
 const HREF_MAP: Record<SidebarItemId, string> = {
@@ -78,6 +92,7 @@ export default function MainSidebar({
     activeUser
 }: MainSidebarProps) {
 
+    const { t } = useTranslation();
     const switcherTriggerRef = useRef<HTMLButtonElement>(null);
     const [switcherOpen, setSwitcherOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -285,7 +300,7 @@ export default function MainSidebar({
                         .filter(i => !visibleItems.includes(i.id))
                         .map(i => ({
                             id: i.id,
-                            label: i.label,
+                            label: t(NAV_I18N_KEY[i.id]),
                             href: i.href,
                             icon: ICON_MAP[i.id],
                         }));
@@ -297,7 +312,7 @@ export default function MainSidebar({
                                     view={itemId}
                                     href={HREF_MAP[itemId]}
                                     icon={ICON_MAP[itemId]}
-                                    label={LABEL_MAP[itemId]}
+                                    label={t(NAV_I18N_KEY[itemId])}
                                 />
                             ))}
                             {hiddenItems.length > 0 && (
@@ -329,13 +344,13 @@ export default function MainSidebar({
                     />
                     {isSidebarExpanded && (
                         <div className="flex flex-col truncate min-w-0">
-                            <span className="text-[11px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>{activeUser?.name || 'Benutzer'}</span>
+                            <span className="text-[11px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>{activeUser?.name || t('common.user')}</span>
                             <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{session?.user?.email}</span>
                         </div>
                     )}
                 </div>
 
-                <NavItem view="settings" href="/einstellungen" icon={SettingsIcon} label="Einstellungen" />
+                <NavItem view="settings" href="/einstellungen" icon={SettingsIcon} label={t('nav.settings')} />
 
                 <button
                     onClick={() => setShowLogoutConfirm(true)}

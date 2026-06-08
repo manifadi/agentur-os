@@ -13,6 +13,8 @@ import WelcomeModal from './UI/WelcomeModal';
 import ImpersonationBanner from './SuperAdmin/ImpersonationBanner';
 import FeedbackWidget from './Feedback/FeedbackWidget';
 import { Toaster, toast } from 'sonner';
+import i18n from '../i18n/config';
+import { isLocale } from '../i18n/config';
 import { useTheme } from '../hooks/useTheme';
 import {
     StoredAccount, getAccounts, upsertAccount, updateAccountMeta,
@@ -360,6 +362,15 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             setShowWelcome(true);
         }
     }, [currentUser?.id]);
+
+    // UI-Sprache an die gespeicherte Nutzer-Sprache angleichen (geräteübergreifend).
+    useEffect(() => {
+        const loc = currentUser?.locale;
+        if (isLocale(loc) && i18n.language !== loc) {
+            i18n.changeLanguage(loc);
+            try { window.localStorage.setItem('vela_locale', loc); } catch { /* ignore */ }
+        }
+    }, [currentUser?.locale]);
 
     const handleWelcomeDismiss = async () => {
         setShowWelcome(false);

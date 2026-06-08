@@ -94,7 +94,7 @@ OAuth-Tokens + CalDAV-Passwörter sind mit AES-256-GCM verschlüsselt in der DB 
 
 ## Wichtige Konventionen
 
-- **Sprache**: UI-Texte auf Deutsch, Code/Kommentare gerne deutsch oder englisch
+- **Sprache / i18n**: App ist bilingual (DE/EN) über **react-i18next**. Neue UI-Texte **niemals** fest verdrahten, sondern als Schlüssel: `const { t } = useTranslation();` → `t('bereich.key')`. Texte in `app/i18n/locales/de.json` (Quelle) eintragen; `en.json` via `npm run i18n:translate` (DeepL, `DEEPL_API_KEY`) oder manuell nachziehen. Fehlt eine EN-Übersetzung, greift automatisch der DE-Fallback. **Nur System-/UI-Texte** übersetzen — Nutzerinhalte (Logbücher, Aufgaben, Kundendaten) bleiben unübersetzt. Sprache pro Nutzer in `employees.locale` + localStorage. Migration läuft schrittweise — viele Screens sind noch Deutsch verdrahtet; beim Anfassen mitziehen.
 - **Toasts statt Alerts**: `import { toast } from 'sonner'` — `toast.success()` / `toast.error()` / `toast.warning()`
 - **ConfirmModal statt confirm()**: State + `<ConfirmModal isOpen ... type="danger" />`
 - **DangerZone-Patterns** (Löschen / Suspend / etc.): immer 2-Step-Bestätigung. Für komplexe Fälle (Agentur löschen) eigener Multi-Stage-Dialog mit Name-Tippen

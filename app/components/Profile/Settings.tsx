@@ -4,10 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     User, Palette, Building2, Users, Banknote, Image as ImageIcon,
-    FileText, Lock, Camera, CalendarDays, SidebarOpen, Network
+    FileText, Lock, Camera, CalendarDays, SidebarOpen, Network, Languages
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Employee, Department } from '../../types';
 import { supabase } from '../../supabaseClient';
+import { setStoredLocale } from '../../i18n/I18nProvider';
+import { Locale } from '../../i18n/config';
 import AdminUserManagement from './AdminUserManagement';
 import AdminDepartmentManagement from './AdminDepartmentManagement';
 import AdminRateManagement from './AdminRateManagement';
@@ -22,27 +25,28 @@ type Section = 'profil' | 'design' | 'kalender' | 'navigation' | 'unternehmen' |
 
 const INPUT = 'input-field';
 
-const NAV: { group: string; adminOnly: boolean; items: { id: Section; label: string; icon: React.ElementType }[] }[] = [
+// labelKey → i18n-Schlüssel (settings.*); via t(...) gerendert.
+const NAV: { groupKey: string; adminOnly: boolean; items: { id: Section; labelKey: string; icon: React.ElementType }[] }[] = [
     {
-        group: 'Ich',
+        groupKey: 'settings.groupMe',
         adminOnly: false,
         items: [
-            { id: 'profil', label: 'Profil', icon: User },
-            { id: 'design', label: 'Design & Thema', icon: Palette },
-            { id: 'navigation', label: 'Navigation', icon: SidebarOpen },
-            { id: 'kalender', label: 'Kalender', icon: CalendarDays },
+            { id: 'profil', labelKey: 'settings.profile', icon: User },
+            { id: 'design', labelKey: 'settings.appearance', icon: Palette },
+            { id: 'navigation', labelKey: 'settings.navigation', icon: SidebarOpen },
+            { id: 'kalender', labelKey: 'settings.calendar', icon: CalendarDays },
         ],
     },
     {
-        group: 'Agentur',
+        groupKey: 'settings.groupAgency',
         adminOnly: true,
         items: [
-            { id: 'unternehmen', label: 'Unternehmen', icon: Building2 },
-            { id: 'team', label: 'Team', icon: Users },
-            { id: 'abteilungen', label: 'Abteilungen', icon: Network },
-            { id: 'stundensaetze', label: 'Stundensätze', icon: Banknote },
-            { id: 'branding', label: 'Branding', icon: ImageIcon },
-            { id: 'vorlagen', label: 'Vorlagen', icon: FileText },
+            { id: 'unternehmen', labelKey: 'settings.company', icon: Building2 },
+            { id: 'team', labelKey: 'settings.team', icon: Users },
+            { id: 'abteilungen', labelKey: 'settings.departments', icon: Network },
+            { id: 'stundensaetze', labelKey: 'settings.rates', icon: Banknote },
+            { id: 'branding', labelKey: 'settings.branding', icon: ImageIcon },
+            { id: 'vorlagen', labelKey: 'settings.templates', icon: FileText },
         ],
     },
 ];
@@ -59,6 +63,7 @@ const VALID_SECTIONS: Section[] = ['profil', 'design', 'kalender', 'navigation',
 export default function Settings({ session, employees, departments, onUpdate }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t, i18n } = useTranslation();
 
     // Section aus URL-Param lesen — erlaubt Deep-Linking wie /einstellungen?section=navigation
     const paramSection = searchParams?.get('section') as Section | null;
@@ -117,6 +122,15 @@ export default function Settings({ session, employees, departments, onUpdate }: 
         setTimeout(() => setSaved(false), 2000);
     };
 
+    const currentLocale: Locale = i18n.language?.startsWith('en') ? 'en' : 'de';
+    const handleSetLocale = async (loc: Locale) => {
+        if (loc === currentLocale) return;
+        setStoredLocale(loc);                 // i18n + localStorage sofort
+        if (currentUser) {
+            await supabase.from('employees').update({ locale: loc }).eq('id', currentUser.id);
+        }
+    };
+
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !currentUser) return;
@@ -140,18 +154,18 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                 className="w-52 shrink-0 py-8 px-3 space-y-6"
                 style={{ borderRight: '1px solid var(--border-default)' }}
             >
-                {NAV.map(({ group, adminOnly, items }) => {
+                {NAV.map(({ groupKey, adminOnly, items }) => {
                     if (adminOnly && !isAdmin) return null;
                     return (
-                        <div key={group}>
+                        <div key={groupKey}>
                             <p
                                 className="text-[10px] font-bold uppercase tracking-widest px-3 mb-2"
                                 style={{ color: 'var(--text-muted)' }}
                             >
-                                {group}
+                                {t(groupKey)}
                             </p>
                             <div className="space-y-0.5">
-                                {items.map(({ id, label, icon: Icon }) => {
+                                {items.map(({ id, labelKey, icon: Icon }) => {
                                     const active = section === id;
                                     return (
                                         <button
@@ -164,7 +178,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                             }}
                                         >
                                             <Icon size={15} />
-                                            {label}
+                                            {t(labelKey)}
                                         </button>
                                     );
                                 })}
@@ -181,8 +195,8 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                     {section === 'profil' && (
                         <div className="max-w-xl space-y-5">
                             <SectionHeader
-                                title="Profil"
-                                subtitle="Deine persönlichen Daten und Account-Einstellungen."
+                                title={t('settings.profile')}
+                                subtitle={t('settings.profileSubtitle')}
                             />
 
                             {/* Avatar */}
@@ -214,7 +228,7 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                                 color: isAdmin ? 'var(--accent)' : 'var(--text-muted)',
                                             }}
                                         >
-                                            {isAdmin ? 'Admin' : 'Mitarbeiter'}
+                                            {isAdmin ? t('settings.admin') : t('settings.employee')}
                                         </span>
                                     </div>
                                 </div>
@@ -222,20 +236,20 @@ export default function Settings({ session, employees, departments, onUpdate }: 
 
                             {/* Form */}
                             <Card>
-                                <Label>Persönliche Daten</Label>
+                                <Label>{t('settings.personalData')}</Label>
                                 <div className="grid grid-cols-2 gap-4 mt-4">
-                                    <Field label="Name">
+                                    <Field label={t('settings.name')}>
                                         <input className={INPUT} value={name} onChange={e => setName(e.target.value)} />
                                     </Field>
-                                    <Field label="Kürzel (2 Zeichen)">
+                                    <Field label={t('settings.initials')}>
                                         <input className={INPUT + ' uppercase'} value={initials} onChange={e => setInitials(e.target.value)} maxLength={2} />
                                     </Field>
-                                    <Field label="Telefon">
+                                    <Field label={t('settings.phone')}>
                                         <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+43 660 ..." />
                                     </Field>
-                                    <Field label="Abteilung">
+                                    <Field label={t('settings.department')}>
                                         <select className={INPUT} value={deptId} onChange={e => setDeptId(e.target.value)}>
-                                            <option value="">Keine Abteilung</option>
+                                            <option value="">{t('settings.noDepartment')}</option>
                                             {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                         </select>
                                     </Field>
@@ -245,10 +259,35 @@ export default function Settings({ session, employees, departments, onUpdate }: 
                                 </div>
                             </Card>
 
+                            {/* Sprache / Language */}
+                            <Card>
+                                <p className="text-xs font-bold uppercase tracking-wide mb-1 flex items-center gap-1.5 text-text-muted">
+                                    <Languages size={12} /> {t('settings.language')}
+                                </p>
+                                <p className="text-xs mb-3 text-text-muted">{t('settings.languageSubtitle')}</p>
+                                <div className="inline-flex p-1 rounded-xl gap-1" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                                    {([['de', t('settings.languageGerman')], ['en', t('settings.languageEnglish')]] as [Locale, string][]).map(([loc, label]) => {
+                                        const active = currentLocale === loc;
+                                        return (
+                                            <button
+                                                key={loc}
+                                                onClick={() => handleSetLocale(loc)}
+                                                className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+                                                style={active
+                                                    ? { background: 'var(--accent)', color: 'var(--accent-text)' }
+                                                    : { color: 'var(--text-secondary)' }}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+
                             {/* Account Status */}
                             <Card>
                                 <p className="text-xs font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5 text-text-muted">
-                                    <Lock size={12} /> Account
+                                    <Lock size={12} /> {t('settings.account')}
                                 </p>
                                 <div
                                     className={`p-3 rounded-xl text-sm font-medium ${currentUser?.email === session?.user?.email
@@ -422,6 +461,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function SaveButton({ onClick, loading, saved }: { onClick: () => void; loading: boolean; saved: boolean }) {
+    const { t } = useTranslation();
     return (
         <button
             onClick={onClick}
@@ -429,7 +469,7 @@ function SaveButton({ onClick, loading, saved }: { onClick: () => void; loading:
             className="btn-primary"
             style={saved ? { background: '#22c55e', color: '#fff', boxShadow: 'none' } : undefined}
         >
-            {saved ? 'Gespeichert ✓' : 'Speichern'}
+            {saved ? t('common.saved') : t('common.save')}
         </button>
     );
 }
