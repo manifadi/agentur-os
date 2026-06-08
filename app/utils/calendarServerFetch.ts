@@ -16,21 +16,42 @@ import { ParsedExternalEvent } from '../types';
  * Wirft NICHT — bei Fehlern wird [] zurückgegeben (ein kaputter Kalender darf nicht
  * die ganze Team-Ansicht killen).
  */
+// ── Kurzlebiger In-Memory-Cache (pro warmer Serverless-Instanz) ──────────────
+// Team-Kalender werden von vielen Betrachtern alle paar Minuten gepollt. Ohne
+// Cache löst jeder Poll jedes Betrachters einen eigenen Provider-Abruf (inkl.
+// Token-Refresh) aus. Der Cache dedupliziert das pro (Kalender, Zeitraum).
+// TTL etwas unter dem Client-Poll (3 Min), damit Daten frisch genug bleiben.
+interface CacheEntry { events: ParsedExternalEvent[]; expires: number; }
+const CACHE = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 120_000; // 2 Min
+
 export async function fetchCalendarEventsServer(
     admin: SupabaseClient,
     cal: any,
     from: Date,
     to: Date,
 ): Promise<ParsedExternalEvent[]> {
+    const key = `${cal.id}|${from.toISOString()}|${to.toISOString()}`;
+    const now = Date.now();
+    const hit = CACHE.get(key);
+    if (hit && hit.expires > now) return hit.events;
+
     try {
+        let events: ParsedExternalEvent[];
         switch (cal.provider_type) {
-            case 'google': return await fetchGoogle(admin, cal, from, to);
+            case 'google': events = await fetchGoogle(admin, cal, from, to); break;
             case 'outlook':
-            case 'teams': return await fetchMicrosoft(admin, cal, from, to);
+            case 'teams': events = await fetchMicrosoft(admin, cal, from, to); break;
             case 'apple':
-            case 'troi': return await fetchCalDav(cal, from, to);
-            default: return await fetchIcal(cal);
+            case 'troi': events = await fetchCalDav(cal, from, to); break;
+            default: events = await fetchIcal(cal); break;
         }
+        CACHE.set(key, { events, expires: now + CACHE_TTL_MS });
+        // Abgelaufene Einträge gelegentlich aufräumen (Memory-Leak-Schutz).
+        if (CACHE.size > 1000) {
+            CACHE.forEach((v, k) => { if (v.expires <= now) CACHE.delete(k); });
+        }
+        return events;
     } catch (e) {
         // Strukturiert loggen → in Vercel-Logs auffindbar (welcher Kalender/Mitarbeiter).
         // Ein kaputter Kalender darf die Team-Ansicht nicht killen → [] zurück.
