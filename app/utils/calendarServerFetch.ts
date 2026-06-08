@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { encrypt, safeDecrypt } from './crypto';
 import { parseICalText } from './icalParser';
+import { assertSafeExternalUrl } from './ssrfGuard';
 import { ParsedExternalEvent } from '../types';
 
 /**
@@ -31,7 +32,14 @@ export async function fetchCalendarEventsServer(
             default: return await fetchIcal(cal);
         }
     } catch (e) {
-        console.warn('[calendarServerFetch] failed for', cal?.name, e);
+        // Strukturiert loggen → in Vercel-Logs auffindbar (welcher Kalender/Mitarbeiter).
+        // Ein kaputter Kalender darf die Team-Ansicht nicht killen → [] zurück.
+        console.error('[calendarServerFetch] failed', {
+            calendar: cal?.name,
+            employeeId: cal?.employee_id,
+            provider: cal?.provider_type,
+            error: e instanceof Error ? e.message : String(e),
+        });
         return [];
     }
 }
@@ -233,9 +241,15 @@ async function fetchCalDav(cal: any, from: Date, to: Date): Promise<ParsedExtern
 // ── iCal-Abo ─────────────────────────────────────────────────────
 async function fetchIcal(cal: any): Promise<ParsedExternalEvent[]> {
     if (!cal.url) return [];
-    const url = cal.url.replace(/^webcal:\/\//i, 'https://');
-    const res = await fetch(url);
+    // SSRF-Schutz: kein Abruf interner/Metadata-Endpoints, keine Redirects.
+    let parsed: URL;
+    try {
+        parsed = await assertSafeExternalUrl(cal.url);
+    } catch {
+        return [];
+    }
+    const res = await fetch(parsed.toString(), { redirect: 'error' });
     if (!res.ok) return [];
-    const text = stripPrivateVevents(await res.text());
+    const text = stripPrivateVevents((await res.text()).slice(0, 5 * 1024 * 1024));
     return parseICalText(text, cal.id, cal.name, cal.color);
 }
