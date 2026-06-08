@@ -73,6 +73,7 @@ export default function ClientDetailPage() {
 
     // Logbook State
     const [newLog, setNewLog] = useState({ title: '', content: '' });
+    const [logTitleError, setLogTitleError] = useState(false);
     const [isPostingLog, setIsPostingLog] = useState(false);
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
     const [editLogData, setEditLogData] = useState({ title: '', content: '' });
@@ -358,7 +359,7 @@ export default function ClientDetailPage() {
             });
             return;
         }
-        if (!newLog.title.trim()) { toast.error('Bitte gib einen Titel für den Eintrag ein.'); return; }
+        if (!newLog.title.trim()) { setLogTitleError(true); toast.error('Bitte gib einen Titel für den Eintrag ein.'); return; }
         if (!newLog.content || !newLog.content.replace(/<[^>]*>/g, '').trim()) { toast.error('Bitte gib einen Text für den Eintrag ein.'); return; }
         setIsPostingLog(true);
 
@@ -372,15 +373,7 @@ export default function ClientDetailPage() {
 
         if (error) {
             console.error(error);
-            setConfirmModal({
-                isOpen: true,
-                title: 'Übertragungsfehler',
-                message: `Der Logbuch-Eintrag konnte nicht gespeichert werden: ${error.message}`,
-                type: 'danger',
-                action: async () => setConfirmModal(prev => ({ ...prev, isOpen: false })),
-                confirmText: 'OK',
-                showCancel: false
-            });
+            toast.error(`Eintrag konnte nicht gespeichert werden: ${error.message}`);
         } else if (data) {
             setLogs([data as any, ...logs]);
             setNewLog({ title: '', content: '' });
@@ -1064,10 +1057,11 @@ export default function ClientDetailPage() {
                                     {/* Create Log */}
                                     <div className="bg-subtle/50 p-4 rounded-xl border border-default mb-8">
                                         <input
-                                            className="w-full bg-surface border border-default rounded-lg px-4 py-2 text-sm font-bold text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none mb-2"
+                                            className="w-full bg-surface border rounded-lg px-4 py-2 text-sm font-bold text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent outline-none mb-2"
+                                            style={{ borderColor: logTitleError ? 'var(--color-danger)' : 'var(--border-default)' }}
                                             placeholder="Titel des Eintrags (z.B. Meeting Notiz)"
                                             value={newLog.title}
-                                            onChange={e => setNewLog({ ...newLog, title: e.target.value })}
+                                            onChange={e => { setNewLog({ ...newLog, title: e.target.value }); setLogTitleError(false); }}
                                         />
                                         <div className="mb-3">
                                             <RichTextEditor

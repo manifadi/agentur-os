@@ -142,6 +142,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     const defaultEndDate = defaultEnd || new Date((defaultStart || new Date()).getTime() + 60 * 60 * 1000);
 
     const [title, setTitle] = useState(event?.title || '');
+    const [titleError, setTitleError] = useState(false);
     const [description, setDesc] = useState(event?.description || '');
     const [location, setLocation] = useState(event?.location || '');
     const [meetingUrl, setMeetingUrl] = useState(event?.meeting_url || '');
@@ -235,7 +236,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     };
 
     const handleSave = async () => {
-        if (!title.trim()) { toast.error('Bitte gib einen Titel ein.'); return; }
+        if (!title.trim()) { setTitleError(true); toast.error('Bitte gib einen Titel ein.'); return; }
 
         // ── Externer Direkt-Edit: kein interner DB-Write, direkt zum Provider ──
         if (externalEdit) {
@@ -454,9 +455,9 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                         </InlineNotice>
                     )}
                     {/* Title */}
-                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)', border: `1px solid ${titleError ? 'var(--color-danger)' : 'var(--border-default)'}` }}>
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ background: COLOR_HEX[color] }} />
-                        <input autoFocus placeholder="Titel" value={title} onChange={e => setTitle(e.target.value)}
+                        <input autoFocus placeholder="Titel" value={title} onChange={e => { setTitle(e.target.value); setTitleError(false); }}
                             className="flex-1 bg-transparent text-sm font-semibold outline-none" style={{ color: 'var(--text-primary)' }} />
                     </div>
 

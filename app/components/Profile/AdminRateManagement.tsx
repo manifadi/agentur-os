@@ -70,15 +70,7 @@ export default function AdminRateManagement() {
                 setNewPos({ title: '', hourly_rate: 0, category: 'Allgemein' });
                 fetchPositions();
             } else {
-                setConfirmConfig({
-                    isOpen: true,
-                    title: 'Fehler',
-                    message: error.message,
-                    onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                    type: 'danger',
-                    confirmText: 'OK',
-                    showCancel: false
-                });
+                toast.error(`Speichern fehlgeschlagen: ${error.message}`);
             }
         }
     };

@@ -13,6 +13,7 @@ interface ContactModalProps {
 export default function ContactModal({ isOpen, onClose, onSave, contact }: ContactModalProps) {
     const [formData, setFormData] = useState<Partial<ClientContact>>({});
     const [loading, setLoading] = useState(false);
+    const [nameError, setNameError] = useState(false);
 
     useEffect(() => {
         if (contact) {
@@ -25,7 +26,7 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!formData.name?.trim()) { toast.error('Bitte gib einen Namen ein.'); return; }
+        if (!formData.name?.trim()) { setNameError(true); toast.error('Bitte gib einen Namen ein.'); return; }
         setLoading(true);
         await onSave(formData);
         setLoading(false);
@@ -52,10 +53,11 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
                             <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                             <input
                                 autoFocus
-                                className="w-full bg-subtle border border-default text-text-primary rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition font-medium"
+                                className="w-full bg-subtle border text-text-primary rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition font-medium"
+                                style={{ borderColor: nameError ? 'var(--color-danger)' : 'var(--border-default)' }}
                                 placeholder="Vorname Nachname"
                                 value={formData.name || ''}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                onChange={e => { setFormData({ ...formData, name: e.target.value }); setNameError(false); }}
                             />
                         </div>
                     </div>

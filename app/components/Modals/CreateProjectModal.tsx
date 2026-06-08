@@ -31,6 +31,7 @@ function generateJobNumber(existingProjects: Project[]): string {
 export default function CreateProjectModal({ isOpen, clients, employees, projects, joinedProjectIds, currentUserId, onClose, onCreate, onJoin }: CreateProjectModalProps) {
     const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing');
     const [data, setData] = useState({ title: '', jobNr: '', clientId: '', pmId: '', deadline: '' });
+    const [errors, setErrors] = useState<{ title?: boolean; clientId?: boolean }>({});
     const [editingJobNr, setEditingJobNr] = useState(false);
     const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState('');
@@ -55,8 +56,8 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
         joinedProjectIds.includes(project.id) || project.project_manager_id === currentUserId;
 
     const handleCreate = async () => {
-        if (!data.title.trim()) { toast.error('Bitte gib einen Projekt-Titel ein.'); return; }
-        if (!data.clientId) { toast.error('Bitte wähle einen Kunden aus.'); return; }
+        if (!data.title.trim()) { setErrors(e => ({ ...e, title: true })); toast.error('Bitte gib einen Projekt-Titel ein.'); return; }
+        if (!data.clientId) { setErrors(e => ({ ...e, clientId: true })); toast.error('Bitte wähle einen Kunden aus.'); return; }
         setSaving(true);
         await onCreate(data);
         setSaving(false);
@@ -158,9 +159,10 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                             <div>
                                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Kunde *</label>
                                 <select
-                                    className="w-full rounded-xl border border-default text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    className="w-full rounded-xl border text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    style={{ borderColor: errors.clientId ? 'var(--color-danger)' : 'var(--border-default)' }}
                                     value={data.clientId}
-                                    onChange={e => setData({ ...data, clientId: e.target.value })}
+                                    onChange={e => { setData({ ...data, clientId: e.target.value }); setErrors(er => ({ ...er, clientId: false })); }}
                                     autoFocus
                                 >
                                     <option value="">Bitte wählen...</option>
@@ -172,9 +174,10 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block mb-1.5">Projekt Titel *</label>
                                 <input
                                     type="text"
-                                    className="w-full rounded-xl border border-default text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    className="w-full rounded-xl border text-sm py-2.5 px-3 bg-subtle text-text-primary focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    style={{ borderColor: errors.title ? 'var(--color-danger)' : 'var(--border-default)' }}
                                     value={data.title}
-                                    onChange={e => setData({ ...data, title: e.target.value })}
+                                    onChange={e => { setData({ ...data, title: e.target.value }); setErrors(er => ({ ...er, title: false })); }}
                                     placeholder="z.B. Website Relaunch 2025"
                                     onKeyDown={e => e.key === 'Enter' && handleCreate()}
                                 />
