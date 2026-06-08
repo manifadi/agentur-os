@@ -5,6 +5,7 @@ import ConfirmModal from '../Modals/ConfirmModal';
 import UserAvatar from '../UI/UserAvatar';
 import RichTextEditor from '../UI/RichTextEditor';
 import RichTextDisplay from '../UI/RichTextDisplay';
+import { toast } from 'sonner';
 
 interface LogbookProps {
     logs: ProjectLog[];
@@ -96,13 +97,13 @@ export default function Logbook({ logs, onAdd, onUpdate, onDelete, onUploadImage
     };
 
     const handleSaveNew = async () => {
-        if (!newTitle.trim()) return;
+        if (!newTitle.trim()) { toast.error('Bitte gib einen Titel ein.'); return; }
         await onAdd(newTitle, newContent, newDate || new Date().toISOString(), newImages, newIsPublic);
         setNewTitle(''); setNewContent(''); setNewImages([]); setIsAdding(false); setNewIsPublic(false);
     };
 
     const handleSaveEdit = async (id: string) => {
-        if (!editTitle.trim()) return;
+        if (!editTitle.trim()) { toast.error('Bitte gib einen Titel ein.'); return; }
         await onUpdate(id, editTitle, editContent, editDate, editImages, editIsPublic);
         setEditingId(null);
     };

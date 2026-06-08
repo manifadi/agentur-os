@@ -63,7 +63,8 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
     const meta = TYPES.find(t => t.value === type)!;
 
     const handleSubmit = async () => {
-        if (!isValid) return;
+        if (!startDate || !endDate) { toast.error('Bitte wähle Start- und Enddatum.'); return; }
+        if (new Date(endDate) < new Date(startDate)) { toast.error('Das Enddatum darf nicht vor dem Startdatum liegen.'); return; }
         setSubmitting(true);
         const { error } = await supabase.rpc('request_absence', {
             p_employee_id: employeeId,
@@ -201,7 +202,7 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
                 {/* Footer */}
                 <div className="flex justify-end gap-2 px-5 py-3.5" style={{ borderTop: '1px solid var(--border-default)' }}>
                     <button onClick={onClose} disabled={submitting} className="btn-ghost px-4 py-2 rounded-xl">Abbrechen</button>
-                    <button onClick={handleSubmit} disabled={!isValid || submitting}
+                    <button onClick={handleSubmit} disabled={submitting}
                         className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-semibold transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                         style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
                         {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}

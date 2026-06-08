@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, Plus, Check, Edit3 } from 'lucide-react';
 import { Client, Employee, Project } from '../../types';
+import { toast } from 'sonner';
 
 interface CreateProjectModalProps {
     isOpen: boolean;
@@ -54,7 +55,8 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
         joinedProjectIds.includes(project.id) || project.project_manager_id === currentUserId;
 
     const handleCreate = async () => {
-        if (!data.title.trim() || !data.clientId) return;
+        if (!data.title.trim()) { toast.error('Bitte gib einen Projekt-Titel ein.'); return; }
+        if (!data.clientId) { toast.error('Bitte wähle einen Kunden aus.'); return; }
         setSaving(true);
         await onCreate(data);
         setSaving(false);
@@ -236,7 +238,7 @@ export default function CreateProjectModal({ isOpen, clients, employees, project
                                 </button>
                                 <button
                                     onClick={handleCreate}
-                                    disabled={saving || !data.title.trim() || !data.clientId}
+                                    disabled={saving}
                                     className="flex-1 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-bold hover:brightness-110 transition disabled:opacity-50"
                                 >
                                     {saving ? 'Erstelle...' : 'Projekt anlegen'}

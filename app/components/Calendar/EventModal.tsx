@@ -235,7 +235,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     };
 
     const handleSave = async () => {
-        if (!title.trim()) return;
+        if (!title.trim()) { toast.error('Bitte gib einen Titel ein.'); return; }
 
         // ── Externer Direkt-Edit: kein interner DB-Write, direkt zum Provider ──
         if (externalEdit) {
@@ -687,7 +687,7 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                         <button onClick={handleCloseIntent} className="text-xs font-medium px-4 py-2 rounded-xl transition-colors" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>
                             Abbrechen
                         </button>
-                        <button onClick={handleSave} disabled={!title.trim() || loading} className="text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
+                        <button onClick={handleSave} disabled={loading} className="text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
                             {loading ? '...' : isEdit ? 'Speichern' : 'Erstellen'}
                         </button>
                     </div>

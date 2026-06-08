@@ -12,6 +12,7 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import { getStatusStyle, getStatusDot } from '../../utils';
 import RichTextEditor from '../../components/UI/RichTextEditor';
 import RichTextDisplay from '../../components/UI/RichTextDisplay';
+import { toast } from 'sonner';
 
 type TabId = 'overview' | 'projects' | 'finances' | 'activity' | 'documents' | 'team';
 
@@ -357,7 +358,8 @@ export default function ClientDetailPage() {
             });
             return;
         }
-        if (!newLog.title || !newLog.content) return;
+        if (!newLog.title.trim()) { toast.error('Bitte gib einen Titel für den Eintrag ein.'); return; }
+        if (!newLog.content || !newLog.content.replace(/<[^>]*>/g, '').trim()) { toast.error('Bitte gib einen Text für den Eintrag ein.'); return; }
         setIsPostingLog(true);
 
         const { data, error } = await supabase.from('client_logs').insert([{
@@ -1078,7 +1080,7 @@ export default function ClientDetailPage() {
                                         <div className="flex justify-end">
                                             <button
                                                 onClick={handlePostLog}
-                                                disabled={!newLog.title || !newLog.content || isPostingLog}
+                                                disabled={isPostingLog}
                                                 className="bg-text-primary text-surface px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:brightness-110 transition disabled:opacity-50"
                                             >
                                                 <Send size={14} /> Eintrag speichern

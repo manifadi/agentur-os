@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CheckCircle2, Pencil, Trash2, X, Plus, Calendar, Check, GripVertical } from 'lucide-react';
 import { Todo, Employee } from '../../types';
 import UserAvatar from '../UI/UserAvatar';
+import { toast } from 'sonner';
 import {
     DndContext,
     closestCenter,
@@ -59,7 +60,7 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
     }, [todos]);
 
     const handleCreate = async () => {
-        if (!newTitle.trim()) return;
+        if (!newTitle.trim()) { toast.error('Bitte gib einen Titel für die Aufgabe ein.'); return; }
         const maxOrder = Math.max(0, ...todos.map(t => t.order_index || 0));
         await onAdd(newTitle, newAssignee || null, newDeadline || null, maxOrder + 1);
         setNewTitle('');
@@ -91,7 +92,7 @@ export default function TodoList({ todos, employees, onAdd, onToggle, onUpdate, 
     };
 
     const handleSaveEdit = async (id: string) => {
-        if (!editTitle.trim()) return;
+        if (!editTitle.trim()) { toast.error('Bitte gib einen Titel ein.'); return; }
         await onUpdate(id, editTitle, editAssignee || null, editDeadline || null);
         setEditingId(null);
     };

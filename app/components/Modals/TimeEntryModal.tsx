@@ -3,6 +3,7 @@ import { X, Calendar, Search, Check, AlertCircle, AlertTriangle } from 'lucide-r
 import { supabase } from '../../supabaseClient';
 import { Project, Employee, TimeEntry } from '../../types';
 import ConfirmModal from './ConfirmModal';
+import { toast } from 'sonner';
 
 interface TimeEntryModalProps {
     isOpen: boolean;
@@ -122,7 +123,9 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
     }, [projects, searchTerm]);
 
     const handleSave = async () => {
-        if (!projectId || !hours || !currentUser) return;
+        if (!currentUser) { toast.error('Sitzung ungültig. Bitte lade die Seite neu.'); return; }
+        if (!projectId) { toast.error('Bitte wähle ein Projekt aus.'); return; }
+        if (!hours) { toast.error('Bitte gib die Stundenanzahl ein.'); return; }
         setIsSubmitting(true);
 
         const payload = {
@@ -299,7 +302,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
                     <button
                         onClick={handleSave}
-                        disabled={isSubmitting || !projectId || !hours}
+                        disabled={isSubmitting}
                         className="btn-primary w-full py-3 justify-center"
                     >
                         {isSubmitting

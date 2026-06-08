@@ -3,6 +3,7 @@ import { Plus, X, Link as LinkIcon, Upload, ExternalLink, Trash2, FileText, Imag
 import { Project, ProjectLink } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
+import { toast } from 'sonner';
 
 interface ProjectDocumentsTabProps {
     project: Project;
@@ -83,7 +84,8 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
     };
 
     const handleAddLink = async () => {
-        if (!addForm.url.trim() || !addForm.name.trim()) return;
+        if (!addForm.name.trim()) { toast.error('Bitte gib einen Namen ein.'); return; }
+        if (!addForm.url.trim()) { toast.error('Bitte gib eine URL ein.'); return; }
         const type = detectType(addForm.url.trim());
         const newLink: ProjectLink = {
             id: crypto.randomUUID(),
@@ -208,7 +210,6 @@ export default function ProjectDocumentsTab({ project, onUpdateProject }: Projec
                             </button>
                             <button
                                 onClick={handleAddLink}
-                                disabled={!addForm.url.trim() || !addForm.name.trim()}
                                 className="px-3 py-1.5 bg-accent text-surface rounded-lg text-xs font-bold hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 Hinzufügen

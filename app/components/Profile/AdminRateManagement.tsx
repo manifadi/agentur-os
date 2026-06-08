@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { AgencyPosition } from '../../types';
 import { Plus, Trash2, Save, X, Edit2 } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
+import { toast } from 'sonner';
 
 export default function AdminRateManagement() {
     const [positions, setPositions] = useState<AgencyPosition[]>([]);
@@ -52,7 +53,8 @@ export default function AdminRateManagement() {
     };
 
     const handleSaveNew = async () => {
-        if (!newPos.title || !newPos.hourly_rate) return;
+        if (!newPos.title) { toast.error('Bitte gib eine Bezeichnung ein.'); return; }
+        if (!newPos.hourly_rate) { toast.error('Bitte gib einen Stundensatz ein.'); return; }
 
         const { data: { user } } = await supabase.auth.getUser();
         // Fallback: fetch user's org
@@ -165,7 +167,6 @@ export default function AdminRateManagement() {
                     </div>
                     <button
                         onClick={handleSaveNew}
-                        disabled={!newPos.title || !newPos.hourly_rate}
                         className="bg-text-primary text-surface p-2 rounded-xl hover:opacity-90 transition disabled:opacity-50"
                     >
                         <Plus size={20} />

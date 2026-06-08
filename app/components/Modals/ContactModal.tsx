@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, User, Mail, Phone, Briefcase } from 'lucide-react';
 import { ClientContact } from '../../types';
+import { toast } from 'sonner';
 
 interface ContactModalProps {
     isOpen: boolean;
@@ -24,7 +25,7 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!formData.name) return;
+        if (!formData.name?.trim()) { toast.error('Bitte gib einen Namen ein.'); return; }
         setLoading(true);
         await onSave(formData);
         setLoading(false);
@@ -106,7 +107,7 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
                     </button>
                     <button
                         onClick={handleSubmit}
-                        disabled={loading || !formData.name}
+                        disabled={loading}
                         className="px-6 py-2 bg-accent text-accent-text rounded-xl text-sm font-bold hover:brightness-110 transition shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Save size={16} /> Speichern

@@ -11,6 +11,7 @@ import TaskHistoryModal from './TaskHistoryModal';
 import MultiSelectDropdown, { MultiSelectItem } from '../Dashboard/MultiSelectDropdown';
 import UserAvatar from '../UI/UserAvatar';
 import ClientLogo from '../UI/ClientLogo';
+import { toast } from 'sonner';
 
 interface GlobalTasksProps {
     projects: Project[];
@@ -228,6 +229,7 @@ export default function GlobalTasks({
         });
         if (error) {
             console.error('[GlobalTasks] insert failed:', error);
+            toast.error('Aufgabe konnte nicht erstellt werden.');
             return false;
         }
         await onUpdate();
@@ -370,7 +372,7 @@ export default function GlobalTasks({
                     setTitle={setNewTaskTitle}
                     adding={addingPrivate}
                     onSubmit={async () => {
-                        if (!newTaskTitle.trim()) return;
+                        if (!newTaskTitle.trim()) { toast.error('Bitte gib einen Titel ein.'); return; }
                         setAddingPrivate(true);
                         const ok = await handleAddPrivate(newTaskTitle);
                         setAddingPrivate(false);
