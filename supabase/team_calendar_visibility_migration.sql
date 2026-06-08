@@ -37,4 +37,8 @@ ALTER TABLE public.employees
   ADD COLUMN IF NOT EXISTS calendar_shared_with_team BOOLEAN NOT NULL DEFAULT true;
 COMMIT;
 
+-- Selbst-Registrierung (Migrations-Tracking, siehe supabase/README.md).
+INSERT INTO public.schema_migrations (name) VALUES ('team_calendar_visibility_migration')
+  ON CONFLICT (name) DO NOTHING;
+
 NOTIFY pgrst, 'reload schema';
