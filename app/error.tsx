@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
+import { reportError } from './utils/reportError';
 
 export default function Error({
     error,
@@ -11,8 +12,7 @@ export default function Error({
     reset: () => void;
 }) {
     useEffect(() => {
-        // Log the error to an error reporting service
-        console.error(error);
+        reportError(error, { source: 'route-error-boundary', digest: error.digest });
     }, [error]);
 
     return (
