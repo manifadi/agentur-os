@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+.vercel/
+.git/
+graphify-out/
+public/fonts/
+*.log
+*.lock
+package-lock.json
+*.pdf
+*.docx
+*.xlsx
