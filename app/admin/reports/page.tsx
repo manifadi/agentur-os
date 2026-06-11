@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 import {
     UserFeedback, FeedbackStatus, FeedbackCategory,
@@ -29,8 +30,23 @@ const CATEGORY_FILTERS: { key: FeedbackCategory | 'all'; label: string }[] = [
 
 export default function ReportsPage() {
     const { feedback, loading } = useSuperAdmin();
-    const [statusFilter, setStatusFilter] = useState<FeedbackStatus | 'all'>('all');
-    const [categoryFilter, setCategoryFilter] = useState<FeedbackCategory | 'all'>('all');
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    // Filter leben in der URL → bleiben bei Reload (F5) und beim Teilen erhalten.
+    const statusFilter = (searchParams.get('status') as FeedbackStatus | 'all') || 'all';
+    const categoryFilter = (searchParams.get('category') as FeedbackCategory | 'all') || 'all';
+
+    const setFilters = (next: { status?: FeedbackStatus | 'all'; category?: FeedbackCategory | 'all' }) => {
+        const params = new URLSearchParams(searchParams.toString());
+        const status = next.status ?? statusFilter;
+        const category = next.category ?? categoryFilter;
+        if (status === 'all') params.delete('status'); else params.set('status', status);
+        if (category === 'all') params.delete('category'); else params.set('category', category);
+        const qs = params.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    };
 
     const counts = useMemo(() => {
         const c: Record<string, number> = { all: feedback.length };
@@ -60,7 +76,7 @@ export default function ReportsPage() {
                     return (
                         <button
                             key={s.key}
-                            onClick={() => setStatusFilter(s.key)}
+                            onClick={() => setFilters({ status: s.key })}
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition"
                             style={active ? {
                                 background: 'var(--accent)', color: 'var(--accent-text)',
@@ -76,7 +92,7 @@ export default function ReportsPage() {
                 <div className="w-px h-5 mx-1" style={{ background: 'var(--border-default)' }} />
                 <select
                     value={categoryFilter}
-                    onChange={e => setCategoryFilter(e.target.value as FeedbackCategory | 'all')}
+                    onChange={e => setFilters({ category: e.target.value as FeedbackCategory | 'all' })}
                     className="px-2.5 py-1.5 rounded-xl text-[12px] font-semibold cursor-pointer outline-none"
                     style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
                 >

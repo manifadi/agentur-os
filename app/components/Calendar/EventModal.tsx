@@ -178,6 +178,8 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showHideConfirm, setShowHideConfirm] = useState(false);
+    const [showConflictConfirm, setShowConflictConfirm] = useState(false);
+    const [conflictList, setConflictList] = useState<{ personName: string; title: string; start_at: string; end_at: string; all_day: boolean }[]>([]);
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -235,6 +237,43 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
         return { start, end };
     };
 
+    // Prüft, ob eingeladene Team-Mitglieder im gewählten Zeitfenster bereits
+    // einen Termin haben (als Besitzer ODER als Teilnehmer). Beim Bearbeiten
+    // werden nur NEU hinzugefügte Personen geprüft — bestehende lösen keine
+    // erneute Warnung aus.
+    const findConflicts = async (start: Date, end: Date) => {
+        const originalAttIds = new Set((event?.attendees || []).map(a => a.employee_id).filter(Boolean));
+        // Beim Bearbeiten gilt der Ersteller als bereits beteiligt → nicht erneut warnen.
+        if (isEdit) originalAttIds.add(currentUser.id);
+
+        // Eigene Termine (Ersteller) MIT prüfen, plus alle Team-Teilnehmer.
+        const ids = Array.from(new Set([currentUser.id, ...attendees.map(a => a.employee_id)]))
+            .filter((id): id is string => !!id)
+            .filter(id => !isEdit || !originalAttIds.has(id));
+        if (ids.length === 0) return [];
+
+        const { data } = await supabase.from('calendar_events')
+            .select('id, title, start_at, end_at, all_day, employee_id, attendees')
+            .eq('organization_id', organizationId)
+            .lt('start_at', end.toISOString())
+            .gt('end_at', start.toISOString());
+
+        const rows = (data || []).filter((ev: any) => ev.id !== event?.id);
+        const out: { personName: string; title: string; start_at: string; end_at: string; all_day: boolean }[] = [];
+        for (const id of ids) {
+            const emp = employees.find(e => e.id === id);
+            const personName = id === currentUser.id
+                ? 'Du'
+                : (emp?.name || attendees.find(a => a.employee_id === id)?.name || 'Teilnehmer');
+            for (const ev of rows as any[]) {
+                const involved = ev.employee_id === id
+                    || (Array.isArray(ev.attendees) && ev.attendees.some((a: any) => a.employee_id === id));
+                if (involved) out.push({ personName, title: ev.title || 'Ohne Titel', start_at: ev.start_at, end_at: ev.end_at, all_day: !!ev.all_day });
+            }
+        }
+        return out;
+    };
+
     const handleSave = async () => {
         if (!title.trim()) { setTitleError(true); toast.error('Bitte gib einen Titel ein.'); return; }
 
@@ -272,6 +311,21 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
 
         setSaving(true);
         const { start, end } = buildDates();
+
+        // Doppelbelegung prüfen — bei Konflikt erst doppelt bestätigen.
+        const conflicts = await findConflicts(start, end);
+        if (conflicts.length > 0) {
+            setConflictList(conflicts);
+            setShowConflictConfirm(true);
+            setSaving(false);
+            return;
+        }
+
+        await persistInternal(start, end);
+    };
+
+    const persistInternal = async (start: Date, end: Date) => {
+        setSaving(true);
         const payload = {
             organization_id: organizationId,
             employee_id: currentUser.id,
@@ -735,6 +789,51 @@ export default function EventModal({ event, defaultStart, defaultEnd, defaultAll
                             <button onClick={() => setShowHideConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>Abbrechen</button>
                             <button onClick={handleHide} disabled={loading} className="px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>
                                 {loading ? '...' : 'Ausblenden'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Conflict Confirm — Teilnehmer hat bereits einen Termin im Zeitfenster */}
+            {showConflictConfirm && (
+                <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}>
+                    <div className="w-full max-w-md rounded-2xl shadow-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                        <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Terminkonflikt</h3>
+                        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                            Folgende Teilnehmer haben in diesem Zeitraum bereits einen Termin:
+                        </p>
+                        <div className="space-y-2 mb-6 max-h-56 overflow-y-auto">
+                            {conflictList.map((c, i) => {
+                                const s = new Date(c.start_at);
+                                const e = new Date(c.end_at);
+                                const opt = { hour: '2-digit', minute: '2-digit' } as const;
+                                const dateOpt = { day: '2-digit', month: '2-digit' } as const;
+                                const when = c.all_day
+                                    ? `${s.toLocaleDateString('de-DE', dateOpt)} · ganztägig`
+                                    : `${s.toLocaleDateString('de-DE', dateOpt)} · ${s.toLocaleTimeString('de-DE', opt)} – ${e.toLocaleTimeString('de-DE', opt)} Uhr`;
+                                return (
+                                    <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl" style={{ background: 'var(--color-warning-subtle)', border: '1px solid var(--color-warning-border)' }}>
+                                        <Clock size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--color-warning-text)' }} />
+                                        <div className="min-w-0">
+                                            <div className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{c.personName}</div>
+                                            <div className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{c.title}</div>
+                                            <div className="text-[11px]" style={{ color: 'var(--color-warning-text)' }}>{when}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Möchtest du den Termin trotzdem eintragen?</p>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setShowConflictConfirm(false)} className="px-4 py-2 rounded-xl text-xs font-medium" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>Abbrechen</button>
+                            <button
+                                onClick={async () => { setShowConflictConfirm(false); const { start, end } = buildDates(); await persistInternal(start, end); }}
+                                disabled={loading}
+                                className="px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+                                style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}
+                            >
+                                {loading ? '...' : 'Trotzdem eintragen'}
                             </button>
                         </div>
                     </div>

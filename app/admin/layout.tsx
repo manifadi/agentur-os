@@ -12,7 +12,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!session) return <LoginScreen />;
 
-    if (loading) {
+    // Voll-Loader NUR beim Kaltstart (noch kein currentUser). Ein späterer
+    // Hintergrund-Refresh (z.B. Token-Refresh beim Tab-Wechsel) setzt evtl. erneut
+    // loading=true, soll das Panel aber NICHT mehr ausblenden — Frontend bleibt stehen.
+    if (loading && !currentUser) {
         return (
             <div className="flex h-screen items-center justify-center text-sm font-medium"
                 style={{ color: 'var(--text-muted)', background: 'var(--bg-app)' }}>

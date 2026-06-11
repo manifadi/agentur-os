@@ -4,11 +4,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../supabaseClient';
 import { toast } from 'sonner';
-import { X, Loader2, Check, CalendarDays, Home, Stethoscope, Pin, Plane } from 'lucide-react';
+import { X, Loader2, Check, CalendarDays, Home, Stethoscope, Pin, Plane, Scale, Wallet, AlertTriangle } from 'lucide-react';
 import {
-    AbsenceType, AbsenceHalfDay, ABSENCE_TYPE_LABEL,
+    AbsenceType, AbsenceHalfDay, ABSENCE_TYPE_LABEL, VacationBalance,
 } from '../../types';
-import { workingDaysInRange, absenceWorkingDays } from '../../utils/absences';
+import { absenceWorkingDays } from '../../utils/absences';
+
+// Referenz-Zeitfenster für Halbtage — nur informativ, damit klar ist
+// "von wann bis wann" Vormittag/Nachmittag gemeint sind.
+const VORMITTAG_RANGE = '08:00–12:00';
+const NACHMITTAG_RANGE = '12:00–16:00';
+
+type DayMode = 'full' | 'morning' | 'afternoon' | 'custom';
 
 interface Props {
     employeeId: string;
@@ -20,10 +27,12 @@ interface Props {
 }
 
 const TYPES: { value: AbsenceType; label: string; icon: any; needsApproval: boolean; description: string }[] = [
-    { value: 'vacation',    label: 'Urlaub',       icon: Plane,       needsApproval: true,  description: 'Manager-Freigabe nötig' },
-    { value: 'home_office', label: 'Homeoffice',   icon: Home,        needsApproval: false, description: 'Sofort aktiv' },
-    { value: 'sick',        label: 'Krankmeldung', icon: Stethoscope, needsApproval: false, description: 'Sofort aktiv' },
-    { value: 'other',       label: 'Sonstige',     icon: Pin,         needsApproval: true,  description: 'Manager-Freigabe nötig' },
+    { value: 'vacation',        label: 'Urlaub',            icon: Plane,       needsApproval: true,  description: 'Manager-Freigabe nötig' },
+    { value: 'zeitausgleich',   label: 'Zeitausgleich',     icon: Scale,       needsApproval: true,  description: 'Manager-Freigabe nötig' },
+    { value: 'unpaid_vacation', label: 'Unbezahlter Urlaub', icon: Wallet,     needsApproval: true,  description: 'Kein Resturlaub nötig' },
+    { value: 'home_office',     label: 'Homeoffice',        icon: Home,        needsApproval: false, description: 'Sofort aktiv' },
+    { value: 'sick',            label: 'Krankmeldung',      icon: Stethoscope, needsApproval: false, description: 'Sofort aktiv' },
+    { value: 'other',           label: 'Sonstige',          icon: Pin,         needsApproval: true,  description: 'Manager-Freigabe nötig' },
 ];
 
 function toIsoDate(d: Date): string {
@@ -35,43 +44,69 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
     const [type, setType]       = useState<AbsenceType>('vacation');
     const [startDate, setStartDate] = useState<string>(toIsoDate(new Date()));
     const [endDate, setEndDate]     = useState<string>(toIsoDate(new Date()));
-    const [halfDay, setHalfDay]     = useState<AbsenceHalfDay>('none');
+    const [dayMode, setDayMode]     = useState<DayMode>('full');
+    const [startTime, setStartTime] = useState<string>('08:00');
+    const [endTime, setEndTime]     = useState<string>('12:00');
     const [reason, setReason]       = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [balance, setBalance]     = useState<VacationBalance | null>(null);
 
     useEffect(() => { setMounted(true); }, []);
+
+    // Resturlaub laden (für Hinweis bei zu wenig Urlaub)
+    useEffect(() => {
+        (async () => {
+            const { data } = await supabase.rpc('get_vacation_balance', { p_employee_id: employeeId });
+            if (Array.isArray(data) && data[0]) setBalance(data[0] as VacationBalance);
+        })();
+    }, [employeeId]);
 
     // Wenn endDate < startDate → auto-anpassen
     useEffect(() => {
         if (new Date(endDate) < new Date(startDate)) setEndDate(startDate);
     }, [startDate]);
 
-    // Bei Mehrtages-Auswahl: Half-Day reset
+    // Bei Mehrtages-Auswahl: zurück auf Ganztags
     useEffect(() => {
-        if (startDate !== endDate && halfDay !== 'none') setHalfDay('none');
+        if (startDate !== endDate && dayMode !== 'full') setDayMode('full');
     }, [startDate, endDate]);
+
+    const isSingleDay = startDate === endDate;
+    const halfDay: AbsenceHalfDay = dayMode === 'morning' ? 'start' : dayMode === 'afternoon' ? 'end' : 'none';
+    const useCustomTime = isSingleDay && dayMode === 'custom';
 
     const days = useMemo(() => {
         try {
-            return absenceWorkingDays({ start_date: startDate, end_date: endDate, half_day: halfDay }, countryCode, federalState);
+            return absenceWorkingDays({
+                start_date: startDate, end_date: endDate,
+                half_day: isSingleDay ? halfDay : 'none',
+                start_time: useCustomTime ? startTime : null,
+                end_time:   useCustomTime ? endTime : null,
+            }, countryCode, federalState);
         } catch { return 0; }
-    }, [startDate, endDate, halfDay, countryCode, federalState]);
+    }, [startDate, endDate, halfDay, useCustomTime, startTime, endTime, isSingleDay, countryCode, federalState]);
 
-    const isValid = !!startDate && !!endDate && new Date(endDate) >= new Date(startDate);
-    const isSingleDay = startDate === endDate;
+    // Reicht der Resturlaub? (nur relevant für bezahlten Urlaub)
+    const lacksVacation = type === 'vacation' && balance != null && (balance.remaining - days) < 0;
 
     const meta = TYPES.find(t => t.value === type)!;
 
     const handleSubmit = async () => {
         if (!startDate || !endDate) { toast.error('Bitte wähle Start- und Enddatum.'); return; }
         if (new Date(endDate) < new Date(startDate)) { toast.error('Das Enddatum darf nicht vor dem Startdatum liegen.'); return; }
+        if (useCustomTime) {
+            if (!startTime || !endTime) { toast.error('Bitte Start- und Endzeit angeben.'); return; }
+            if (endTime <= startTime) { toast.error('Die Endzeit muss nach der Startzeit liegen.'); return; }
+        }
         setSubmitting(true);
         const { error } = await supabase.rpc('request_absence', {
             p_employee_id: employeeId,
             p_type:        type,
             p_start_date:  startDate,
             p_end_date:    endDate,
-            p_half_day:    halfDay,
+            p_half_day:    isSingleDay ? halfDay : 'none',
+            p_start_time:  useCustomTime ? startTime : null,
+            p_end_time:    useCustomTime ? endTime : null,
             p_reason:      reason.trim() || null,
         });
         setSubmitting(false);
@@ -148,31 +183,54 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
                         </div>
                     </div>
 
-                    {/* Half day (nur bei Einzeltag) */}
+                    {/* Tages-Umfang (nur bei Einzeltag) */}
                     {isSingleDay && (
                         <div>
-                            <label className="ds-caption mb-2 block">Halber Tag</label>
-                            <div className="grid grid-cols-3 gap-2">
+                            <label className="ds-caption mb-2 block">Umfang</label>
+                            <div className="grid grid-cols-2 gap-2">
                                 {([
-                                    { value: 'none',  label: 'Ganztags' },
-                                    { value: 'start', label: 'Vormittag' },
-                                    { value: 'end',   label: 'Nachmittag' },
+                                    { value: 'full',      label: 'Ganztags',    hint: '' },
+                                    { value: 'morning',   label: 'Vormittag',   hint: VORMITTAG_RANGE },
+                                    { value: 'afternoon', label: 'Nachmittag',  hint: NACHMITTAG_RANGE },
+                                    { value: 'custom',    label: 'Genaue Zeit', hint: 'z.B. 08:15–14:30' },
                                 ] as const).map(opt => {
-                                    const active = halfDay === opt.value;
+                                    const active = dayMode === opt.value;
                                     return (
-                                        <button key={opt.value} type="button" onClick={() => setHalfDay(opt.value)}
-                                            className="px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                                        <button key={opt.value} type="button" onClick={() => setDayMode(opt.value)}
+                                            className="px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left"
                                             style={active ? {
                                                 background: 'var(--accent)', color: 'var(--accent-text)',
                                             } : {
                                                 background: 'var(--bg-subtle)', color: 'var(--text-secondary)',
                                                 border: '1px solid var(--border-default)',
                                             }}>
-                                            {opt.label}
+                                            <div>{opt.label}</div>
+                                            {opt.hint && (
+                                                <div className="text-[10px] font-normal mt-0.5"
+                                                    style={{ color: active ? 'var(--accent-text)' : 'var(--text-muted)', opacity: active ? 0.85 : 1 }}>
+                                                    {opt.hint}
+                                                </div>
+                                            )}
                                         </button>
                                     );
                                 })}
                             </div>
+
+                            {/* Exakte Uhrzeiten */}
+                            {dayMode === 'custom' && (
+                                <div className="grid grid-cols-2 gap-3 mt-3">
+                                    <div>
+                                        <label className="ds-caption mb-2 block">Von (Uhrzeit)</label>
+                                        <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none transition bg-subtle border border-border-strong text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent" />
+                                    </div>
+                                    <div>
+                                        <label className="ds-caption mb-2 block">Bis (Uhrzeit)</label>
+                                        <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none transition bg-subtle border border-border-strong text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -194,7 +252,25 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
                             <span>
                                 <strong style={{ color: 'var(--text-primary)' }}>{days} Arbeitstag{days === 1 ? '' : 'e'}</strong>
                                 {' '}werden vom Resturlaub abgezogen (Wochenenden + Feiertage ausgenommen)
+                                {balance != null && <> · {Math.max(0, balance.remaining)} verbleibend</>}
                             </span>
+                        </div>
+                    )}
+
+                    {/* Zu wenig Resturlaub → unbezahlten Urlaub anbieten */}
+                    {lacksVacation && (
+                        <div className="flex items-start gap-2.5 p-3 rounded-xl text-xs"
+                             style={{ background: 'var(--color-warning-subtle)', border: '1px solid var(--color-warning-border)', color: 'var(--color-warning-text)' }}>
+                            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                            <div>
+                                <div className="font-bold">Nicht genug Resturlaub</div>
+                                <div className="mt-0.5">Verfügbar sind nur {Math.max(0, balance!.remaining)} Tag(e).</div>
+                                <button type="button" onClick={() => setType('unpaid_vacation')}
+                                    className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold transition"
+                                    style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
+                                    <Wallet size={12} /> Als unbezahlten Urlaub eintragen
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

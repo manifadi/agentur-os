@@ -156,6 +156,29 @@ export function SuperAdminProvider({ enabled, children }: { enabled: boolean; ch
         };
     }, [enabled, refreshOrgs, refreshAudit, refreshRequests, refreshBackups, refreshFeedback]);
 
+    // Tab-Fokus / Sichtbarkeit: still im Hintergrund neu laden.
+    // Kein Loading-Flip → das Frontend (aktive Seite, Filter, Scroll) bleibt
+    // unverändert, nur die angezeigten Daten werden aus dem Backend aufgefrischt.
+    // Throttle verhindert Doppel-Fetch (focus + visibilitychange feuern oft zusammen).
+    useEffect(() => {
+        if (!enabled) return;
+        let last = 0;
+        const silentRefresh = () => {
+            const now = Date.now();
+            if (now - last < 3000) return;
+            last = now;
+            refresh();
+        };
+        const onFocus = () => silentRefresh();
+        const onVisibility = () => { if (document.visibilityState === 'visible') silentRefresh(); };
+        window.addEventListener('focus', onFocus);
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            window.removeEventListener('focus', onFocus);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [enabled, refresh]);
+
     return (
         <SuperAdminContext.Provider
             value={{ orgs, audit, requests, backups, feedback, loading, refresh, refreshOrgs, refreshBackups, refreshFeedback }}

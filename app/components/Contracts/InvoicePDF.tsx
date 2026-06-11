@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
-import { Project, AgencySettings, Client, ProjectInvoice } from '../../types';
+import { Project, AgencySettings, Client, ProjectInvoice, Employee } from '../../types';
 
 const styles = StyleSheet.create({
     page: {
@@ -175,11 +175,13 @@ interface InvoicePDFProps {
     invoice: Partial<ProjectInvoice>;
     agency: AgencySettings | null;
     client: Client | null;
+    signer?: Employee | null;
 }
 
-export default function InvoicePDF({ project, invoice, agency, client }: InvoicePDFProps) {
+export default function InvoicePDF({ project, invoice, agency, client, signer }: InvoicePDFProps) {
     const fmt = (n: number) => (n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' EUR';
-    const pm = project.employees;
+    // Explizit gewählte Ansprechperson hat Vorrang, sonst Projektleiter.
+    const pm = signer || project.employees;
 
     const renderItems = () => {
         if (invoice.billing_type === 'full') {
@@ -274,7 +276,7 @@ export default function InvoicePDF({ project, invoice, agency, client }: Invoice
                             <>
                                 <View style={{ height: 6 }} />
                                 <View style={styles.metaRow}>
-                                    <Text style={styles.metaLabel}>Mitarbeiter</Text>
+                                    <Text style={styles.metaLabel}>Ansprechpartner</Text>
                                     <Text style={styles.metaValue}>{pm.name}</Text>
                                 </View>
                                 <View style={styles.metaRow}>

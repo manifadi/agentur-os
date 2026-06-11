@@ -1,45 +1,24 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2, Plus, Search, X, Home } from 'lucide-react';
 import { Employee, Project, Client, ResourceAllocation, AllocationRow, Absence, AbsenceType, ABSENCE_TYPE_COLOR, ABSENCE_TYPE_LABEL } from '../../types';
 import AbsenceIcon from '../Absences/AbsenceIcon';
 import { isDateCovered } from '../../utils/absences';
-
-// ─── Status config ──────────────────────────────────────────────────────────────
-const ALLOCATION_STATUS_OPTIONS = [
-    'Prio/Asap',
-    'Bearbeitung möglich',
-    'Geplant',
-    'Warten auf Kundenfeedback',
-    'Erledigt',
-] as const;
-
-type AllocStatus = typeof ALLOCATION_STATUS_OPTIONS[number];
-
-const STATUS_CONFIG: Record<AllocStatus, { border: string; badge: string; label: string }> = {
-    'Prio/Asap':                 { border: 'border-l-red-500',     badge: 'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400',           label: 'Prio' },
-    'Bearbeitung möglich':       { border: 'border-l-emerald-500',  badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400', label: 'OK' },
-    'Geplant':                   { border: 'border-l-slate-300',    badge: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',       label: 'Geplant' },
-    'Warten auf Kundenfeedback': { border: 'border-l-amber-400',    badge: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',     label: 'Warten' },
-    'Erledigt':                  { border: 'border-l-blue-400',     badge: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',         label: 'Erledigt' },
-};
-
-function getStatusConfig(s?: string) {
-    return STATUS_CONFIG[(s as AllocStatus) ?? 'Geplant'] ?? STATUS_CONFIG['Geplant'];
-}
+import { ALLOCATION_STATUS_OPTIONS, STATUS_CONFIG, getStatusConfig, dayCapacity } from './shared';
 
 // ─── Capacity helpers ───────────────────────────────────────────────────────────
-function capacityTextColor(h: number) {
+// Farbgebung relativ zur Tages-Soll-Kapazität: rot sobald mehr eingetragen ist,
+// als der Mitarbeiter an dem Tag laut Wochenplan arbeitet.
+function capacityTextColor(h: number, cap: number) {
     if (h === 0) return 'text-text-placeholder';
-    if (h <= 8)  return 'text-emerald-600 dark:text-emerald-400 font-bold';
-    if (h <= 10) return 'text-orange-500 dark:text-orange-400 font-bold';
-    return 'text-red-500 dark:text-red-400 font-bold';
+    if (h > cap) return 'text-red-500 dark:text-red-400 font-bold';
+    return 'text-emerald-600 dark:text-emerald-400 font-bold';
 }
 
-function capacityBarColor(h: number) {
+function capacityBarColor(h: number, cap: number) {
     if (h === 0)  return 'bg-default/30';
-    if (h <= 8)   return 'bg-emerald-500';
-    if (h <= 10)  return 'bg-orange-400';
-    return 'bg-red-500';
+    if (h > cap)  return 'bg-red-500';
+    return 'bg-emerald-500';
 }
 
 // ─── Employee avatar ────────────────────────────────────────────────────────────
@@ -162,7 +141,7 @@ function buildAbsenceMap(employeeId: string, weekStart: string | undefined, abse
     const out: (Absence | null)[] = [null, null, null, null, null];
     if (!weekStart) return out;
     const monday = new Date(weekStart);
-    const priority: Record<AbsenceType, number> = { vacation: 0, sick: 1, other: 2, home_office: 3 };
+    const priority: Record<AbsenceType, number> = { vacation: 0, unpaid_vacation: 1, zeitausgleich: 2, sick: 3, other: 4, home_office: 5 };
     for (let i = 0; i < 5; i++) {
         const day = new Date(monday);
         day.setDate(monday.getDate() + i);
@@ -201,6 +180,15 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
     }, [rows]);
     const globalTotal = Object.values(globalTotals).reduce((s, v) => s + v, 0);
 
+    // Team-Soll-Kapazität pro Tag = Summe der Tageskapazitäten aller Mitarbeiter.
+    const globalCaps = useMemo(
+        () => DAYS.map((_, i) => rows.reduce((s, r) => s + dayCapacity(r.employee, i), 0)),
+        [rows],
+    );
+    const globalWeekCap = globalCaps.reduce((s, v) => s + v, 0);
+    const globalDayValues = [globalTotals.mo, globalTotals.di, globalTotals.mi, globalTotals.do, globalTotals.fr];
+    const globalAnyOver = globalDayValues.some((v, i) => v > globalCaps[i]);
+
     return (
         <div className="overflow-x-auto max-h-[calc(100vh-140px)]">
             <table className="w-full border-collapse text-xs">
@@ -224,6 +212,10 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
                     {rows.map(row => {
                         const dayTotals = DAYS.map(d => row.allocations.reduce((s, a) => s + ((a as any)[d] || 0), 0));
                         const empTotal  = dayTotals.reduce((s, v) => s + v, 0);
+                        const dayCaps   = DAYS.map((_, i) => dayCapacity(row.employee, i));
+                        const weekCap   = dayCaps.reduce((s, v) => s + v, 0);
+                        const anyDayOver = dayTotals.some((t, i) => t > dayCaps[i]);
+                        const empOver   = anyDayOver || empTotal > weekCap;
                         const absenceMap = buildAbsenceMap(row.employee.id, weekStart, absences);
 
                         const handleHomeofficeFor = (i: number, existing: Absence | null) => {
@@ -260,6 +252,7 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
                                             {/* Per-day mini capacity bars + Abwesenheits-Toggle */}
                                             <div className="flex items-center gap-2.5">
                                                 {dayTotals.map((v, i) => {
+                                                    const cap = dayCaps[i];
                                                     const absence = absenceMap[i];
                                                     const absenceType = absence?.type ?? null;
                                                     const absenceColor = absenceType ? ABSENCE_TYPE_COLOR[absenceType] : null;
@@ -290,8 +283,8 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
                                                                 <div className="relative w-6 h-3 flex items-center justify-center">
                                                                     <div className="w-6 h-1.5 rounded-full bg-default/40 overflow-hidden absolute">
                                                                         <div
-                                                                            className={`h-full rounded-full transition-all ${capacityBarColor(v)}`}
-                                                                            style={{ width: `${Math.min(100, (v / 10) * 100)}%` }}
+                                                                            className={`h-full rounded-full transition-all ${capacityBarColor(v, cap)}`}
+                                                                            style={{ width: `${Math.min(100, (v / Math.max(cap > 0 ? cap : v, 1)) * 100)}%` }}
                                                                         />
                                                                     </div>
                                                                     {canToggleHO && (
@@ -310,15 +303,15 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
                                                                 </div>
                                                             )}
                                                             <span
-                                                                className={`text-[9px] tabular-nums leading-none ${absenceType && absenceType !== 'home_office' ? 'text-text-placeholder opacity-50' : capacityTextColor(v)}`}
+                                                                className={`text-[9px] tabular-nums leading-none ${absenceType && absenceType !== 'home_office' ? 'text-text-placeholder opacity-50' : capacityTextColor(v, cap)}`}
                                                             >
                                                                 {v > 0 ? `${v}` : <span className="text-text-placeholder opacity-40">·</span>}
                                                             </span>
                                                         </div>
                                                     );
                                                 })}
-                                                <div className="ml-1 px-2.5 py-1 bg-surface rounded-lg border border-default shadow-sm">
-                                                    <span className={`text-[11px] ${capacityTextColor(empTotal)}`}>
+                                                <div className="ml-1 px-2.5 py-1 bg-surface rounded-lg border border-default shadow-sm" title={empOver ? 'Mehr Stunden eingetragen als Soll-Kapazität' : undefined}>
+                                                    <span className={`text-[11px] font-bold ${empTotal === 0 ? 'text-text-placeholder' : empOver ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                                                         {empTotal > 0 ? `${empTotal}h` : '—'}
                                                     </span>
                                                 </div>
@@ -372,7 +365,7 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
                                             {/* Status badge */}
                                             <td className="px-1.5 border-r border-default">
                                                 <select
-                                                    className={`appearance-none w-full px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer focus:outline-none text-center ${sc.badge}`}
+                                                    className={`appearance-none w-full px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer focus:outline-none text-center truncate ${sc.badge}`}
                                                     value={alloc.allocation_status || 'Geplant'}
                                                     onChange={e => onUpdateAllocation(alloc.id, 'allocation_status', e.target.value)}
                                                 >
@@ -454,13 +447,22 @@ export default function ResourceGrid({ rows, projects, absences = [], weekStart,
                         <td colSpan={3} className="px-4 py-3 text-right text-[10px] uppercase tracking-[0.2em] font-black opacity-80">
                             Gesamt {globalTotal > 0 ? `· ${globalTotal}h` : ''}
                         </td>
-                        {[globalTotals.mo, globalTotals.di, globalTotals.mi, globalTotals.do, globalTotals.fr].map((v, i) => (
-                            <td key={i} className="text-center py-3 border-l border-surface/15 text-sm tabular-nums">
-                                {v > 0 ? v : <span className="opacity-30">—</span>}
-                            </td>
-                        ))}
-                        <td className="text-center py-3 border-l border-surface/15 text-sm tabular-nums font-black">
-                            {globalTotal > 0 ? globalTotal : <span className="opacity-30">—</span>}
+                        {globalDayValues.map((v, i) => {
+                            const over = v > globalCaps[i];
+                            return (
+                                <td key={i} className="text-center py-3 border-l border-surface/15 text-sm tabular-nums"
+                                    title={over ? `Über Team-Soll (${globalCaps[i]}h)` : undefined}>
+                                    {v > 0
+                                        ? <span className={over ? 'text-red-400 font-black' : ''}>{v}</span>
+                                        : <span className="opacity-30">—</span>}
+                                </td>
+                            );
+                        })}
+                        <td className="text-center py-3 border-l border-surface/15 text-sm tabular-nums font-black"
+                            title={(globalAnyOver || globalTotal > globalWeekCap) ? `Über Team-Soll (${globalWeekCap}h)` : undefined}>
+                            {globalTotal > 0
+                                ? <span className={(globalAnyOver || globalTotal > globalWeekCap) ? 'text-red-400' : ''}>{globalTotal}</span>
+                                : <span className="opacity-30">—</span>}
                         </td>
                         <td colSpan={2} className="border-l border-surface/15"></td>
                     </tr>
@@ -483,6 +485,31 @@ function AddRow({ employeeId, projects, allClients, onCreate }: {
     const [showModal, setShowModal] = useState(false);
     const selRef = useRef(false);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Vorschlagsliste per Portal an document.body — sonst schneidet der
+    // overflow-Container der Tabelle die Liste ab.
+    const [menuRect, setMenuRect] = useState<{ left: number; top: number; width: number } | null>(null);
+    const updateRect = () => {
+        const el = inputRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const width = 384;
+        const left = Math.max(12, Math.min(r.left - 24, window.innerWidth - width - 12));
+        setMenuRect({ left, top: r.bottom + 4, width });
+    };
+
+    useEffect(() => {
+        if (!open) return;
+        updateRect();
+        const handler = () => updateRect();
+        window.addEventListener('scroll', handler, true);
+        window.addEventListener('resize', handler);
+        return () => {
+            window.removeEventListener('scroll', handler, true);
+            window.removeEventListener('resize', handler);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
 
     const filtered = useMemo(() => {
         if (query.length < 1) return [];
@@ -562,8 +589,11 @@ function AddRow({ employeeId, projects, allClients, onCreate }: {
                         />
                     </div>
 
-                    {open && query.length >= 1 && (
-                        <div className="absolute top-full left-0 w-96 bg-surface shadow-xl border border-default rounded-xl mt-1 z-50 overflow-hidden">
+                    {open && query.length >= 1 && menuRect && createPortal(
+                        <div
+                            className="fixed bg-surface shadow-xl border border-default rounded-xl z-[120] overflow-hidden"
+                            style={{ left: menuRect.left, top: menuRect.top, width: menuRect.width }}
+                        >
                             {filtered.map(proj => (
                                 <button
                                     key={proj.id}
@@ -583,7 +613,8 @@ function AddRow({ employeeId, projects, allClients, onCreate }: {
                                     Neu anlegen: „{query}"
                                 </div>
                             )}
-                        </div>
+                        </div>,
+                        document.body,
                     )}
                 </td>
 

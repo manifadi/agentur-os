@@ -738,7 +738,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                         return (
                             <div key={widget.id} className="group relative flex flex-col bg-surface rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-transparent dark:border-default hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] transition-shadow">
                                 {/* Header */}
-                                <div className="p-6 pb-2 flex items-center gap-3 shrink-0 drag-handle cursor-grab active:cursor-grabbing">
+                                <div className="p-6 pb-2 flex items-center gap-3 shrink-0 drag-handle !opacity-100 hover:!opacity-100 cursor-grab active:cursor-grabbing">
                                     <div className={`w-8 h-8 rounded-xl bg-accent-subtle/30 text-${info.color}-500 flex items-center justify-center`}>
                                         <info.icon size={16} strokeWidth={2.5} />
                                     </div>

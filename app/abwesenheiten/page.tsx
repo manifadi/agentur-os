@@ -181,7 +181,7 @@ export default function AbwesenheitenPage() {
                 <ConfirmModal
                     isOpen={true}
                     title="Abwesenheit stornieren?"
-                    message={`${ABSENCE_TYPE_LABEL[confirmCancel.type]} vom ${formatAbsenceRange(confirmCancel.start_date, confirmCancel.end_date, confirmCancel.half_day)} wird storniert.`}
+                    message={`${ABSENCE_TYPE_LABEL[confirmCancel.type]} vom ${formatAbsenceRange(confirmCancel.start_date, confirmCancel.end_date, confirmCancel.half_day, confirmCancel.start_time, confirmCancel.end_time)} wird storniert.`}
                     onConfirm={handleCancel}
                     onCancel={() => setConfirmCancel(null)}
                     type="danger"
@@ -347,7 +347,7 @@ function RequestsTab({ pending, onDecide, loading }: {
                                         <div className="text-xs text-text-secondary mt-2">
                                             <span className="font-semibold">{ABSENCE_TYPE_LABEL[req.type]}</span>
                                             {' · '}
-                                            {formatAbsenceRange(req.start_date, req.end_date, req.half_day)}
+                                            {formatAbsenceRange(req.start_date, req.end_date, req.half_day, req.start_time, req.end_time)}
                                         </div>
                                         {req.reason && (
                                             <div className="text-xs text-text-muted mt-1 italic">„{req.reason}"</div>
@@ -435,7 +435,7 @@ function AbsenceRow({ absence, country = 'DE', state, onCancel, showCancel, show
                     {statusBadge}
                 </div>
                 <div className="text-[11px] text-text-muted">
-                    {formatAbsenceRange(absence.start_date, absence.end_date, absence.half_day)}
+                    {formatAbsenceRange(absence.start_date, absence.end_date, absence.half_day, absence.start_time, absence.end_time)}
                     {absence.type === 'vacation' && days > 0 && ` · ${days} Tag${days === 1 ? '' : 'e'}`}
                 </div>
                 {absence.reason && (

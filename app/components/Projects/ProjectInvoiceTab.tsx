@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Project, AgencySettings, OrganizationTemplate, ClientContact, ProjectInvoice, ProjectPosition } from '../../types';
+import { Project, AgencySettings, OrganizationTemplate, ClientContact, ProjectInvoice, ProjectPosition, Employee } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { FileText, Eye, X, Plus, User, Calculator, History, Download, Trash2, CheckCircle, AlertCircle, Info, Receipt, Edit3, ChevronDown, TrendingUp, Layers, Circle } from 'lucide-react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
@@ -12,10 +12,11 @@ interface ProjectInvoiceTabProps {
     project: Project;
     agencySettings: AgencySettings | null;
     templates: OrganizationTemplate[];
+    employees: Employee[];
     onUpdateProject: (id: string, updates: Partial<Project>) => Promise<void>;
 }
 
-export default function ProjectInvoiceTab({ project, agencySettings, templates, onUpdateProject }: ProjectInvoiceTabProps) {
+export default function ProjectInvoiceTab({ project, agencySettings, templates, employees, onUpdateProject }: ProjectInvoiceTabProps) {
     const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
     const [loading, setLoading] = useState(true);
     const [showPDFPreview, setShowPDFPreview] = useState(false);
@@ -31,6 +32,10 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
     const [introText, setIntroText] = useState('');
     const [outroText, setOutroText] = useState('');
     const [invoiceContactId, setInvoiceContactId] = useState(project.invoice_contact_id || '');
+    // Unterzeichner / Ansprechperson im PDF — default: Projektleiter.
+    const defaultSignerId = project.project_manager_id || project.employees?.id || '';
+    const [signerEmployeeId, setSignerEmployeeId] = useState(defaultSignerId);
+    const signer = employees.find(e => e.id === signerEmployeeId) || null;
 
     const [contacts, setContacts] = useState<ClientContact[]>([]);
     const [isAddingContact, setIsAddingContact] = useState(false);
@@ -137,6 +142,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
             intro_text: introText,
             outro_text: outroText,
             invoice_contact_id: invoiceContactId || null,
+            signer_employee_id: signerEmployeeId || null,
             status,
             version: currentVersion
         };
@@ -164,6 +170,8 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
         setSelectedPositions([]);
         setIntroText('');
         setOutroText('');
+        setInvoiceContactId(project.invoice_contact_id || '');
+        setSignerEmployeeId(defaultSignerId);
         setEditingInvoiceId(null);
         setCurrentVersion(1);
     };
@@ -184,6 +192,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
         setIntroText(inv.intro_text || '');
         setOutroText(inv.outro_text || '');
         setInvoiceContactId(inv.invoice_contact_id || '');
+        setSignerEmployeeId(inv.signer_employee_id || defaultSignerId);
         if (inv.status === 'draft') {
             setEditingInvoiceId(inv.id);
             setCurrentVersion(inv.version);
@@ -465,6 +474,40 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                             </button>
                         </div>
                     </div>
+
+                    {/* Unterzeichner / Ansprechperson */}
+                    <div>
+                        <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Ansprechperson (Unterzeichner)</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label className="relative group bg-subtle p-4 rounded-xl border border-default flex items-center gap-4 hover:border-accent transition-all cursor-pointer overflow-hidden">
+                                <select
+                                    value={signerEmployeeId}
+                                    onChange={(e) => setSignerEmployeeId(e.target.value)}
+                                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                                >
+                                    <option value="">Keine Ansprechperson</option>
+                                    {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                </select>
+                                <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                                    <User size={16} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Im PDF als Ansprechpartner</div>
+                                    <div className="text-sm font-bold text-text-primary truncate">
+                                        {signer ? signer.name : 'Keine Ansprechperson'}
+                                    </div>
+                                </div>
+                                <ChevronDown size={14} className="text-text-muted shrink-0" />
+                            </label>
+                            {signer && (
+                                <div className="bg-subtle p-4 rounded-xl border border-default flex flex-col justify-center gap-0.5 min-w-0">
+                                    <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Kontaktdaten</div>
+                                    <div className="text-xs text-text-secondary truncate">{signer.email || <span className="text-text-placeholder">Keine E-Mail hinterlegt</span>}</div>
+                                    <div className="text-xs text-text-secondary truncate">{signer.phone || <span className="text-text-placeholder">Keine Telefonnummer hinterlegt</span>}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Footer / Action bar */}
@@ -562,6 +605,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                                                 setIntroText(inv.intro_text || '');
                                                 setOutroText(inv.outro_text || '');
                                                 setInvoiceContactId(inv.invoice_contact_id || '');
+                                                setSignerEmployeeId(inv.signer_employee_id || defaultSignerId);
                                                 setShowPDFPreview(true);
                                             }}
                                             className="p-2 text-text-muted hover:text-text-primary hover:bg-hover rounded-lg transition-colors"
@@ -629,10 +673,12 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                                         total_gross: calculateTotals().gross,
                                         intro_text: introText,
                                         outro_text: outroText,
+                                        signer_employee_id: signerEmployeeId || null,
                                         invoice_date: new Date().toISOString()
                                     }}
                                     agency={agencySettings}
                                     client={project.clients || null}
+                                    signer={signer}
                                 />
                             </PDFViewer>
                         </div>

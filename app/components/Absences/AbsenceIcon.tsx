@@ -1,14 +1,16 @@
 import React from 'react';
-import { Plane, Stethoscope, Home, Pin } from 'lucide-react';
+import { Plane, Stethoscope, Home, Pin, Scale, Wallet } from 'lucide-react';
 import { AbsenceType } from '../../types';
 
 // Zentrale Icon-Zuordnung für Abwesenheits-Typen.
 // Stil-Konsistenz: ausschließlich lucide-react, gleicher Stroke-Width.
 const ICON_MAP: Record<AbsenceType, React.ComponentType<any>> = {
-    vacation:    Plane,
-    sick:        Stethoscope,
-    home_office: Home,
-    other:       Pin,
+    vacation:        Plane,
+    unpaid_vacation: Wallet,
+    zeitausgleich:   Scale,
+    sick:            Stethoscope,
+    home_office:     Home,
+    other:           Pin,
 };
 
 interface Props {

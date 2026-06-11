@@ -942,6 +942,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
                             agencySettings={agencySettings}
                             templates={templates}
+                            employees={employees}
                             onUpdateProject={onUpdateProject}
                         />
                     )}

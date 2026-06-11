@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, X } from 'lucide-react';
 import { Employee, CalendarEvent, CalendarView } from '../../types';
 import { supabase } from '../../supabaseClient';
@@ -55,6 +55,42 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const [showOwnEvents, setShowOwnEvents] = useState(true);
     const [dismissedErrors, setDismissedErrors] = useState(false);
+
+    // ── Sichtbare Kollegen: persistiert + sinnvoller Default ──────────────
+    // Bisher startete die Liste leer → ein Kollege sah beim Öffnen des
+    // Kalenders NICHTS vom Team, obwohl Kalender freigegeben waren. Default
+    // jetzt: alle Kollegen, die ihren Vela-Kalender fürs Team freigegeben
+    // haben (calendar_shared_with_team !== false; das ist der Standard).
+    // Manuelle Auswahl wird in localStorage gemerkt.
+    const visibleKey = `cal:visibleEmployees:${organizationId}`;
+    const didInitVisible = useRef(false);
+
+    useEffect(() => {
+        if (didInitVisible.current || employees.length === 0) return;
+        didInitVisible.current = true;
+        let stored: string[] | null = null;
+        try {
+            const raw = window.localStorage.getItem(visibleKey);
+            if (raw !== null) stored = JSON.parse(raw);
+        } catch { /* ignore */ }
+        if (stored) {
+            // Nur noch existierende Kollegen behalten.
+            setVisibleEmployeeIds(stored.filter(id => id !== currentUser.id && employees.some(e => e.id === id)));
+        } else {
+            setVisibleEmployeeIds(
+                employees
+                    .filter(e => e.id !== currentUser.id && e.calendar_shared_with_team !== false)
+                    .map(e => e.id),
+            );
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [employees, organizationId]);
+
+    useEffect(() => {
+        if (!didInitVisible.current) return;
+        try { window.localStorage.setItem(visibleKey, JSON.stringify(visibleEmployeeIds)); } catch { /* ignore */ }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visibleEmployeeIds]);
 
     useEffect(() => {
         if (syncErrors.length > 0) setDismissedErrors(false);

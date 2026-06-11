@@ -4,20 +4,7 @@ import { Project, Client, ResourceAllocation, AllocationRow, Absence, AbsenceTyp
 import UserAvatar from '../UI/UserAvatar';
 import AbsenceIcon from '../Absences/AbsenceIcon';
 import { isDateCovered } from '../../utils/absences';
-
-// ─── Shared constants ─────────────────────────────────────────────────────────
-const ALLOCATION_STATUS_OPTIONS = ['Prio/Asap', 'Bearbeitung möglich', 'Geplant', 'Warten auf Kundenfeedback', 'Erledigt'] as const;
-
-function getStatusStyle(s: string) {
-    switch (s) {
-        case 'Prio/Asap': return 'bg-red-100 text-red-700';
-        case 'Bearbeitung möglich': return 'bg-green-100 text-green-700';
-        case 'Geplant': return 'bg-slate-100 text-slate-600';
-        case 'Warten auf Kundenfeedback': return 'bg-orange-100 text-orange-700';
-        case 'Erledigt': return 'bg-blue-100 text-blue-700';
-        default: return 'bg-slate-100 text-slate-600';
-    }
-}
+import { ALLOCATION_STATUS_OPTIONS, getStatusConfig, dayCapacity } from './shared';
 
 // Consistent project color from ID hash
 const PALETTE = [
@@ -31,7 +18,6 @@ function projectColor(id: string) {
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
-const MAX_H = 8;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ResourceCardsProps {
@@ -53,7 +39,7 @@ function buildAbsenceMap(employeeId: string, weekStart: string | undefined, abse
     const out: (Absence | null)[] = [null, null, null, null, null];
     if (!weekStart) return out;
     const monday = new Date(weekStart);
-    const priority: Record<AbsenceType, number> = { vacation: 0, sick: 1, other: 2, home_office: 3 };
+    const priority: Record<AbsenceType, number> = { vacation: 0, unpaid_vacation: 1, zeitausgleich: 2, sick: 3, other: 4, home_office: 5 };
     for (let i = 0; i < 5; i++) {
         const day = new Date(monday);
         day.setDate(monday.getDate() + i);
@@ -127,6 +113,11 @@ function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onTogg
     // Per-day totals for capacity bars
     const dayTotals = DAYS.map(d => row.allocations.reduce((s, a) => s + ((a as any)[d] || 0), 0));
     const weekTotal = dayTotals.reduce((s, v) => s + v, 0);
+    // Tages-Soll-Kapazität aus dem Wochenplan des Mitarbeiters (Admin-gepflegt).
+    const dayCaps = DAYS.map((_, i) => dayCapacity(row.employee, i));
+    const weekCap = dayCaps.reduce((s, v) => s + v, 0);
+    const anyDayOver = dayTotals.some((t, i) => t > dayCaps[i]);
+    const empOver = anyDayOver || weekTotal > weekCap;
 
     const filteredProjects = useMemo(() => {
         if (search.length < 2) return [];
@@ -170,7 +161,7 @@ function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onTogg
                         )}
                     </div>
                 </div>
-                <div className={`text-xs font-bold tabular-nums shrink-0 ml-2 ${weekTotal > MAX_H * 5 ? 'text-orange-500' : 'text-text-secondary'}`}>
+                <div className={`text-xs font-bold tabular-nums shrink-0 ml-2 ${empOver ? 'text-red-500' : 'text-text-secondary'}`} title={empOver ? 'Mehr Stunden eingetragen als Soll-Kapazität' : undefined}>
                     ∑ {weekTotal}h
                 </div>
             </div>
@@ -180,8 +171,10 @@ function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onTogg
                 <div className="grid grid-cols-5 gap-1.5">
                     {DAYS.map((day, i) => {
                         const total = dayTotals[i];
-                        const over = total > MAX_H;
-                        const pct = Math.min((total / MAX_H) * 100, 100);
+                        const cap = dayCaps[i];
+                        const over = total > cap;
+                        const denom = cap > 0 ? cap : Math.max(total, 1);
+                        const pct = Math.min((total / denom) * 100, 100);
                         const segments = row.allocations
                             .map(a => ({ color: projectColor(a.project_id), h: (a as any)[day] || 0 }))
                             .filter(s => s.h > 0);
@@ -189,7 +182,7 @@ function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onTogg
                         const absence       = absenceMap[i];
                         const absenceType   = absence?.type ?? null;
                         const absenceColor  = absenceType ? ABSENCE_TYPE_COLOR[absenceType] : null;
-                        const blocksCapacity = absenceType === 'vacation' || absenceType === 'sick' || absenceType === 'other';
+                        const blocksCapacity = absenceType === 'vacation' || absenceType === 'unpaid_vacation' || absenceType === 'sick' || absenceType === 'other';
                         const isHomeoffice  = absenceType === 'home_office';
 
                         // Quick-Toggle nur möglich wenn entweder leer oder homeoffice
@@ -265,7 +258,7 @@ function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onTogg
                                         <div
                                             key={si}
                                             className={`h-full ${seg.color} ${si > 0 ? 'ml-px' : ''} transition-all duration-300`}
-                                            style={{ width: `${Math.min((seg.h / MAX_H) * 100, 100 / segments.length)}%` }}
+                                            style={{ width: `${Math.min((seg.h / denom) * 100, 100 / segments.length)}%` }}
                                         />
                                     ))}
                                     {!blocksCapacity && total > 0 && segments.length === 0 && (
@@ -281,7 +274,7 @@ function EmployeeCard({ row, projects, allClients, absenceMap, weekStart, onTogg
                                     <div className="h-0.5 mt-0.5 rounded-full" style={{ background: absenceColor!.border }} />
                                 )}
                                 {over && !blocksCapacity && (
-                                    <div className="text-[8px] text-red-500 font-bold mt-0.5">+{(total - MAX_H).toFixed(1)}h</div>
+                                    <div className="text-[8px] text-red-500 font-bold mt-0.5">+{(total - cap).toFixed(1)}h</div>
                                 )}
                             </div>
                         );
@@ -412,7 +405,7 @@ function AllocationRow({ alloc, color, isLast, onUpdate, onDelete }: {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                     <select
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-lg border-none outline-none cursor-pointer ${getStatusStyle(alloc.allocation_status || 'Geplant')}`}
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-lg border-none outline-none cursor-pointer ${getStatusConfig(alloc.allocation_status).badge}`}
                         value={alloc.allocation_status || 'Geplant'}
                         onChange={e => onUpdate(alloc.id, 'allocation_status', e.target.value)}
                     >

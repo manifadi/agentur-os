@@ -21,6 +21,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
     const [agencyPositionId, setAgencyPositionId] = useState<string | null>(null); // NEW: Agency Position ID
     const [agencyPositionTitle, setAgencyPositionTitle] = useState<string>(''); // For debug display
     const [description, setDescription] = useState('');
+    const [descError, setDescError] = useState(false);
     const [hours, setHours] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,6 +44,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
     useEffect(() => {
         if (isOpen) {
+            setDescError(false);
             // EDIT MODE
             if (entryToEdit) {
                 setProjectId(entryToEdit.project_id);
@@ -126,6 +128,7 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
         if (!currentUser) { toast.error('Sitzung ungültig. Bitte lade die Seite neu.'); return; }
         if (!projectId) { toast.error('Bitte wähle ein Projekt aus.'); return; }
         if (!hours) { toast.error('Bitte gib die Stundenanzahl ein.'); return; }
+        if (!description.trim()) { setDescError(true); toast.error('Bitte gib eine Beschreibung ein.'); return; }
         setIsSubmitting(true);
 
         const payload = {
@@ -291,13 +294,15 @@ export default function TimeEntryModal({ isOpen, onClose, currentUser, projects,
 
                     {/* Description */}
                     <div>
-                        <label className="section-header-label mb-2 block">Beschreibung</label>
+                        <label className="section-header-label mb-2 block">Beschreibung <span style={{ color: 'var(--color-danger)' }}>*</span></label>
                         <textarea
                             className="w-full p-3 bg-subtle border border-default text-text-primary rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent-subtle focus:border-accent transition min-h-[100px] resize-none"
+                            style={{ borderColor: descError ? 'var(--color-danger)' : undefined }}
                             placeholder="Was hast du gemacht?"
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
+                            onChange={(e) => { setDescription(e.target.value); if (descError) setDescError(false); }}
                         />
+                        {descError && <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-danger)' }}>Bitte gib eine Beschreibung ein.</p>}
                     </div>
 
                     <button

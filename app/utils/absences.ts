@@ -55,17 +55,31 @@ export function workingDaysInRange(
     return count;
 }
 
-/** Anzahl Urlaubstage einer Abwesenheit unter Berücksichtigung von WE + Feiertagen + halben Tagen. */
+/** Bruchteil eines Arbeitstags (8h Referenz) aus einer Uhrzeitspanne "HH:MM". */
+export function timeRangeFraction(startTime: string, endTime: string): number {
+    const toMin = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+    };
+    const diff = toMin(endTime) - toMin(startTime);
+    if (!(diff > 0)) return 0;
+    return Math.min(1, Math.round((diff / 60 / 8) * 100) / 100);
+}
+
+/** Anzahl Tage einer Abwesenheit unter Berücksichtigung von WE + Feiertagen, halben Tagen + exakten Uhrzeiten. */
 export function absenceWorkingDays(
-    a: Pick<Absence, 'start_date' | 'end_date' | 'half_day'>,
+    a: Pick<Absence, 'start_date' | 'end_date' | 'half_day'> & { start_time?: string | null; end_time?: string | null },
     country = 'DE',
     state?: string | null,
 ): number {
     const start = new Date(a.start_date);
     const end   = new Date(a.end_date);
-    if (a.half_day !== 'none' && a.start_date === a.end_date) {
-        // Halber Tag — aber nur wenn der Tag ein Arbeitstag ist
-        return workingDaysInRange(start, end, country, state) > 0 ? 0.5 : 0;
+    if (a.start_date === a.end_date) {
+        const isWorkday = workingDaysInRange(start, end, country, state) > 0;
+        if (!isWorkday) return 0;
+        // Exakte Uhrzeit hat Vorrang vor Halbtags-Kennzeichnung
+        if (a.start_time && a.end_time) return timeRangeFraction(a.start_time, a.end_time);
+        if (a.half_day !== 'none') return 0.5;
     }
     return workingDaysInRange(start, end, country, state);
 }
@@ -85,26 +99,28 @@ export function absencesOnDate(employeeId: string, date: Date, all: Absence[]): 
     );
 }
 
-/** Höchste Priorität: vacation > sick > home_office > other. */
+/** Höchste Priorität: vacation > unpaid > zeitausgleich > sick > other > home_office. */
 export function dominantAbsenceType(absences: Absence[]): AbsenceType | null {
     if (!absences.length) return null;
-    const order: AbsenceType[] = ['vacation', 'sick', 'other', 'home_office'];
+    const order: AbsenceType[] = ['vacation', 'unpaid_vacation', 'zeitausgleich', 'sick', 'other', 'home_office'];
     for (const t of order) {
         if (absences.some(a => a.type === t)) return t;
     }
     return null;
 }
 
-/** Reduziert Soll-Kapazität bei Urlaub/Krank auf 0, Homeoffice bleibt unverändert. */
+/** Reduziert Soll-Kapazität bei ganztägiger Abwesenheit auf 0, Homeoffice bleibt unverändert. */
 export function capacityFactorForAbsence(type: AbsenceType): number {
-    return (type === 'vacation' || type === 'sick' || type === 'other') ? 0 : 1;
+    return type === 'home_office' ? 1 : 0;
 }
 
 /** Formatiert ein Datums-Bereich-Label, z.B. "2.-6. Juni" oder "12. Juni" */
-export function formatAbsenceRange(start: string, end: string, half?: string): string {
+export function formatAbsenceRange(start: string, end: string, half?: string, startTime?: string | null, endTime?: string | null): string {
     const s = new Date(start);
     const e = new Date(end);
-    const halfSuffix = half === 'start' ? ' (vorm.)' : half === 'end' ? ' (nachm.)' : '';
+    const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : '');
+    const timeSuffix = (startTime && endTime) ? ` (${hhmm(startTime)}–${hhmm(endTime)})` : '';
+    const halfSuffix = timeSuffix || (half === 'start' ? ' (vorm.)' : half === 'end' ? ' (nachm.)' : '');
     if (start === end) {
         return s.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) + halfSuffix;
     }

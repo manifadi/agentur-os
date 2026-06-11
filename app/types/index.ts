@@ -96,7 +96,7 @@ export interface Employee {
 }
 
 // ── Abwesenheiten ─────────────────────────────────────────
-export type AbsenceType   = 'vacation' | 'sick' | 'home_office' | 'other';
+export type AbsenceType   = 'vacation' | 'unpaid_vacation' | 'zeitausgleich' | 'sick' | 'home_office' | 'other';
 export type AbsenceStatus = 'requested' | 'approved' | 'rejected' | 'cancelled';
 export type AbsenceHalfDay = 'none' | 'start' | 'end';
 
@@ -108,6 +108,8 @@ export interface Absence {
     start_date: string;       // YYYY-MM-DD
     end_date:   string;
     half_day: AbsenceHalfDay;
+    start_time?: string | null; // HH:MM — exakte Uhrzeit bei Teil-Tag (z.B. Zeitausgleich)
+    end_time?:   string | null;
     status: AbsenceStatus;
     reason?: string | null;
     notes?: string | null;
@@ -130,6 +132,8 @@ export interface AbsenceRequest {
     start_date: string;
     end_date:   string;
     half_day: AbsenceHalfDay;
+    start_time?: string | null;
+    end_time?:   string | null;
     reason?: string | null;
     requested_at: string;
 }
@@ -144,19 +148,23 @@ export interface VacationBalance {
 }
 
 export const ABSENCE_TYPE_LABEL: Record<AbsenceType, string> = {
-    vacation:    'Urlaub',
-    sick:        'Krankmeldung',
-    home_office: 'Homeoffice',
-    other:       'Sonstige',
+    vacation:        'Urlaub',
+    unpaid_vacation: 'Unbezahlter Urlaub',
+    zeitausgleich:   'Zeitausgleich',
+    sick:            'Krankmeldung',
+    home_office:     'Homeoffice',
+    other:           'Sonstige',
 };
 
 // Icon-Component-Name aus lucide-react (als String, damit Types nicht aufgeblasen werden).
 // Konsumenten importieren das passende Icon explizit oder nutzen <AbsenceIcon type={...} />.
 export const ABSENCE_TYPE_COLOR: Record<AbsenceType, { bg: string; fg: string; border: string }> = {
-    vacation:    { bg: 'rgba(107,114,128,0.18)',  fg: 'rgb(75,85,99)',    border: 'rgba(107,114,128,0.30)' },
-    sick:        { bg: 'rgba(59,130,246,0.15)',   fg: 'rgb(30,64,175)',   border: 'rgba(59,130,246,0.25)'  },
-    home_office: { bg: 'rgba(245,158,11,0.18)',   fg: 'rgb(120,53,15)',   border: 'rgba(245,158,11,0.30)'  },
-    other:       { bg: 'rgba(99,102,241,0.15)',   fg: 'rgb(67,56,202)',   border: 'rgba(99,102,241,0.25)'  },
+    vacation:        { bg: 'rgba(107,114,128,0.18)',  fg: 'rgb(75,85,99)',    border: 'rgba(107,114,128,0.30)' },
+    unpaid_vacation: { bg: 'rgba(168,85,247,0.15)',   fg: 'rgb(126,34,206)',  border: 'rgba(168,85,247,0.30)'  },
+    zeitausgleich:   { bg: 'rgba(20,184,166,0.15)',   fg: 'rgb(15,118,110)',  border: 'rgba(20,184,166,0.30)'  },
+    sick:            { bg: 'rgba(59,130,246,0.15)',   fg: 'rgb(30,64,175)',   border: 'rgba(59,130,246,0.25)'  },
+    home_office:     { bg: 'rgba(245,158,11,0.18)',   fg: 'rgb(120,53,15)',   border: 'rgba(245,158,11,0.30)'  },
+    other:           { bg: 'rgba(99,102,241,0.15)',   fg: 'rgb(67,56,202)',   border: 'rgba(99,102,241,0.25)'  },
 };
 
 export interface Department {
@@ -259,6 +267,7 @@ export interface ProjectInvoice {
     outro_text?: string;
     invoice_date: string;
     invoice_contact_id?: string | null;
+    signer_employee_id?: string | null; // Unterzeichner / Ansprechperson auf der Rechnung
     status: 'draft' | 'final';
     version: number;
     created_at: string;
