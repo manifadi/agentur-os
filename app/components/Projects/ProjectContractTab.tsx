@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Project, AgencySettings, OrganizationTemplate, ClientContact, Client } from '../../types';
 import { supabase } from '../../supabaseClient';
+import { fillPlaceholders, buildGreeting, applyGreeting, PLACEHOLDER_HINT } from '../../utils/placeholders';
 import { FileText, Eye, X, Plus, User, ChevronDown, CheckCircle, Clock, History, Edit3, Trash2, Send, Download } from 'lucide-react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import ContractPDF from '../Contracts/ContractPDF';
@@ -77,10 +78,36 @@ export default function ProjectContractTab({ project, agencySettings, templates,
         setIsSaving(false);
     };
 
+    const selectedContactForFill = contacts.find(c => c.id === selectedContactId) || null;
+
     const applyTemplate = (type: 'intro' | 'outro', content: string) => {
-        if (type === 'intro') setContractIntro(content);
-        else setContractOutro(content);
+        const filled = fillPlaceholders(content, selectedContactForFill, project.clients || null);
+        if (type === 'intro') setContractIntro(filled);
+        else setContractOutro(filled);
     };
+
+    // Grußformel trigger-basiert an die Ansprechperson koppeln:
+    // - Erstbefüllung (sobald Kontakte geladen): leeres Feld bekommt die Grußformel.
+    // - Danach: wird die Person gewechselt, wird NUR die Anrede-Zeile ersetzt,
+    //   der restliche Text bleibt erhalten.
+    const greetingInitRef = useRef(false);
+    const prevContactRef = useRef<string | null>(null);
+    useEffect(() => {
+        const contact = contacts.find(c => c.id === selectedContactId) || null;
+        const greeting = buildGreeting(contact);
+        if (!greetingInitRef.current) {
+            if (selectedContactId && contacts.length === 0) return; // auf Kontakte warten
+            greetingInitRef.current = true;
+            prevContactRef.current = selectedContactId;
+            setContractIntro(prev => (prev.trim() === '' ? greeting : prev));
+            return;
+        }
+        if (prevContactRef.current !== selectedContactId) {
+            prevContactRef.current = selectedContactId;
+            setContractIntro(prev => applyGreeting(prev, greeting));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedContactId, contacts]);
 
     const handleContactChange = async (contactId: string) => {
         setSelectedContactId(contactId);
@@ -201,7 +228,15 @@ export default function ProjectContractTab({ project, agencySettings, templates,
                             placeholder="Z.B. Sehr geehrter Herr Muster, anbei sende ich Ihnen unser Angebot…"
                             className="w-full h-48 p-4 border border-default rounded-xl text-sm focus:ring-2 focus:ring-accent outline-none resize-none bg-subtle text-text-primary placeholder:text-text-placeholder transition-colors focus:border-accent"
                         />
-                        <div className="text-[10px] text-text-muted mt-1.5">{contractIntro.length} Zeichen</div>
+                        <div className="mt-1.5 space-y-0.5">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-[10px] text-text-muted truncate" title={`Platzhalter werden mit den Empfänger-Daten gefüllt: ${PLACEHOLDER_HINT}`}>
+                                    Platzhalter: <span className="font-mono">{PLACEHOLDER_HINT}</span>
+                                </div>
+                                <div className="text-[10px] text-text-muted shrink-0">{contractIntro.length} Zeichen</div>
+                            </div>
+                            <div className="text-[10px] text-text-muted">Diese Texte als Vorlage speichern/bearbeiten: <span className="font-semibold text-text-secondary">Einstellungen → Vorlagen</span>.</div>
+                        </div>
                     </div>
                     {/* Outro */}
                     <div>

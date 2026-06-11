@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Project, AgencySettings, OrganizationTemplate, ClientContact, ProjectInvoice, ProjectPosition, Employee } from '../../types';
 import { supabase } from '../../supabaseClient';
+import { fillPlaceholders, buildGreeting, applyGreeting, PLACEHOLDER_HINT } from '../../utils/placeholders';
 import { FileText, Eye, X, Plus, User, Calculator, History, Download, Trash2, CheckCircle, AlertCircle, Info, Receipt, Edit3, ChevronDown, TrendingUp, Layers, Circle } from 'lucide-react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import InvoicePDF from '../Contracts/InvoicePDF';
@@ -14,6 +15,18 @@ interface ProjectInvoiceTabProps {
     templates: OrganizationTemplate[];
     employees: Employee[];
     onUpdateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+}
+
+function StepHeader({ n, title, hint }: { n: number; title: string; hint?: string }) {
+    return (
+        <div className="flex items-start gap-2.5 mb-4">
+            <div className="w-6 h-6 rounded-full bg-accent/10 text-accent flex items-center justify-center text-xs font-black shrink-0 mt-0.5">{n}</div>
+            <div className="min-w-0">
+                <div className="text-sm font-bold text-text-primary leading-tight">{title}</div>
+                {hint && <div className="text-[11px] text-text-muted mt-0.5">{hint}</div>}
+            </div>
+        </div>
+    );
 }
 
 export default function ProjectInvoiceTab({ project, agencySettings, templates, employees, onUpdateProject }: ProjectInvoiceTabProps) {
@@ -38,6 +51,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
     const signer = employees.find(e => e.id === signerEmployeeId) || null;
 
     const [contacts, setContacts] = useState<ClientContact[]>([]);
+    const recipientContact = contacts.find(c => c.id === invoiceContactId) || null;
     const [isAddingContact, setIsAddingContact] = useState(false);
     const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
     const [currentVersion, setCurrentVersion] = useState(1);
@@ -46,6 +60,27 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
         fetchInvoices();
         if (project.client_id) fetchContacts();
     }, [project.id, project.client_id]);
+
+    // Grußformel trigger-basiert an den Rechnungsempfänger koppeln (s. Angebot):
+    // Erstbefüllung bei leerem Feld, danach beim Wechsel nur die Anrede-Zeile ersetzen.
+    const greetingInitRef = useRef(false);
+    const prevContactRef = useRef<string | null>(null);
+    useEffect(() => {
+        const contact = contacts.find(c => c.id === invoiceContactId) || null;
+        const greeting = buildGreeting(contact);
+        if (!greetingInitRef.current) {
+            if (invoiceContactId && contacts.length === 0) return; // auf Kontakte warten
+            greetingInitRef.current = true;
+            prevContactRef.current = invoiceContactId;
+            setIntroText(prev => (prev.trim() === '' ? greeting : prev));
+            return;
+        }
+        if (prevContactRef.current !== invoiceContactId) {
+            prevContactRef.current = invoiceContactId;
+            setIntroText(prev => applyGreeting(prev, greeting));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [invoiceContactId, contacts]);
 
     const fetchInvoices = async () => {
         setLoading(true);
@@ -224,8 +259,10 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
     return (
         <div className="space-y-6 pb-16 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-            {/* ─ Finanzkennzahlen ──────────────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* ─ Finanzübersicht ──────────────────────────────────── */}
+            <div>
+                <div className="text-[11px] font-black uppercase tracking-widest text-text-muted mb-3">Finanzübersicht</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-surface border border-default rounded-2xl p-5 shadow-sm">
                     <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Gesamtvolumen</div>
                     <div className="text-2xl font-black text-text-primary leading-none mb-1">
@@ -252,6 +289,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                     </div>
                     <div className="text-xs text-accent/70">{stats.remainingNet.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} € netto</div>
                 </div>
+                </div>
             </div>
 
             {/* ─ Neue Rechnung ─────────────────────────────────────── */}
@@ -268,9 +306,92 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                     )}
                 </div>
 
-                <div className="p-5 space-y-6">
-                    {/* Step 1: Abrechnungstyp */}
-                    <div>
+                <div className="p-5 space-y-8">
+                    {/* 1 · Empfänger & Absender */}
+                    <section>
+                        <StepHeader n={1} title="Empfänger & Absender" hint="Wer bekommt die Rechnung — und wer zeichnet dafür verantwortlich." />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            {/* Empfänger */}
+                            <div>
+                                <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2">Rechnungsempfänger</div>
+                                <div className="space-y-3">
+                                    <label className="relative group bg-subtle p-4 rounded-xl border border-default flex items-center gap-4 hover:border-accent transition-all cursor-pointer overflow-hidden">
+                                        <select
+                                            value={invoiceContactId}
+                                            onChange={(e) => setInvoiceContactId(e.target.value)}
+                                            className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                                        >
+                                            <option value="">Standard (Kundendaten)</option>
+                                            {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                        <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                                            <User size={16} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Empfänger</div>
+                                            <div className="text-sm font-bold text-text-primary truncate">
+                                                {invoiceContactId ? (contacts.find(c => c.id === invoiceContactId)?.name || 'Gelöschter Kontakt') : 'Standard (Kundendaten)'}
+                                            </div>
+                                        </div>
+                                        <ChevronDown size={14} className="text-text-muted shrink-0" />
+                                    </label>
+                                    <button
+                                        onClick={() => setIsAddingContact(true)}
+                                        className="w-full bg-subtle p-3 rounded-xl border border-dashed border-default flex items-center gap-3 hover:border-accent hover:bg-accent/5 transition-all group"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-surface border border-default group-hover:bg-accent/10 group-hover:border-accent/30 flex items-center justify-center text-text-muted group-hover:text-accent transition-colors">
+                                            <Plus size={15} />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-sm font-bold text-text-primary">Empfänger hinzufügen</div>
+                                            <div className="text-xs text-text-muted">Neuen Kontakt anlegen</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Absender / Ansprechperson */}
+                            <div>
+                                <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2">Ansprechperson (im PDF)</div>
+                                <div className="space-y-3">
+                                    <label className="relative group bg-subtle p-4 rounded-xl border border-default flex items-center gap-4 hover:border-accent transition-all cursor-pointer overflow-hidden">
+                                        <select
+                                            value={signerEmployeeId}
+                                            onChange={(e) => setSignerEmployeeId(e.target.value)}
+                                            className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                                        >
+                                            <option value="">Keine Ansprechperson</option>
+                                            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                        </select>
+                                        <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                                            <User size={16} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Unterzeichner</div>
+                                            <div className="text-sm font-bold text-text-primary truncate">
+                                                {signer ? signer.name : 'Keine Ansprechperson'}
+                                            </div>
+                                        </div>
+                                        <ChevronDown size={14} className="text-text-muted shrink-0" />
+                                    </label>
+                                    {signer && (
+                                        <div className="bg-subtle p-3 rounded-xl border border-default flex flex-col justify-center gap-0.5 min-w-0">
+                                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Kontaktdaten</div>
+                                            <div className="text-xs text-text-secondary truncate">{signer.email || <span className="text-text-placeholder">Keine E-Mail hinterlegt</span>}</div>
+                                            <div className="text-xs text-text-secondary truncate">{signer.phone || <span className="text-text-placeholder">Keine Telefonnummer hinterlegt</span>}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* 2 · Abrechnung */}
+                    <section>
+                        <StepHeader n={2} title="Abrechnung" hint="Was soll mit dieser Rechnung abgerechnet werden?" />
+                        <div className="space-y-5">
+                            {/* Abrechnungstyp */}
+                            <div>
                         <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Abrechnungstyp</div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {[
@@ -402,12 +523,17 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                         </div>
                     )}
 
-                    {/* Texts */}
+                        </div>
+                    </section>
+
+                    {/* 3 · Texte */}
+                    <section>
+                        <StepHeader n={3} title="Texte" hint="Einleitung und Schluss — Platzhalter werden automatisch mit den Empfänger-Daten gefüllt." />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Einleitungstext</label>
-                                <select className="text-xs border border-default bg-subtle text-text-primary rounded-lg py-1 px-2 focus:ring-1 focus:ring-accent" onChange={(e) => setIntroText(e.target.value)} value="">
+                                <select className="text-xs border border-default bg-subtle text-text-primary rounded-lg py-1 px-2 focus:ring-1 focus:ring-accent" onChange={(e) => setIntroText(fillPlaceholders(e.target.value, recipientContact, project.clients || null))} value="">
                                     <option value="" disabled>Vorlage…</option>
                                     {templates.map(t => <option key={t.id} value={t.content}>{t.name}</option>)}
                                 </select>
@@ -418,11 +544,17 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                                 placeholder="Z.B. Sehr geehrte Damen und Herren, anbei erhalten Sie die Rechnung…"
                                 className="w-full h-28 p-4 border border-default bg-subtle text-text-primary rounded-xl text-sm focus:ring-2 focus:ring-accent focus:border-accent outline-none resize-none placeholder:text-text-placeholder"
                             />
+                            <div className="text-[10px] text-text-muted mt-1 space-y-0.5">
+                                <div className="truncate" title={`Platzhalter werden mit den Empfänger-Daten gefüllt: ${PLACEHOLDER_HINT}`}>
+                                    Platzhalter: <span className="font-mono">{PLACEHOLDER_HINT}</span>
+                                </div>
+                                <div>Diese Texte als Vorlage speichern/bearbeiten: <span className="font-semibold text-text-secondary">Einstellungen → Vorlagen</span>.</div>
+                            </div>
                         </div>
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Schlusstext</label>
-                                <select className="text-xs border border-default bg-subtle text-text-primary rounded-lg py-1 px-2 focus:ring-1 focus:ring-accent" onChange={(e) => setOutroText(e.target.value)} value="">
+                                <select className="text-xs border border-default bg-subtle text-text-primary rounded-lg py-1 px-2 focus:ring-1 focus:ring-accent" onChange={(e) => setOutroText(fillPlaceholders(e.target.value, recipientContact, project.clients || null))} value="">
                                     <option value="" disabled>Vorlage…</option>
                                     {templates.map(t => <option key={t.id} value={t.content}>{t.name}</option>)}
                                 </select>
@@ -436,78 +568,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                         </div>
                     </div>
 
-                    {/* Contact */}
-                    <div>
-                        <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Rechnungsempfänger</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <label className="relative group bg-subtle p-4 rounded-xl border border-default flex items-center gap-4 hover:border-accent transition-all cursor-pointer overflow-hidden">
-                                <select
-                                    value={invoiceContactId}
-                                    onChange={(e) => setInvoiceContactId(e.target.value)}
-                                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
-                                >
-                                    <option value="">Standard (Kundendaten)</option>
-                                    {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                                    <User size={16} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Empfänger</div>
-                                    <div className="text-sm font-bold text-text-primary truncate">
-                                        {invoiceContactId ? (contacts.find(c => c.id === invoiceContactId)?.name || 'Gelöschter Kontakt') : 'Standard (Kundendaten)'}
-                                    </div>
-                                </div>
-                                <ChevronDown size={14} className="text-text-muted shrink-0" />
-                            </label>
-                            <button
-                                onClick={() => setIsAddingContact(true)}
-                                className="bg-subtle p-4 rounded-xl border border-dashed border-default flex items-center gap-4 hover:border-accent hover:bg-accent/5 transition-all group"
-                            >
-                                <div className="w-9 h-9 rounded-xl bg-surface border border-default group-hover:bg-accent/10 group-hover:border-accent/30 flex items-center justify-center text-text-muted group-hover:text-accent transition-colors">
-                                    <Plus size={16} />
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-sm font-bold text-text-primary">Empfänger hinzufügen</div>
-                                    <div className="text-xs text-text-muted">Neuen Kontakt anlegen</div>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Unterzeichner / Ansprechperson */}
-                    <div>
-                        <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Ansprechperson (Unterzeichner)</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <label className="relative group bg-subtle p-4 rounded-xl border border-default flex items-center gap-4 hover:border-accent transition-all cursor-pointer overflow-hidden">
-                                <select
-                                    value={signerEmployeeId}
-                                    onChange={(e) => setSignerEmployeeId(e.target.value)}
-                                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
-                                >
-                                    <option value="">Keine Ansprechperson</option>
-                                    {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                                </select>
-                                <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                                    <User size={16} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Im PDF als Ansprechpartner</div>
-                                    <div className="text-sm font-bold text-text-primary truncate">
-                                        {signer ? signer.name : 'Keine Ansprechperson'}
-                                    </div>
-                                </div>
-                                <ChevronDown size={14} className="text-text-muted shrink-0" />
-                            </label>
-                            {signer && (
-                                <div className="bg-subtle p-4 rounded-xl border border-default flex flex-col justify-center gap-0.5 min-w-0">
-                                    <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-0.5">Kontaktdaten</div>
-                                    <div className="text-xs text-text-secondary truncate">{signer.email || <span className="text-text-placeholder">Keine E-Mail hinterlegt</span>}</div>
-                                    <div className="text-xs text-text-secondary truncate">{signer.phone || <span className="text-text-placeholder">Keine Telefonnummer hinterlegt</span>}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    </section>
                 </div>
 
                 {/* Footer / Action bar */}
@@ -655,7 +716,7 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                         <div className="flex-1 bg-gray-500 overflow-hidden">
                             <PDFViewer width="100%" height="100%" className="border-none">
                                 <InvoicePDF
-                                    project={project}
+                                    project={{ ...project, invoice_contact: recipientContact || undefined }}
                                     invoice={{
                                         invoice_number: project.job_number,
                                         billing_type: billingType,

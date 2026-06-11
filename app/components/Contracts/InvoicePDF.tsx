@@ -1,6 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { Project, AgencySettings, Client, ProjectInvoice, Employee } from '../../types';
+import { fillPlaceholders } from '../../utils/placeholders';
 
 const styles = StyleSheet.create({
     page: {
@@ -183,6 +184,10 @@ export default function InvoicePDF({ project, invoice, agency, client, signer }:
     // Explizit gewählte Ansprechperson hat Vorrang, sonst Projektleiter.
     const pm = signer || project.employees;
 
+    // Platzhalter im Intro/Outro mit Empfänger-Daten füllen (Catch-all).
+    const introR = fillPlaceholders(invoice.intro_text || '', project.invoice_contact || null, client);
+    const outroR = fillPlaceholders(invoice.outro_text || '', project.invoice_contact || null, client);
+
     const renderItems = () => {
         if (invoice.billing_type === 'full') {
             return (
@@ -299,7 +304,7 @@ export default function InvoicePDF({ project, invoice, agency, client, signer }:
                     <Text style={styles.mainTitle}>Rechnung – {project.title}</Text>
                 </View>
 
-                {invoice.intro_text && <Text style={styles.textBlock}>{invoice.intro_text}</Text>}
+                {introR && <Text style={styles.textBlock}>{introR}</Text>}
 
                 {/* TABLE */}
                 <View style={styles.table}>
@@ -329,7 +334,7 @@ export default function InvoicePDF({ project, invoice, agency, client, signer }:
                     </View>
                 </View>
 
-                {invoice.outro_text && <View style={{ marginTop: 20 }}><Text style={styles.textBlock}>{invoice.outro_text}</Text></View>}
+                {outroR && <View style={{ marginTop: 20 }}><Text style={styles.textBlock}>{outroR}</Text></View>}
 
                 {/* FIXED FOOTER */}
                 <View style={styles.footerFixed} fixed>

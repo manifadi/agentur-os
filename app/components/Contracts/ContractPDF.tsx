@@ -1,6 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { Project, AgencySettings, Client, Employee } from '../../types';
+import { fillPlaceholders } from '../../utils/placeholders';
 
 const styles = StyleSheet.create({
     page: {
@@ -197,6 +198,10 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
 
     const pm = project.employees;
 
+    // Platzhalter mit Empfänger-Daten füllen (Catch-all — falls noch [tokens] im Text stehen).
+    const introR = fillPlaceholders(intro, project.invoice_contact || null, client);
+    const outroR = fillPlaceholders(outro, project.invoice_contact || null, client);
+
     return (
         <Document>
             <Page size="A4" style={styles.page}>
@@ -268,7 +273,7 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                     <Text style={styles.mainTitle}>Angebot – {project.title}</Text>
                 </View>
 
-                {intro && <Text style={styles.textBlock}>{intro}</Text>}
+                {introR && <Text style={styles.textBlock}>{introR}</Text>}
 
                 {/* TABLE (Restored Visuals) */}
                 <View style={styles.table}>
@@ -340,7 +345,7 @@ export default function ContractPDF({ project, agency, client, intro, outro }: C
                     </View>
                 </View>
 
-                {outro && <View style={{ marginTop: 20 }}><Text style={styles.textBlock}>{outro}</Text></View>}
+                {outroR && <View style={{ marginTop: 20 }}><Text style={styles.textBlock}>{outroR}</Text></View>}
 
                 {/* SIGNATURES */}
                 <View style={{ marginTop: 40, flexDirection: 'row', gap: 40 }} wrap={false}>

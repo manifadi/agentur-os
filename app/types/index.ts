@@ -29,6 +29,7 @@ export interface ClientContact {
     id: string;
     client_id: string;
     name: string;
+    salutation?: 'herr' | 'frau' | null; // Anrede — für Grußformel/Platzhalter
     email?: string;
     phone?: string;
     role?: string;

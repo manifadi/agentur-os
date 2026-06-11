@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { uploadFileToSupabase } from '../../utils/supabaseUtils';
 import { AgencySettings, OrganizationTemplate } from '../../types';
-import { Plus, Trash2, Save, Upload } from 'lucide-react';
+import { PLACEHOLDER_HINT } from '../../utils/placeholders';
+import { Plus, Trash2, Save, Upload, Pencil, X } from 'lucide-react';
 import ConfirmModal from '../Modals/ConfirmModal';
 import { SettingsFormSkeleton } from '../UI/Skeleton';
 import { toast } from 'sonner';
@@ -26,6 +27,9 @@ export default function AdminAgencySettings({ section }: Props) {
     const [newTemplate, setNewTemplate] = useState<{ name: string; content: string; type: 'intro' | 'outro' }>({
         name: '', content: '', type: 'intro'
     });
+    // Aktiver Vorlagen-Tab — trennt Einleitung und Schlusstexte sauber.
+    const [templateTab, setTemplateTab] = useState<'intro' | 'outro'>('intro');
+    const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean; title: string; message: string;
@@ -137,15 +141,34 @@ export default function AdminAgencySettings({ section }: Props) {
     const set = (field: keyof AgencySettings, value: string | number) =>
         setSettings(prev => prev ? { ...prev, [field]: value } : prev);
 
+    const startEditTemplate = (t: OrganizationTemplate) => {
+        setEditingTemplateId(t.id);
+        setTemplateTab(t.type);
+        setNewTemplate({ name: t.name, content: t.content, type: t.type });
+    };
+
+    const cancelEditTemplate = () => {
+        setEditingTemplateId(null);
+        setNewTemplate({ name: '', content: '', type: templateTab });
+    };
+
     const handleAddTemplate = async () => {
         if (!newTemplate.name || !newTemplate.content || !settings?.organization_id) return;
         setTLoading(true);
-        const { error } = await supabase.from('organization_templates').insert([{
-            organization_id: settings.organization_id,
-            name: newTemplate.name, content: newTemplate.content, type: newTemplate.type
-        }]);
+        let error;
+        if (editingTemplateId) {
+            ({ error } = await supabase.from('organization_templates').update({
+                name: newTemplate.name, content: newTemplate.content, type: newTemplate.type,
+            }).eq('id', editingTemplateId));
+        } else {
+            ({ error } = await supabase.from('organization_templates').insert([{
+                organization_id: settings.organization_id,
+                name: newTemplate.name, content: newTemplate.content, type: newTemplate.type,
+            }]));
+        }
         if (!error) {
-            setNewTemplate({ name: '', content: '', type: 'intro' });
+            setNewTemplate({ name: '', content: '', type: templateTab });
+            setEditingTemplateId(null);
             fetchTemplates(settings.organization_id);
         }
         setTLoading(false);
@@ -368,65 +391,162 @@ export default function AdminAgencySettings({ section }: Props) {
             {/* ── TEMPLATES SECTION ── */}
             {showTemplates && (
                 <div className={CARD}>
+                    {/* ── Anleitung ── */}
+                    <div className="mb-8 rounded-2xl border border-accent/20 bg-accent-subtle/20 p-5">
+                        <p className="text-sm font-bold text-text-primary mb-1">So funktionieren Vorlagen</p>
+                        <p className="text-xs text-text-secondary leading-relaxed mb-4">
+                            Vorlagen sind wiederverwendbare <strong>Einleitungs-</strong> und <strong>Schlusstexte</strong> für Angebote und Rechnungen.
+                            Im Projekt wählst du sie unter <span className="font-semibold">Kalkulation → Angebot / Rechnung</span> aus dem Dropdown „Vorlage".
+                        </p>
+
+                        <p className="text-xs font-bold text-text-primary mb-1.5">Platzhalter verwenden</p>
+                        <p className="text-xs text-text-secondary leading-relaxed mb-3">
+                            Schreibe Platzhalter in <span className="font-mono">[eckigen Klammern]</span> direkt in deinen Text. Beim Erstellen eines Angebots
+                            oder einer Rechnung werden sie automatisch durch die Daten der gewählten <strong>Ansprechperson</strong> ersetzt.
+                            Die Anrede (Herr/Frau) kommt aus dem Feld <span className="font-semibold">„Anrede"</span> beim Kontakt.
+                        </p>
+
+                        <div className="rounded-xl border border-default bg-surface overflow-hidden mb-4">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="bg-subtle text-text-muted">
+                                        <th className="text-left font-bold px-3 py-2">Platzhalter</th>
+                                        <th className="text-left font-bold px-3 py-2">Wird ersetzt durch</th>
+                                        <th className="text-left font-bold px-3 py-2 hidden sm:table-cell">Beispiel</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-default">
+                                    {[
+                                        { p: '[anrede]', d: 'Herr / Frau', e: 'Herr' },
+                                        { p: '[vorname]', d: 'Vorname', e: 'Max' },
+                                        { p: '[nachname]', d: 'Nachname', e: 'Mustermann' },
+                                        { p: '[name]', d: 'Vollständiger Name', e: 'Max Mustermann' },
+                                        { p: '[grußformel]', d: 'Komplette Anrede-Zeile (grammatikalisch korrekt)', e: 'Sehr geehrter Herr Mustermann,' },
+                                        { p: '[email]', d: 'E-Mail-Adresse', e: 'max@firma.at' },
+                                        { p: '[telefon]', d: 'Telefonnummer', e: '+43 …' },
+                                        { p: '[firma]', d: 'Firmenname des Kunden', e: 'Musterfirma GmbH' },
+                                        { p: '[datum]', d: 'Heutiges Datum', e: new Date().toLocaleDateString('de-DE') },
+                                    ].map(row => (
+                                        <tr key={row.p}>
+                                            <td className="px-3 py-2 font-mono text-accent whitespace-nowrap">{row.p}</td>
+                                            <td className="px-3 py-2 text-text-secondary">{row.d}</td>
+                                            <td className="px-3 py-2 text-text-muted hidden sm:table-cell">{row.e}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p className="text-xs font-bold text-text-primary mb-1.5">Beispiel</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-default bg-surface p-3">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Deine Vorlage</div>
+                                <pre className="text-xs text-text-secondary whitespace-pre-wrap font-sans leading-relaxed">{'[grußformel]\n\nvielen Dank für Ihr Interesse. Anbei erhalten Sie unser Angebot, [vorname].'}</pre>
+                            </div>
+                            <div className="rounded-xl border border-default bg-surface p-3">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Ergebnis im PDF</div>
+                                <pre className="text-xs text-text-primary whitespace-pre-wrap font-sans leading-relaxed">{'Sehr geehrte Frau Müller,\n\nvielen Dank für Ihr Interesse. Anbei erhalten Sie unser Angebot, Sabine.'}</pre>
+                            </div>
+                        </div>
+
+                        <p className="text-[11px] text-text-muted mt-3">
+                            Tipp: Nutze <span className="font-mono">[grußformel]</span> für eine automatisch korrekte Anrede (Herr/Frau wird passend gesetzt).
+                            Platzhalter funktionieren in Einleitung und Schlusstext — und auch, wenn du sie direkt im Textfeld eines Angebots/einer Rechnung eintippst.
+                        </p>
+                    </div>
+
+                    {/* Tabs: Einleitung | Schlusstexte sauber getrennt */}
+                    <div className="flex items-center gap-2 mb-6">
+                        {([
+                            { key: 'intro', label: 'Einleitung' },
+                            { key: 'outro', label: 'Schlusstexte / Abbinder' },
+                        ] as const).map(tab => {
+                            const active = templateTab === tab.key;
+                            const count = templates.filter(t => t.type === tab.key).length;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => { setTemplateTab(tab.key); setEditingTemplateId(null); setNewTemplate({ name: '', content: '', type: tab.key }); }}
+                                    className="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2"
+                                    style={active
+                                        ? { background: 'var(--accent)', color: 'var(--accent-text)' }
+                                        : { background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
+                                >
+                                    {tab.label}
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                        style={{ background: active ? 'rgba(255,255,255,0.25)' : 'var(--bg-surface)' }}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Liste */}
+                        {/* Liste — gefiltert nach aktivem Tab */}
                         <div className="space-y-3">
-                            {templates.length === 0 && (
+                            {templates.filter(t => t.type === templateTab).length === 0 && (
                                 <div className="text-center text-text-muted py-8 border border-default border-dashed rounded-xl text-sm">
-                                    Noch keine Vorlagen angelegt.
+                                    {templateTab === 'intro' ? 'Noch keine Einleitungs-Vorlagen angelegt.' : 'Noch keine Schlusstexte / Abbinder angelegt.'}
                                 </div>
                             )}
-                            {templates.map(t => (
-                                <div key={t.id} className="p-4 rounded-xl border border-default bg-subtle flex justify-between items-start group hover:bg-surface hover:shadow-sm transition">
+                            {templates.filter(t => t.type === templateTab).map(t => (
+                                <div key={t.id}
+                                    className="p-4 rounded-xl border bg-subtle flex justify-between items-start group hover:bg-surface hover:shadow-sm transition"
+                                    style={{ borderColor: editingTemplateId === t.id ? 'var(--accent)' : 'var(--border-default)' }}>
                                     <div className="min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded shrink-0 ${t.type === 'intro' ? 'bg-accent-subtle/30 text-accent' : 'bg-orange-500/10 text-orange-500'}`}>
-                                                {t.type === 'intro' ? 'Einleitung' : 'Schluss'}
-                                            </span>
-                                            <span className="font-bold text-sm text-text-primary truncate">{t.name}</span>
-                                        </div>
+                                        <div className="font-bold text-sm text-text-primary truncate mb-1">{t.name}</div>
                                         <p className="text-xs text-text-muted line-clamp-2">{t.content}</p>
                                     </div>
-                                    <button onClick={() => handleDeleteTemplate(t.id)}
-                                        className="text-text-placeholder hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition shrink-0 ml-2">
-                                        <Trash2 size={15} />
-                                    </button>
+                                    <div className="flex items-center gap-0.5 shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition">
+                                        <button onClick={() => startEditTemplate(t)} title="Bearbeiten"
+                                            className="text-text-placeholder hover:text-accent p-1 transition">
+                                            <Pencil size={14} />
+                                        </button>
+                                        <button onClick={() => handleDeleteTemplate(t.id)} title="Löschen"
+                                            className="text-text-placeholder hover:text-red-500 p-1 transition">
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Neue Vorlage */}
-                        <div className="bg-subtle p-5 rounded-xl border border-default space-y-4">
-                            <p className="text-sm font-bold text-text-primary">Neue Vorlage</p>
-                            <div className="flex gap-2">
-                                {(['intro', 'outro'] as const).map(type => (
-                                    <button key={type} onClick={() => setNewTemplate({ ...newTemplate, type })}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${newTemplate.type === type
-                                            ? type === 'intro' ? 'bg-accent-subtle/30 border-accent/20 text-accent' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'
-                                            : 'bg-surface border-default text-text-secondary hover:bg-hover'
-                                        }`}>
-                                        {type === 'intro' ? 'Einleitung' : 'Schluss / AGB'}
+                        {/* Vorlage erstellen/bearbeiten — Typ folgt dem aktiven Tab */}
+                        <div className="bg-subtle p-5 rounded-xl border space-y-4"
+                            style={{ borderColor: editingTemplateId ? 'var(--accent)' : 'var(--border-default)' }}>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-bold text-text-primary">
+                                    {editingTemplateId ? 'Vorlage bearbeiten' : `Neue ${templateTab === 'intro' ? 'Einleitung' : 'Schlusstext / Abbinder'}`}
+                                </p>
+                                {editingTemplateId && (
+                                    <button onClick={cancelEditTemplate} className="text-xs font-bold text-text-muted hover:text-text-primary flex items-center gap-1 transition">
+                                        <X size={13} /> Abbrechen
                                     </button>
-                                ))}
+                                )}
                             </div>
                             <input
                                 className={INPUT}
-                                placeholder="Bezeichnung (z.B. Standard Einleitung)"
+                                placeholder={templateTab === 'intro' ? 'Bezeichnung (z.B. Standard Einleitung)' : 'Bezeichnung (z.B. Standard Abbinder)'}
                                 value={newTemplate.name}
                                 onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })}
                             />
                             <textarea
                                 className={INPUT + ' h-28 resize-none'}
-                                placeholder="Textinhalt…"
+                                placeholder="Textinhalt… z.B. Sehr geehrte/r [anrede] [nachname], anbei …"
                                 value={newTemplate.content}
                                 onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })}
                             />
+                            <p className="text-[11px] text-text-muted -mt-1">
+                                Platzhalter werden beim Angebot/Rechnung automatisch mit den Empfänger-Daten gefüllt:
+                                {' '}<span className="font-mono">{PLACEHOLDER_HINT}</span>
+                            </p>
                             <button
                                 onClick={handleAddTemplate}
                                 disabled={tLoading || !newTemplate.name || !newTemplate.content}
                                 className="w-full py-2 bg-text-primary text-surface rounded-xl text-sm font-bold hover:opacity-90 transition flex justify-center items-center gap-2 disabled:opacity-50"
                             >
-                                <Plus size={15} /> Vorlage hinzufügen
+                                {editingTemplateId ? <><Save size={15} /> Änderungen speichern</> : <><Plus size={15} /> Vorlage hinzufügen</>}
                             </button>
                         </div>
                     </div>

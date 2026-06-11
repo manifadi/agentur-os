@@ -69,6 +69,7 @@ export default function ClientDetailPage() {
 
     // Contact Management State
     const [isAddingContact, setIsAddingContact] = useState(false);
+    const [editingContact, setEditingContact] = useState<ClientContact | null>(null);
     const [newContact, setNewContact] = useState<Partial<ClientContact>>({});
 
     // Logbook State
@@ -429,14 +430,8 @@ export default function ClientDetailPage() {
             return;
         }
 
-        const { data, error } = await supabase.from('client_contacts').insert([{
-            ...contactData,
-            client_id: client.id,
-            organization_id: orgId
-        }]).select().single();
-
-        if (error) {
-            console.error("Add Contact Error:", error);
+        const showContactError = (error: { message: string }) => {
+            console.error("Save Contact Error:", error);
             setConfirmModal({
                 isOpen: true,
                 title: 'Fehler beim Kontakt',
@@ -446,6 +441,34 @@ export default function ClientDetailPage() {
                 confirmText: 'OK',
                 showCancel: false
             });
+        };
+
+        // Bearbeiten (vorhandener Kontakt) vs. Neu anlegen
+        if (contactData.id) {
+            const { data, error } = await supabase.from('client_contacts').update({
+                name: contactData.name,
+                salutation: contactData.salutation ?? null,
+                role: contactData.role ?? null,
+                email: contactData.email ?? null,
+                phone: contactData.phone ?? null,
+            }).eq('id', contactData.id).select().single();
+
+            if (error) showContactError(error);
+            else if (data) {
+                setContacts(contacts.map(c => c.id === data.id ? data : c));
+                setEditingContact(null);
+            }
+            return;
+        }
+
+        const { data, error } = await supabase.from('client_contacts').insert([{
+            ...contactData,
+            client_id: client.id,
+            organization_id: orgId
+        }]).select().single();
+
+        if (error) {
+            showContactError(error);
         } else if (data) {
             setContacts([...contacts, data]);
             setIsAddingContact(false); // Close modal
@@ -1267,17 +1290,24 @@ export default function ClientDetailPage() {
                             <div className="space-y-4">
                                 {contacts.map(contact => (
                                     <div key={contact.id} className="group bg-subtle/50 p-4 rounded-xl border border-default hover:border-accent/40 hover:shadow-sm transition relative">
-                                        {(isAdmin || currentUser?.role === 'admin') && (
-                                            <button onClick={() => handleDeleteContact(contact.id)} className="absolute top-2 right-2 p-1.5 text-text-placeholder hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
-                                                <Trash size={14} />
+                                        <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                                            <button onClick={() => setEditingContact(contact)} className="p-1.5 text-text-placeholder hover:text-accent transition" title="Kontakt bearbeiten">
+                                                <Edit2 size={14} />
                                             </button>
-                                        )}
+                                            {(isAdmin || currentUser?.role === 'admin') && (
+                                                <button onClick={() => handleDeleteContact(contact.id)} className="p-1.5 text-text-placeholder hover:text-red-500 transition" title="Kontakt löschen">
+                                                    <Trash size={14} />
+                                                </button>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-3 mb-3">
                                             <div className="w-10 h-10 rounded-full bg-surface border border-default flex items-center justify-center text-text-placeholder font-bold shadow-sm">
                                                 {contact.name.charAt(0)}
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="font-bold text-text-primary text-sm truncate">{contact.name}</div>
+                                                <div className="font-bold text-text-primary text-sm truncate">
+                                                    {contact.salutation === 'herr' ? 'Herr ' : contact.salutation === 'frau' ? 'Frau ' : ''}{contact.name}
+                                                </div>
                                                 <div className="text-xs text-text-muted truncate">{contact.role || 'Mitarbeiter'}</div>
                                             </div>
                                         </div>
@@ -1324,8 +1354,9 @@ export default function ClientDetailPage() {
                 />
 
                 <ContactModal
-                    isOpen={isAddingContact}
-                    onClose={() => setIsAddingContact(false)}
+                    isOpen={isAddingContact || !!editingContact}
+                    contact={editingContact}
+                    onClose={() => { setIsAddingContact(false); setEditingContact(null); }}
                     onSave={handleSaveContact}
                 />
             </div>

@@ -48,6 +48,35 @@ export default function ContactModal({ isOpen, onClose, onSave, contact }: Conta
 
                 <div className="p-6 space-y-4">
                     <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Anrede</label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {([
+                                { value: null,   label: 'Keine' },
+                                { value: 'herr', label: 'Herr' },
+                                { value: 'frau', label: 'Frau' },
+                            ] as const).map(opt => {
+                                const active = (formData.salutation ?? null) === opt.value;
+                                return (
+                                    <button
+                                        key={opt.label}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, salutation: opt.value })}
+                                        className="px-3 py-2 rounded-xl text-xs font-bold transition"
+                                        style={active ? {
+                                            background: 'var(--accent)', color: 'var(--accent-text)',
+                                        } : {
+                                            background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)',
+                                        }}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[10px] text-text-muted mt-1">Steuert die Grußformel (Sehr geehrte/r …) und Platzhalter.</p>
+                    </div>
+
+                    <div className="space-y-1">
                         <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Name *</label>
                         <div className="relative">
                             <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
