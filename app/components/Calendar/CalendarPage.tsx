@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, X } from 'lucide-react';
 import { Employee, CalendarEvent, CalendarView } from '../../types';
+import { toast } from 'sonner';
 import { supabase } from '../../supabaseClient';
-import { useCalendarData } from '../../context/CalendarDataContext';
+import { useCalendarData, type SyncError } from '../../context/CalendarDataContext';
+import { currentAccessToken } from '../../utils/authFetch';
 import { getWeekDays, isSameDay } from './views/WeekView';
 import { getEmployeeColor } from './CalendarSidebar';
 import CalendarSidebar from './CalendarSidebar';
@@ -226,6 +228,22 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         // Realtime subscription on external_calendars will sync state automatically.
     };
 
+    // "Erneut anmelden" — OAuth-Init-Route leitet die Identität aus dem
+    // Access-Token ab (at). Token wird beim Klick frisch geholt, damit es nicht
+    // abgelaufen ist. Spiegelt den Connect-Flow aus CalendarProviderModal.
+    const handleReauth = async (e: SyncError) => {
+        const base = e.providerType === 'google'
+            ? '/api/auth/google-calendar'
+            : (e.providerType === 'outlook' || e.providerType === 'teams')
+                ? '/api/auth/microsoft'
+                : null;
+        if (!base) return;
+        const at = await currentAccessToken();
+        if (!at) { toast.error('Sitzung abgelaufen — bitte Seite neu laden und erneut versuchen.'); return; }
+        const params = new URLSearchParams({ at, name: e.calendarName, returnUrl: '/kalender' });
+        window.location.href = `${base}?${params}`;
+    };
+
     // Filter events
     const filteredOwnEvents = showOwnEvents
         ? ownEvents.filter(e => !hiddenEventIds.has(e.id))
@@ -293,22 +311,17 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                             </p>
                             <ul className="text-[11px] mt-0.5 space-y-1" style={{ color: 'var(--color-danger-text)' }}>
                                 {syncErrors.slice(0, 3).map((e, i) => {
-                                    const reauthUrl = e.isAuthError
-                                        ? (e.providerType === 'google'
-                                            ? `/api/auth/google-calendar?employeeId=${currentUser.id}&organizationId=${organizationId}&name=${encodeURIComponent(e.calendarName)}&returnUrl=/kalender`
-                                            : (e.providerType === 'outlook' || e.providerType === 'teams')
-                                                ? `/api/auth/microsoft?employeeId=${currentUser.id}&organizationId=${organizationId}&name=${encodeURIComponent(e.calendarName)}&returnUrl=/kalender`
-                                                : null)
-                                        : null;
+                                    const canReauth = e.isAuthError
+                                        && (e.providerType === 'google' || e.providerType === 'outlook' || e.providerType === 'teams');
                                     return (
                                         <li key={i} className="flex items-start gap-2 flex-wrap">
                                             <span><span className="font-semibold">{e.calendarName}:</span> {e.message}</span>
-                                            {reauthUrl && (
-                                                <a href={reauthUrl} className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'var(--color-danger)', color: '#fff' }}>
+                                            {canReauth && (
+                                                <button onClick={() => handleReauth(e)} className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'var(--color-danger)', color: '#fff' }}>
                                                     Erneut anmelden
-                                                </a>
+                                                </button>
                                             )}
-                                            {e.isAuthError && !reauthUrl && e.providerType !== 'ical' && (
+                                            {e.isAuthError && !canReauth && e.providerType !== 'ical' && (
                                                 <a
                                                     href="/einstellungen?section=kalender"
                                                     className="text-[10px] font-bold px-2 py-0.5 rounded-md"

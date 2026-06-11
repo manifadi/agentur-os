@@ -521,7 +521,10 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                         />
                     )}
 
-                    <GlobalSearch />
+                    {/* Globale Suche (inkl. Cmd+K) gehört zur Haupt-App — im
+                        Super-Admin-Bereich bewusst nicht, damit er sich wie ein
+                        eigenes, abgetrenntes System anfühlt. */}
+                    {!pathname?.startsWith('/admin') && <GlobalSearch />}
                     <Toaster position="bottom-right" richColors duration={3500} closeButton toastOptions={{ style: { fontFamily: 'var(--font-family)', fontSize: '13px', fontWeight: '500' } }} />
                     {showWelcome && currentUser && !pathname?.startsWith('/admin') && (
                         <WelcomeModal userName={currentUser.name} onDismiss={handleWelcomeDismiss} />
