@@ -36,3 +36,9 @@ next-env.d.ts
 
 # graphify
 graphify-out/
+
+# Claude Code lokale Einstellungen (enthält lokale Keys) — nicht committen
+.claude/settings.local.json
+
+# Lokale Screenshots / Audit-Inputs (Repo nicht aufblähen)
+/screenshots/
