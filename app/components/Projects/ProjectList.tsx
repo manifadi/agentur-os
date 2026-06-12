@@ -70,12 +70,22 @@ export default function ProjectList({ projects, selectedClient, onSelectProject,
                                 </td>
 
                                 <td className="py-4 px-5 align-top">
-                                    <UserAvatar
-                                        src={project.employees?.avatar_url}
-                                        name={project.employees?.name}
-                                        initials={project.employees?.initials}
-                                        size="sm"
-                                    />
+                                    {project.employees ? (
+                                        <UserAvatar
+                                            src={project.employees.avatar_url}
+                                            name={project.employees.name}
+                                            initials={project.employees.initials}
+                                            size="sm"
+                                        />
+                                    ) : (
+                                        <span
+                                            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-text-placeholder text-[13px]"
+                                            style={{ border: '1px dashed var(--border-default)' }}
+                                            title="Kein PM zugewiesen"
+                                        >
+                                            –
+                                        </span>
+                                    )}
                                 </td>
 
                                 <td className="py-4 px-5 align-top">

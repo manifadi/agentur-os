@@ -62,6 +62,18 @@ const WIDGET_FEATURE: Partial<Record<WidgetId, string>> = {
     calendar: 'calendar_sync',
 };
 
+// Widget-Akzentfarben als STATISCHE Klassen (Tailwind-JIT erkennt nur literale
+// Klassennamen — dynamisch zusammengebaute wie `text-${color}-500` werden im
+// Prod-Build gepurged und fehlen dann). Map hält die Strings literal.
+const WIDGET_COLOR: Record<string, { icon: string; tile: string }> = {
+    blue:   { icon: 'text-blue-500',   tile: 'bg-blue-500/10' },
+    orange: { icon: 'text-orange-500', tile: 'bg-orange-500/10' },
+    green:  { icon: 'text-green-500',  tile: 'bg-green-500/10' },
+    purple: { icon: 'text-purple-500', tile: 'bg-purple-500/10' },
+};
+const widgetIconColor = (c?: string) => WIDGET_COLOR[c || 'blue']?.icon || 'text-blue-500';
+const widgetTileColor = (c?: string) => WIDGET_COLOR[c || 'blue']?.tile || 'bg-blue-500/10';
+
 // ─── Helpers ──────────────────────────────────────────────────────
 function getGreeting(): string {
     const h = new Date().getHours();
@@ -841,7 +853,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                             <div key={widget.id} className="group relative flex flex-col bg-surface rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-transparent dark:border-default hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] transition-shadow">
                                 {/* Header */}
                                 <div className="p-6 pb-2 flex items-center gap-3 shrink-0 drag-handle !opacity-100 hover:!opacity-100 cursor-grab active:cursor-grabbing">
-                                    <div className={`w-8 h-8 rounded-xl bg-accent-subtle/30 text-${info.color}-500 flex items-center justify-center`}>
+                                    <div className={`w-8 h-8 rounded-xl bg-accent-subtle/30 ${widgetIconColor(info.color)} flex items-center justify-center`}>
                                         <info.icon size={16} strokeWidth={2.5} />
                                     </div>
                                     <span className="text-base font-bold text-text-primary tracking-tight">{info.title}</span>
@@ -960,7 +972,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {availableWidgets.filter(w => !currentWidgets.find(cw => cw.id === w.id)).map(w => (
                                 <button key={w.id} onClick={() => handleAddWidget(w.id as WidgetId)} className="flex items-center gap-4 p-6 rounded-3xl border-2 border-default hover:border-accent hover:bg-accent-subtle/30 transition-all text-left group">
-                                    <div className={`w-12 h-12 rounded-2xl bg-${w.color}-500/10 text-${w.color}-500 flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                    <div className={`w-12 h-12 rounded-2xl ${widgetTileColor(w.color)} ${widgetIconColor(w.color)} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                                         <w.icon size={24} />
                                     </div>
                                     <span className="font-bold text-text-primary">{w.title}</span>
