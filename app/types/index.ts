@@ -89,8 +89,12 @@ export interface Employee {
     avatar_url?: string | null;
     dashboard_config?: DashboardConfig;
     manager_id?: string | null;
-    vacation_days_per_year?: number;
-    carryover_days?: number;
+    vacation_days_per_year?: number;     // Legacy (tagebasiert) — vom UI nicht mehr genutzt
+    carryover_days?: number;             // Legacy (tagebasiert)
+    // Stundenbasierter Urlaub (österr. Recht): Anspruch = Wochen × Wochenstunden
+    vacation_weeks_per_year?: number;    // Default 5 (6 ab 25 Dienstjahren via started_at)
+    vacation_hours_override?: number | null; // optional fixe Jahresstunden statt Wochen×Std.
+    vacation_carryover_hours?: number;   // Übertrag in Stunden
     started_at?: string | null;
     calendar_shared_with_team?: boolean; // interner Vela-Kalender für Kollegen sichtbar
     locale?: string | null;              // UI-Sprache ('de' | 'en')
@@ -139,13 +143,27 @@ export interface AbsenceRequest {
     requested_at: string;
 }
 
+// Stundenbasierte Urlaubs-Bilanz (im Frontend berechnet, siehe utils/absences.ts)
 export interface VacationBalance {
     year: number;
-    yearly_entitlement: number;
-    carryover: number;
-    total_available: number;
-    used_days: number;
-    remaining: number;
+    // Stunden (Quelle der Wahrheit)
+    entitlementHours: number;   // Jahresanspruch nach Aliquot/Staffelung/Override
+    carryoverHours: number;
+    totalHours: number;         // entitlement + carryover
+    usedHours: number;
+    remainingHours: number;
+    // Tag-Äquivalente (nur Anzeige, via Ø-Arbeitstag)
+    avgDayHours: number;
+    entitlementDays: number;
+    carryoverDays: number;
+    totalDays: number;
+    usedDays: number;
+    remainingDays: number;
+    // Kontext
+    weeks: number;              // effektive Urlaubswochen (5 / 6)
+    weeklyHours: number;
+    proRated: boolean;          // im Eintrittsjahr aliquotiert
+    seniorityApplied: boolean;  // 6 Wochen wegen ≥25 Dienstjahren
 }
 
 export const ABSENCE_TYPE_LABEL: Record<AbsenceType, string> = {

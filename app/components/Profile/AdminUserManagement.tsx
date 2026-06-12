@@ -177,30 +177,55 @@ function UserModal({ isOpen, mode, user, departments, agencyPositions, allEmploy
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Urlaubstage/Jahr</label>
-                            <input
-                                type="number"
-                                min={0}
-                                max={365}
-                                className="input-field"
-                                value={formData.vacation_days_per_year ?? 25}
-                                onChange={e => setFormData({ ...formData, vacation_days_per_year: parseInt(e.target.value, 10) || 0 })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Übertrag (Tage)</label>
-                            <input
-                                type="number"
-                                min={0}
-                                max={365}
-                                className="input-field"
-                                value={formData.carryover_days ?? 0}
-                                onChange={e => setFormData({ ...formData, carryover_days: parseInt(e.target.value, 10) || 0 })}
-                            />
-                        </div>
-                    </div>
+                    {/* Urlaub — stundenbasiert (österr. Recht): Anspruch = Wochen × Wochenstunden */}
+                    {(() => {
+                        const sched: number[] = formData.weekly_schedule || [8, 8, 8, 8, 8, 0, 0];
+                        const weeklyHours = sched.reduce((s: number, h: number) => s + (h || 0), 0);
+                        const weeks = formData.vacation_weeks_per_year ?? 5;
+                        const baseHours = Math.round(weeks * weeklyHours * 100) / 100;
+                        return (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Urlaubs-Wochen/Jahr</label>
+                                        <input
+                                            type="number" min={0} max={52} step={0.5}
+                                            className="input-field"
+                                            value={formData.vacation_weeks_per_year ?? 5}
+                                            onChange={e => setFormData({ ...formData, vacation_weeks_per_year: parseFloat(e.target.value) || 0 })}
+                                        />
+                                        <p className="text-[11px] text-text-muted mt-1">
+                                            Gesetzl. 5 (6 ab 25 Dienstjahren, automatisch).
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Übertrag (Stunden)</label>
+                                        <input
+                                            type="number" min={0} step={0.5}
+                                            className="input-field"
+                                            value={formData.vacation_carryover_hours ?? 0}
+                                            onChange={e => setFormData({ ...formData, vacation_carryover_hours: parseFloat(e.target.value) || 0 })}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">
+                                        Fixe Jahresstunden <span className="normal-case font-normal text-text-muted">(optional, überschreibt Wochen × Std.)</span>
+                                    </label>
+                                    <input
+                                        type="number" min={0} step={0.5}
+                                        className="input-field"
+                                        placeholder={`Standard ≈ ${baseHours} h`}
+                                        value={formData.vacation_hours_override ?? ''}
+                                        onChange={e => setFormData({ ...formData, vacation_hours_override: e.target.value === '' ? null : (parseFloat(e.target.value) || 0) })}
+                                    />
+                                    <p className="text-[11px] text-text-muted mt-1">
+                                        Standard-Anspruch ≈ <span className="font-semibold text-text-secondary">{baseHours} h</span> ({weeks} Wochen × {weeklyHours} h/Woche). Leer lassen für Automatik.
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     <div>
                         <label className="block text-xs font-bold text-text-muted uppercase mb-1.5">Job Titel (Position)</label>

@@ -6,9 +6,12 @@ import { supabase } from '../../supabaseClient';
 import { toast } from 'sonner';
 import { X, Loader2, Check, CalendarDays, Home, Stethoscope, Pin, Plane, Scale, Wallet, AlertTriangle } from 'lucide-react';
 import {
-    AbsenceType, AbsenceHalfDay, ABSENCE_TYPE_LABEL, VacationBalance,
+    AbsenceType, AbsenceHalfDay, ABSENCE_TYPE_LABEL, Absence,
 } from '../../types';
-import { absenceWorkingDays } from '../../utils/absences';
+import { absenceWorkingDays, absenceWorkingHours, scheduleOf, computeVacationBalance } from '../../utils/absences';
+import { useApp } from '../../context/AppContext';
+
+const fmt = (n: number) => Number(n).toLocaleString('de-DE', { maximumFractionDigits: 1 });
 
 // Referenz-Zeitfenster für Halbtage — nur informativ, damit klar ist
 // "von wann bis wann" Vormittag/Nachmittag gemeint sind.
@@ -49,15 +52,18 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
     const [endTime, setEndTime]     = useState<string>('12:00');
     const [reason, setReason]       = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [balance, setBalance]     = useState<VacationBalance | null>(null);
+    const [empAbsences, setEmpAbsences] = useState<Absence[]>([]);
+
+    const { employees } = useApp();
+    const employee = useMemo(() => employees.find(e => e.id === employeeId), [employees, employeeId]);
 
     useEffect(() => { setMounted(true); }, []);
 
-    // Resturlaub laden (für Hinweis bei zu wenig Urlaub)
+    // Abwesenheiten des Mitarbeiters laden (für stundenbasierte Resturlaub-Bilanz)
     useEffect(() => {
         (async () => {
-            const { data } = await supabase.rpc('get_vacation_balance', { p_employee_id: employeeId });
-            if (Array.isArray(data) && data[0]) setBalance(data[0] as VacationBalance);
+            const { data } = await supabase.from('absences').select('*').eq('employee_id', employeeId);
+            if (Array.isArray(data)) setEmpAbsences(data as Absence[]);
         })();
     }, [employeeId]);
 
@@ -75,19 +81,30 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
     const halfDay: AbsenceHalfDay = dayMode === 'morning' ? 'start' : dayMode === 'afternoon' ? 'end' : 'none';
     const useCustomTime = isSingleDay && dayMode === 'custom';
 
+    const draft = useMemo(() => ({
+        start_date: startDate, end_date: endDate,
+        half_day: (isSingleDay ? halfDay : 'none') as AbsenceHalfDay,
+        start_time: useCustomTime ? startTime : null,
+        end_time:   useCustomTime ? endTime : null,
+    }), [startDate, endDate, halfDay, useCustomTime, startTime, endTime, isSingleDay]);
+
     const days = useMemo(() => {
-        try {
-            return absenceWorkingDays({
-                start_date: startDate, end_date: endDate,
-                half_day: isSingleDay ? halfDay : 'none',
-                start_time: useCustomTime ? startTime : null,
-                end_time:   useCustomTime ? endTime : null,
-            }, countryCode, federalState);
-        } catch { return 0; }
-    }, [startDate, endDate, halfDay, useCustomTime, startTime, endTime, isSingleDay, countryCode, federalState]);
+        try { return absenceWorkingDays(draft, countryCode, federalState); } catch { return 0; }
+    }, [draft, countryCode, federalState]);
+
+    const hours = useMemo(() => {
+        try { return employee ? absenceWorkingHours(draft, scheduleOf(employee), countryCode, federalState) : 0; } catch { return 0; }
+    }, [draft, employee, countryCode, federalState]);
+
+    // Stundenbasierte Resturlaub-Bilanz für das Jahr des Eintrags
+    const balance = useMemo(() => {
+        if (!employee) return null;
+        const yr = new Date(startDate).getFullYear() || new Date().getFullYear();
+        return computeVacationBalance(employee, empAbsences, yr, countryCode, federalState);
+    }, [employee, empAbsences, startDate, countryCode, federalState]);
 
     // Reicht der Resturlaub? (nur relevant für bezahlten Urlaub)
-    const lacksVacation = type === 'vacation' && balance != null && (balance.remaining - days) < 0;
+    const lacksVacation = type === 'vacation' && balance != null && (balance.remainingHours - hours) < 0;
 
     const meta = TYPES.find(t => t.value === type)!;
 
@@ -244,15 +261,15 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
                             className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none transition bg-subtle border border-border-strong text-text-primary focus:bg-surface focus:ring-2 focus:ring-accent" />
                     </div>
 
-                    {/* Working-Day-Anzeige */}
+                    {/* Working-Day-Anzeige (Tage + Stunden) */}
                     {type === 'vacation' && days > 0 && (
                         <div className="flex items-center gap-2 text-xs"
                              style={{ color: 'var(--text-muted)' }}>
                             <CalendarDays size={12} />
                             <span>
-                                <strong style={{ color: 'var(--text-primary)' }}>{days} Arbeitstag{days === 1 ? '' : 'e'}</strong>
+                                <strong style={{ color: 'var(--text-primary)' }}>{fmt(days)} Arbeitstag{days === 1 ? '' : 'e'} ({fmt(hours)} h)</strong>
                                 {' '}werden vom Resturlaub abgezogen (Wochenenden + Feiertage ausgenommen)
-                                {balance != null && <> · {Math.max(0, balance.remaining)} verbleibend</>}
+                                {balance != null && <> · {fmt(Math.max(0, balance.remainingHours))} h verbleibend</>}
                             </span>
                         </div>
                     )}
@@ -264,7 +281,7 @@ export default function AbsenceModal({ employeeId, countryCode = 'DE', federalSt
                             <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                             <div>
                                 <div className="font-bold">Nicht genug Resturlaub</div>
-                                <div className="mt-0.5">Verfügbar sind nur {Math.max(0, balance!.remaining)} Tag(e).</div>
+                                <div className="mt-0.5">Verfügbar sind nur {fmt(Math.max(0, balance!.remainingHours))} h ({fmt(Math.max(0, balance!.remainingDays))} Tage).</div>
                                 <button type="button" onClick={() => setType('unpaid_vacation')}
                                     className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold transition"
                                     style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
