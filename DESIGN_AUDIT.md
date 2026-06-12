@@ -12,15 +12,15 @@ Apple-minimalistischer Design-/Produkt-Audit, Seite für Seite. Befunde sind **V
 | 2 | Projekte-Übersicht (`/uebersicht`) | ✅ auditiert (2026-06-12) |
 | 3 | Projekt-Detail (Tabs) | ✅ auditiert (2026-06-12) |
 | 4 | Globale Aufgaben (`/aufgaben`) | ✅ auditiert (2026-06-12) |
-| 5 | Ressourcenplan (`/ressourcen`) | ⬜ offen |
-| 6 | Zeiterfassung (`/zeiterfassung`) | ⬜ offen |
-| 7 | Kalender (`/kalender`) | ⬜ offen |
-| 8 | Reporting (`/reporting`) | ⬜ offen |
-| 9 | Abwesenheiten (`/abwesenheiten`) | ⬜ offen |
-| 10 | Kunden-Cockpit (`/clients/[id]`) | ⬜ offen |
-| 11 | Einstellungen (`/einstellungen`) | ⬜ offen |
-| 12 | Auth & Onboarding | ⬜ offen |
-| 13 | Super-Admin-Panel (`/admin/*`) | ⬜ offen |
+| 5 | Ressourcenplan (`/ressourcen`) | ✅ auditiert (2026-06-12) |
+| 6 | Zeiterfassung (`/zeiterfassung`) | ✅ auditiert (2026-06-12) |
+| 7 | Kalender (`/kalender`) | ✅ auditiert (2026-06-12) |
+| 8 | Reporting (`/reporting`) | ✅ auditiert (2026-06-12) |
+| 9 | Abwesenheiten (`/abwesenheiten`) | ✅ auditiert (2026-06-12) |
+| 10 | Kunden-Cockpit (`/clients/[id]`) | ✅ auditiert (2026-06-12) |
+| 11 | Einstellungen (`/einstellungen`) | ✅ auditiert (2026-06-12) |
+| 12 | Auth & Onboarding | ✅ auditiert (2026-06-12) |
+| 13 | Super-Admin-Panel (`/admin/*`) | ✅ auditiert (2026-06-12) |
 
 ---
 
@@ -132,3 +132,133 @@ Wird über die Durchläufe gefüllt. Sortiert nach Wirkung × Aufwand.
 - **[P3] Toolbar als schwere Card** — Toggles/Suche/Filter sitzen in einer umrandeten Card (wie in der Projekt-Übersicht). Eine leichtere, randlose Toolbar wirkt Apple-typischer. · `GlobalTasks.tsx:306`.
 
 - **[P3] Subtitle-/Naming-Überlappung** — „Dein persönlicher Arbeitsbereich" überschneidet sich begrifflich mit dem Dashboard („Mein Bereich"). Schärfere, eindeutige Benennung.
+
+---
+
+## 5. Ressourcenplan (`/ressourcen`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Durchdacht — Karten- **und** Tabellenansicht (`ViewSwitcher`), Wochen-Navigation, Abteilungs-Filter, Kapazitätsbalken je Mitarbeiter, Status-Badges je Projektzeile, dunkle Summenzeile in der Tabelle. Visuell etwas **bunt/dicht**; Begriff „Wochenplan" überschneidet sich mit dem Dashboard-Widget.
+
+### Befunde
+- **[P2] Naming-Kollision „Wochenplan"** — Seite (`/ressourcen`) trägt denselben Titel wie das Dashboard-Widget. „Ressourcenplan" als Seitentitel schärft die Unterscheidung. · `app/components/ResourcePlanner/ResourcePlanner.tsx:285`.
+- **[P2] Karten-Ansicht visuell laut** — mehrfarbige Kapazitätssegmente + viele kleine, teils rote Tagesnummern erzeugen Unruhe. Ruhiger: eine Akzent-Intensität statt Vollpalette; Zahlen neutral, nur Über-Kapazität farbig. · ResourcePlanner Karten.
+- **[P3] Dunkle Summenzeile** — die fast schwarze GESAMT-Leiste in der Tabelle ist ein starker Fremdkörper ggü. dem hellen DS; als `bg-subtle`/`--text-primary` ruhiger und dark-mode-sicherer.
+- **[P3] Tages-Eingaben Mikro-Targets** — die per-Tag-Stunden-Felder sind sehr klein (Touch/Treffsicherheit). Etwas größere, klarere Eingabezellen erhöhen Produktivität.
+
+---
+
+## 6. Zeiterfassung (`/zeiterfassung`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Sehr clean und fokussiert — KW-Navigation + Tages-Strip (inkl. **Eintrags-Punkt** unter Tagen, frisch ergänzt), „Heute X/8h"-Karte, schöner Leerzustand (😴). Vorbildlich ruhig.
+
+### Befunde
+- **[P3] Viel Leerraum bei leerem Tag** — die Seite ist bei 0 Einträgen sehr leer. Ein dezenter Wochen-Überblick (erfasste Std. Mo–So) oder „zuletzt erfasst" füllt sinnvoll und erhöht Orientierung. · `app/zeiterfassung/page.tsx`.
+- **[P3] „Heute / 8h" Soll fix** — das Tagessoll wirkt statisch 8h; sollte dem `weekly_schedule` des Tages folgen (Teilzeit/4-Tage). Konsistenz mit dem neuen Stunden-Modell. · `TimeStats`.
+- **[P2] Quick-Win-Konsistenz** — Header-Such-/Aktionsmuster und Button-Stil mit den anderen Seiten angleichen (Teil der systemweiten Button-Vereinheitlichung).
+
+---
+
+## 7. Kalender (`/kalender`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Stärkste, am meisten Apple-typische Seite — Mini-Monat (mit Punkten, frisch korrigiert), Kalender-Gruppen (Meine/Team), Tag/Woche/Monat, ruhige Event-Pills. Sehr gut.
+
+### Befunde
+- **[P2] Event-Pills einfarbig blass** — externe/Team-Events sind dezent eingefärbt; bei vielen Terminen hilft etwas mehr Farbkodierung pro Kalender/Person (Lesbarkeit), ohne laut zu werden. · `WeekView`/`MonthView`.
+- **[P3] „Neuer Termin" + KW-Nav + View-Switch im Header** — dicht, aber ok; auf schmaler Breite prüfen, ob umbrechend/zugänglich. 
+- **[P3] Aktuelle-Zeit-Linie** ist nur eine dünne rote Linie ohne Label — kleine „jetzt"-Markierung erhöht Orientierung.
+
+---
+
+## 8. Reporting (`/reporting`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Klar strukturiert (Anwesenheit + Projektzeit getrennt, KPIs, durchsuchbare Picker, Woche/Monat/Frei). Frisch gebaut, konsistent mit DS.
+
+### Befunde
+- **[P2] Zwei rote Sektions-Icons** — Clock/FileText in Akzent-Rot wirken wie Warnungen; neutraler (text-secondary) wäre ruhiger, Rot für echte Negativ-Werte (Differenz) reservieren. · `ReportingPage.tsx`.
+- **[P3] Leere Modi** — Projekt/Kunde ohne Auswahl zeigen nur den Hinweis; ein dezenter Beispiel-/Hilfe-Block würde Erstnutzung erleichtern.
+- **[P3] Tages-Balken bei Ein-Tages-Daten** — bei nur einem Tag wirkt das Balken-Chart leer; ggf. erst ab ≥2 Tagen mit Daten zeigen.
+
+---
+
+## 9. Abwesenheiten (`/abwesenheiten`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Frisch redesignt — Balance-Hero (Tage **+** Stunden, „5 Wochen × 38,5h", „1 Tag ≈ 7,7h"), Stat-Kacheln, Status-Zähler, filterbare Historie, Jahr-Navigation. Sauber und gesetzeskonform.
+
+### Befunde
+- **[P3] Sparsamer Erstzustand** — bei neuem MA sind Zähler 0 und „Anstehend" leer (großer leerer Balken). Ein dezenter Onboarding-Hinweis („Trag deinen ersten Urlaub ein") wäre einladender. · `app/abwesenheiten/page.tsx`.
+- **[P3] Status-Filter immer 5 Optionen** — auch wenn nur ein Status existiert; optional nur vorhandene Status zeigen (wie bei den Typ-Chips). 
+- **[P2] Konsistenz** — „Eintragen" + Mode-Switcher + Jahr-Nav im Header: Button-/Token-Vereinheitlichung systemweit mitnehmen.
+
+---
+
+## 11. Einstellungen (`/einstellungen`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Gut strukturiert — linke Sektions-Navigation (ICH: Profil/Design/Navigation/Kalender · AGENTUR: Unternehmen/Team/Abteilungen/Stundensätze/Branding/Vorlagen), klare Formular-Karten. Solide IA.
+
+### Befunde
+- **[P2] Formular-Dichte & Pflichtfelder** — lange Formulare (Unternehmen) am Stück; sinnvolle Gruppierung ist da, aber Inline-Validierung/Format-Hilfen (IBAN/UID) + klar optionale Felder reduzieren Reibung. 
+- **[P3] Aktiver Nav-Eintrag rein farbig** — Akzent-Hintergrund links ist ok; ein zusätzlicher dezenter Indikator (Balken) hilft bei Akzent-Themes mit geringem Kontrast.
+- **[P3] „Speichern" pro Karte** — mehrere Speichern-Buttons; klarstellen, was gespeichert wird (pro Sektion), oder Auto-Save/optimistisch. 
+- **[P3] Sprache-Toggle** als kleines Segment — konsistent mit `ViewSwitcher` halten.
+
+---
+
+## 10. Kunden-Cockpit (`/clients/[id]`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Funktionsreiches CRM-Cockpit mit 6 Tabs (Übersicht/Projekte/Finanzen/Aktivität/Dokumente/Team), KPI-Tiles, Aktivitäts-Feed. Inhaltlich stark — aber der **Haupt-Hotspot der systemweiten hartkodierten Farben** (green/orange/blue/red-500 in Stat-Tiles, Rechnungs-Status, Event-Icons).
+
+### Befunde
+- **[P1] Hartkodierte Palette-Farben (dichtester Vorkommen)** — Umsatz-Tile `green-500`, offene Rechnungen `orange-500`, Aktivitäts-Icons `blue/green/orange-500`, Lösch-Hover `red-500`. → semantische Tokens (`--color-success/warning/info/danger`). Größter Einzel-Hebel für die systemweite Token-Vereinheitlichung. · `app/clients/[id]/page.tsx:792,804,1044,1119,1141`.
+- **[P2] 1365 Zeilen in einer Datei** — sechs Tab-Inhalte inline; in Tab-Komponenten auslagern verbessert Wartbarkeit (und ermöglicht Lazy-Loading). Kein UI-Effekt, aber Code-Gesundheit.
+- **[P3] 6 Tabs** — gerechtfertigt für ein Cockpit; prüfen, ob „Aktivität" + „Dokumente" zusammengehen, um die Leiste zu entlasten.
+- **[P3] Rote Deadlines/Lösch-Icons** — konsistente Danger-Semantik über Tokens statt `text-red-500`.
+
+---
+
+## 12. Auth & Onboarding — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Ruhig und markenkonform — Onboarding mit zentriertem Akzent-Logo-Tile, `rounded-3xl`-Karte, sauberen Lade-/Erfolgszuständen. `app/page.tsx` ist nur ein Redirect; der eigentliche Login ist `LoginScreen`.
+
+### Befunde
+- **[P3] Konsistenz Card-Radius** — Onboarding nutzt `rounded-3xl`, andere Flächen `rounded-2xl` (`.card`). Eine gemeinsame Radius-Skala (siehe Backlog) auch hier anwenden.
+- **[P3] Markenmoment nutzen** — Login/Onboarding sind die ersten Eindrücke; ein dezenter Branding-/Claim-Block (aus `agency_settings`/Vela) stärkt Vertrauen, ohne Cleanness zu opfern.
+- **[P3] Standalone-Seiten** (Login/Onboarding/Passwort) bewusst chromeless — gut; sicherstellen, dass Dark Mode + schmale Breite dort ebenfalls sauber sind.
+
+---
+
+## 13. Super-Admin-Panel (`/admin/*`) — ✅ auditiert (2026-06-12)
+
+**Gesamteindruck:** Eigener, klar abgetrennter Bereich (eigene Sidebar/Layout). Nutzt **konsequent DS-Bausteine** (`.card`, `.card-header`, `.card-header-icon`, `ds-caption`) — eine der konsistentesten Ecken. Unterseiten: Agenturen, Reports, Anfragen, Audit-Log, Backups.
+
+### Befunde
+- **[P2] Bewusst „anderes" System** — der Super-Admin soll sich abgetrennt anfühlen (lt. CLAUDE.md). Das ist gut; sicherstellen, dass spätere DS-Vereinheitlichungen diese gewollte Trennung **nicht** verwässern (eigener Akzent/Chrome ok).
+- **[P3] Dichte Tabellen/Listen** (Agenturen/Audit) — bei Wachstum: Suche/Filter/Pagination wie in der Projektliste übernehmen.
+- **[P3] Gefahren-Aktionen** (Suspend/Löschen/Impersonation) — durchgehend 2-Step + klare Danger-Tokens; bereits teils so, systemweit konsistent halten.
+
+---
+
+## Synthese — Top-Hebel über das ganze Produkt (2026-06-12)
+
+Das Produkt ist **bereits clean und Apple-nah**; die größten Gewinne liegen in **Konsistenz & Systematik**, nicht im Neudesign. Reihenfolge = Wirkung × Aufwand.
+
+### ⚡ Quick Wins (klein, hohe Konsistenz-Wirkung)
+1. ✅ **Dynamische Tailwind-Farbklassen** (Prod-Bug) — *erledigt, commit `7ceb40b`*.
+2. ✅ **PM-Leerzustand** Projektliste — *erledigt, commit `7ceb40b`*.
+3. **Systemweite Farb-Token-Map** statt `*-500`-Literalfarben (clients-Cockpit zuerst, dann ProjectDetail/Dashboard/GlobalTasks). Eine `STATUS_COLORS`/`ACCENT_COLORS`-Map auf `--color-*`-Tokens → dark-/akzent-aware, ruhiger.
+4. **Eigene Segmented-Controls → `ViewSwitcher`** (GlobalTasks u.a.) und **bespoke Buttons → `.btn-*`** (überall).
+5. **Inline-SVGs → lucide-Icons** (ProjectDetail-Status-Dropdown).
+
+### 🏗️ Größere Umbauten (planen)
+6. **Karten-Radius/Schatten-Skala vereinheitlichen** (Dashboard `rounded-[32px]`/Onboarding `rounded-3xl` vs. `.card`).
+7. **`/uebersicht`-Bundle entschlacken** (840 kB First Load) via `next/dynamic` für ProjectDetail/PDF/Modals.
+8. **Projekt-Detail als eigene Route** (Browser-Back, Deep-Link, erhaltene Listenposition).
+9. **Angebot/Rechnung aus der Tiefe holen** (IA im Projekt-Detail).
+10. **Karten-/Tabellen-Toggle für Projektliste** + leichtere, randlose Filterleisten (Aufgaben/Projekte).
+
+### Durchgängige Themen
+- **Eine Akzent-Intensität**: Akzent-Rot gezielt für Primäraktionen/echte Negativwerte, nicht für neutrale Zahlen (Wochenplan-Pills, Reporting-Sektions-Icons).
+- **Satzschreibung statt UPPERCASE** auf Buttons; Uppercase nur für `ds-caption`-Mikrolabels.
+- **Naming schärfen**: „Übersicht" vs „Projekte", „Wochenplan" (Seite vs Widget), „Mein Bereich" vs „persönlicher Arbeitsbereich".
+- **Leerzustände** sind durchweg gut — bei sehr leeren Seiten (Zeiterfassung/Abwesenheiten neu) dezente Orientierung/Onboarding ergänzen.
+
+**Audit vollständig (Bereiche #1–#13).**
