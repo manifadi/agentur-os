@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { Project, Client, Employee, Department, TimeEntry, Todo, AgencySettings } from '../types';
+import { Project, Client, Employee, Department, TimeEntry, Todo, AgencySettings, AttendanceEntry } from '../types';
 import { ThemePreferences } from '../hooks/useTheme';
 import { StoredAccount } from '../utils/accountVault';
 
@@ -13,6 +13,13 @@ interface AppContextType {
     members: any[]; // Project Members
     timeEntries: TimeEntry[];
     currentUser?: Employee;
+
+    // Stempeluhr / Anwesenheitszeit (aktueller Nutzer, heute)
+    attendanceToday: AttendanceEntry[];
+    openAttendance: AttendanceEntry | null; // laufende Session (clock_out === null)
+    clockIn: () => Promise<void>;
+    clockOut: () => Promise<void>;
+
     personalTodos: Todo[];
     setPersonalTodos: (todos: Todo[]) => void;
     agencySettings: AgencySettings | null;
@@ -62,6 +69,10 @@ export const AppContext = createContext<AppContextType>({
     allocations: [],
     members: [],
     timeEntries: [],
+    attendanceToday: [],
+    openAttendance: null,
+    clockIn: async () => { },
+    clockOut: async () => { },
     personalTodos: [],
     agencySettings: null,
     loading: true,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
-import { Project, Client, Employee, Todo, OrganizationFeature, FEATURE_CATALOG } from '../types';
+import { Project, Client, Employee, Todo, OrganizationFeature, FEATURE_CATALOG, AttendanceEntry } from '../types';
 import { AppContext } from '../context/AppContext';
 import { CalendarDataProvider } from '../context/CalendarDataContext';
 import MainSidebar from './MainSidebar';
@@ -37,6 +37,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [allocations, setAllocations] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
     const [timeEntries, setTimeEntries] = useState<any[]>([]);
+    const [attendanceToday, setAttendanceToday] = useState<AttendanceEntry[]>([]);
     const [personalTodos, setPersonalTodos] = useState<Todo[]>([]);
     const [agencySettings, setAgencySettings] = useState<any>(null);
     const [orgFeatures, setOrgFeatures] = useState<OrganizationFeature[]>([]);
@@ -178,6 +179,19 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         if (data) setTimeEntries(data as any);
     }, []);
 
+    // Stempeluhr: heutige Sessions + jede offene Session (auch falls gestern
+    // gestartet und vergessen auszustempeln).
+    const fetchAttendanceToday = useCallback(async (employeeId: string) => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const { data } = await supabase.from('attendance_entries')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .or(`clock_in.gte.${todayStart.toISOString()},clock_out.is.null`)
+            .order('clock_in', { ascending: true });
+        if (data) setAttendanceToday(data as AttendanceEntry[]);
+    }, []);
+
     const fetchPersonalTodos = useCallback(async (organizationId: string, employeeId: string) => {
         const { data } = await supabase.from('todos').select(`*, employees(id, name, initials, avatar_url)`)
             .is('project_id', null).eq('organization_id', organizationId).eq('assigned_to', employeeId)
@@ -194,6 +208,33 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         const { data } = await supabase.from('organization_features').select('*').eq('organization_id', organizationId);
         setOrgFeatures((data as OrganizationFeature[]) || []);
     }, []);
+
+    // Stempeluhr: laufende Session (clock_out === null), falls vorhanden
+    const openAttendance = attendanceToday.find(a => !a.clock_out) ?? null;
+
+    const clockIn = useCallback(async () => {
+        const empId = currentUser?.id;
+        if (!empId || !orgId) return;
+        if (attendanceToday.some(a => !a.clock_out)) return; // bereits eingestempelt
+        const { error } = await supabase.from('attendance_entries').insert([{
+            organization_id: orgId,
+            employee_id: empId,
+            clock_in: new Date().toISOString(),
+        }]);
+        if (error) { toast.error('Einstempeln fehlgeschlagen.'); return; }
+        await fetchAttendanceToday(empId);
+    }, [orgId, currentUser?.id, attendanceToday, fetchAttendanceToday]);
+
+    const clockOut = useCallback(async () => {
+        const empId = currentUser?.id;
+        const open = attendanceToday.find(a => !a.clock_out);
+        if (!empId || !open) return;
+        const { error } = await supabase.from('attendance_entries')
+            .update({ clock_out: new Date().toISOString() })
+            .eq('id', open.id);
+        if (error) { toast.error('Ausstempeln fehlgeschlagen.'); return; }
+        await fetchAttendanceToday(empId);
+    }, [currentUser?.id, attendanceToday, fetchAttendanceToday]);
 
     // Feature-Flag-Check: explizit gesetzter Wert, sonst Katalog-Default
     const isFeatureEnabled = useCallback((key: string): boolean => {
@@ -248,6 +289,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                 fetchMembers(),
                 fetchProjects(organizationId),
                 fetchTimeEntries(employeeId),
+                fetchAttendanceToday(employeeId),
                 fetchPersonalTodos(organizationId, employeeId),
                 fetchAgencySettings(organizationId),
                 fetchOrgFeatures(organizationId),
@@ -257,7 +299,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         } finally {
             setLoading(false);
         }
-    }, [session, fetchClients, fetchEmployees, fetchDepartments, fetchAllocations, fetchMembers, fetchProjects, fetchTimeEntries, fetchPersonalTodos, fetchAgencySettings, fetchOrgFeatures]);
+    }, [session, fetchClients, fetchEmployees, fetchDepartments, fetchAllocations, fetchMembers, fetchProjects, fetchTimeEntries, fetchAttendanceToday, fetchPersonalTodos, fetchAgencySettings, fetchOrgFeatures]);
 
     useEffect(() => {
         if (!session) return;
@@ -331,6 +373,15 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
                     })
                 .subscribe(),
 
+            // attendance_entries: nur die eigenen Stempel-Sessions interessieren
+            supabase.channel(`shell:attendance_entries:${currentUser?.id}`)
+                .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'attendance_entries' },
+                    () => {
+                        const empId = currentUserIdRef.current;
+                        if (empId) fetchAttendanceToday(empId);
+                    })
+                .subscribe(),
+
             supabase.channel(`shell:agency_settings:${orgId}`)
                 .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'agency_settings', filter: `organization_id=eq.${orgId}` },
                     () => fetchAgencySettings(orgId))
@@ -346,7 +397,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         return () => {
             for (const ch of channels) supabase.removeChannel(ch);
         };
-    }, [orgId, currentUser?.id, fetchClients, fetchEmployees, fetchDepartments, fetchProjects, fetchPersonalTodos, fetchMembers, fetchAllocations, fetchTimeEntries, fetchAgencySettings, fetchOrgFeatures]);
+    }, [orgId, currentUser?.id, fetchClients, fetchEmployees, fetchDepartments, fetchProjects, fetchPersonalTodos, fetchMembers, fetchAllocations, fetchTimeEntries, fetchAttendanceToday, fetchAgencySettings, fetchOrgFeatures]);
 
     // GATEKEEPER: Check if user is approved
     useEffect(() => {
@@ -496,6 +547,10 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             handleLogout,
             timeEntries,
             setTimeEntries,
+            attendanceToday,
+            openAttendance,
+            clockIn,
+            clockOut,
             personalTodos,
             setPersonalTodos,
             themePrefs,

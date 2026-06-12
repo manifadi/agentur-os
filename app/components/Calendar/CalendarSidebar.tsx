@@ -172,7 +172,9 @@ interface Props {
     externalCalendars: ExternalCalendar[];
     onToggleExternal: (id: string) => void;
     onRefreshExternals: () => void;
-    ownEvents: { start_at: string }[];
+    /** Tage (Key `YYYY-MM-DD`) mit mindestens einem sichtbaren Termin —
+     *  inkl. Team- und externen Kalendern, in CalendarPage berechnet. */
+    eventDates: Set<string>;
     showOwnEvents: boolean;
     onToggleOwnEvents: () => void;
 }
@@ -180,16 +182,8 @@ interface Props {
 export default function CalendarSidebar({
     currentUser, employees, organizationId, selectedDate, onSelectDate,
     visibleEmployeeIds, onToggleEmployee, externalCalendars, onToggleExternal,
-    onRefreshExternals, ownEvents, showOwnEvents, onToggleOwnEvents,
+    onRefreshExternals, eventDates, showOwnEvents, onToggleOwnEvents,
 }: Props) {
-    const eventDates = React.useMemo(() => {
-        const s = new Set<string>();
-        for (const e of ownEvents) {
-            const d = new Date(e.start_at);
-            s.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-        }
-        return s;
-    }, [ownEvents]);
 
     const [myCalExpanded, setMyCalExpanded] = useLocalStorage<boolean>('cal-sidebar:myCalExpanded', true);
     const [showProviderModal, setShowProviderModal] = useState(false);

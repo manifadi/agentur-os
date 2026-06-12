@@ -36,7 +36,7 @@ export interface ClientContact {
     organization_id: string;
 }
 
-export type WidgetId = 'favorite_projects' | 'deadlines' | 'assigned_todos' | 'private_todos' | 'resource_planning' | 'time_tracking' | 'calendar';
+export type WidgetId = 'favorite_projects' | 'deadlines' | 'assigned_todos' | 'private_todos' | 'resource_planning' | 'time_tracking' | 'time_clock' | 'calendar';
 
 export interface DashboardWidgetConfig {
     id: WidgetId;
@@ -334,6 +334,20 @@ export interface TimeEntry {
     // Joined
     projects?: Project;
     positions?: ProjectPosition;
+}
+
+// Stempeluhr / Anwesenheitszeit — getrennt von der Projektzeit (TimeEntry)
+export interface AttendanceEntry {
+    id: string;
+    organization_id: string;
+    employee_id: string;
+    clock_in: string;            // ISO timestamptz
+    clock_out?: string | null;   // null = laufende Session
+    note?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    // Joined
+    employees?: Employee;
 }
 
 // Map for grid: Employee -> Allocations[]

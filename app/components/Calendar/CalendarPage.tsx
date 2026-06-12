@@ -166,6 +166,21 @@ export default function CalendarPage({ employees, currentUser }: Props) {
         return anchor.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
     };
 
+    // Kompakte Periode für den PeriodNavigator (KW / Monat / Tag)
+    const isoWeek = (date: Date) => {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    };
+    const navCenterLabel = view === 'day'
+        ? anchor.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })
+        : view === 'week'
+            ? `KW ${isoWeek(anchor)}`
+            : anchor.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    const navHoverLabel = view === 'day' ? 'Heute' : view === 'week' ? 'Aktuelle Woche' : 'Aktueller Monat';
+
     const openCreate = (start?: Date, end?: Date, allDay?: boolean) => {
         setEditEvent(null);
         setExternalEditCtx(null);
@@ -282,6 +297,32 @@ export default function CalendarPage({ employees, currentUser }: Props) {
 
     const allExternalEvents = [...visibleExternal, ...visibleTeamExternal];
 
+    // Tage mit mindestens einem sichtbaren Termin (eigene + Team + extern),
+    // inkl. mehrtägiger Termine — für die Punkte im Mini-Kalender der Sidebar.
+    const sidebarEventDates = (() => {
+        const set = new Set<string>();
+        const toKey = (d: Date) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const mark = (ev: { start_at: string; end_at?: string; all_day?: boolean }) => {
+            const start = new Date(ev.start_at);
+            if (isNaN(start.getTime())) return;
+            let end = ev.end_at ? new Date(ev.end_at) : new Date(start);
+            if (isNaN(end.getTime())) end = new Date(start);
+            // Ganztags-Termine haben ein exklusives Ende (Mitternacht) → 1 Tag zurück
+            if (ev.all_day && end > start && end.getHours() === 0 && end.getMinutes() === 0) {
+                end = new Date(end.getTime() - 1);
+            }
+            const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+            let guard = 0;
+            while (cur <= last && guard < 400) { set.add(toKey(cur)); cur.setDate(cur.getDate() + 1); guard++; }
+        };
+        for (const e of filteredOwnEvents) mark(e as any);
+        for (const e of coloredTeamEvents) mark(e as any);
+        for (const e of allExternalEvents) mark(e as any);
+        return set;
+    })();
+
     return (
         <div className="flex h-full overflow-hidden" style={{ background: 'var(--bg-app)' }}>
             <CalendarSidebar
@@ -295,7 +336,7 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                 externalCalendars={externalCalendars}
                 onToggleExternal={toggleExternal}
                 onRefreshExternals={refreshExternalCalendars}
-                ownEvents={ownEvents}
+                eventDates={sidebarEventDates}
                 showOwnEvents={showOwnEvents}
                 onToggleOwnEvents={() => setShowOwnEvents(x => !x)}
             />
@@ -362,9 +403,11 @@ export default function CalendarPage({ employees, currentUser }: Props) {
                     <PeriodNavigator
                         onPrev={() => navigate(-1)}
                         onNext={() => navigate(1)}
-                        centerLabel="Heute"
+                        centerLabel={navCenterLabel}
+                        hoverLabel={navHoverLabel}
                         onCenterClick={goToday}
-                        centerTitle="Zu heute springen"
+                        centerMinWidth={140}
+                        centerTitle="Zur aktuellen Periode springen"
                     />
 
                     <button onClick={() => openCreate()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"

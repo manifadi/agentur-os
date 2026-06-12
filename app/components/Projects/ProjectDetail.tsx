@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder, BarChart3, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder, BarChart3, ExternalLink, ListChecks, Receipt } from 'lucide-react';
+import ViewSwitcher from '../UI/ViewSwitcher';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate, ProjectLink } from '../../types';
 import { getStatusStyle, getStatusDot, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
 import { toast } from 'sonner';
@@ -893,25 +894,15 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 <div>
                     {/* Sub-navigation pills + Stundensätze trigger */}
                     <div className="flex items-center justify-between mb-6">
-                        <div className="flex gap-1.5 p-1 bg-subtle rounded-xl w-fit border border-default">
-                            {([
-                                { id: 'leistungen', label: 'Leistungen' },
-                                { id: 'angebot', label: 'Angebot' },
-                                { id: 'rechnung', label: 'Rechnung' },
-                            ] as const).map(({ id, label }) => (
-                                <button
-                                    key={id}
-                                    onClick={() => setKalkulationView(id)}
-                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                        kalkulationView === id
-                                            ? 'bg-surface text-text-primary shadow-sm border border-default'
-                                            : 'text-text-muted hover:text-text-primary'
-                                    }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
+                        <ViewSwitcher
+                            options={[
+                                { value: 'leistungen', label: 'Leistungen', icon: ListChecks },
+                                { value: 'angebot', label: 'Angebot', icon: FileText },
+                                { value: 'rechnung', label: 'Rechnung', icon: Receipt },
+                            ]}
+                            value={kalkulationView}
+                            onChange={setKalkulationView}
+                        />
                         <button
                             onClick={() => setShowRatesSidebar(true)}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-default bg-surface text-xs font-bold text-text-secondary hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all shadow-sm"

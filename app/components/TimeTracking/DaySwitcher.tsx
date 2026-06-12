@@ -4,9 +4,13 @@ import PeriodNavigator from '../UI/PeriodNavigator';
 interface DaySwitcherProps {
     currentDate: Date;
     onDateChange: (date: Date) => void;
+    /** Tage (Key `YYYY-MM-DD`) mit mindestens einem Zeit-Eintrag → Punkt darunter */
+    markedDates?: Set<string>;
 }
 
-export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherProps) {
+export default function DaySwitcher({ currentDate, onDateChange, markedDates }: DaySwitcherProps) {
+    const dateKey = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     // 1. Calculate Monday of the current week (view)
     // Note: We use 'currentDate' as the anchor. If user selects a day, that day is in the view.
     const weekStart = useMemo(() => {
@@ -77,8 +81,9 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
                 onPrev={handlePrevWeek}
                 onNext={handleNextWeek}
                 centerLabel={`KW ${currentWeek} · ${currentYear}`}
+                hoverLabel="Aktuelle Woche"
                 onCenterClick={() => onDateChange(new Date())}
-                centerMinWidth={108}
+                centerMinWidth={128}
                 centerTitle="Zur aktuellen Woche springen"
                 prevTitle="Vorherige Woche"
                 nextTitle="Nächste Woche"
@@ -97,6 +102,7 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
                     const isSelected = isSameDay(date, currentDate);
                     const isToday    = isSameDay(date, new Date());
                     const isWeekend  = date.getDay() === 0 || date.getDay() === 6;
+                    const hasEntry   = !!markedDates?.has(dateKey(date));
 
                     const baseStyle: React.CSSProperties = {
                         cursor: 'pointer',
@@ -144,6 +150,18 @@ export default function DaySwitcher({ currentDate, onDateChange }: DaySwitcherPr
                             </span>
                             <span className="text-[13px] font-semibold leading-none">
                                 {date.getDate()}
+                            </span>
+                            {/* Punkt für Tage mit Einträgen */}
+                            <span className="h-1.5 mt-1 flex items-center justify-center">
+                                {hasEntry && (
+                                    <span
+                                        className="w-1 h-1 rounded-full"
+                                        style={{
+                                            background: isSelected ? 'var(--accent-text)' : 'var(--accent)',
+                                            opacity: isSelected ? 0.85 : 1,
+                                        }}
+                                    />
+                                )}
                             </span>
                         </button>
                     );

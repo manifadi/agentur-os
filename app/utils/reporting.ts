@@ -1,4 +1,4 @@
-import { TimeEntry, Employee, Project } from '../types';
+import { TimeEntry, Employee, Project, AttendanceEntry } from '../types';
 
 // ── Date helpers ──────────────────────────────────────────────────
 
@@ -149,6 +149,64 @@ export function aggregatePeriod(
     };
 }
 
+// ── Anwesenheitszeit (Stempeluhr) ─────────────────────────────────
+
+/** Dauer einer Stempel-Session in Stunden. Offene Session bis `now`. */
+export function attendanceHours(entry: AttendanceEntry, now: Date = new Date()): number {
+    const start = new Date(entry.clock_in).getTime();
+    const end = entry.clock_out ? new Date(entry.clock_out).getTime() : now.getTime();
+    const ms = Math.max(0, end - start);
+    return ms / 3_600_000;
+}
+
+export interface AttendanceDay {
+    date: string;            // ISO YYYY-MM-DD (nach clock_in)
+    hours: number;
+    sessions: AttendanceEntry[];
+}
+
+export interface AttendanceStats {
+    totalHours: number;
+    days: AttendanceDay[];
+    sessions: AttendanceEntry[]; // alle im Zeitraum, chronologisch
+}
+
+/** Aggregiert Stempel-Sessions deren clock_in im Zeitraum [from,to] liegt. */
+export function aggregateAttendance(
+    entries: AttendanceEntry[],
+    from: Date,
+    to: Date,
+    now: Date = new Date(),
+): AttendanceStats {
+    const inRange = entries
+        .filter(e => {
+            const d = new Date(e.clock_in);
+            return d >= from && d <= to;
+        })
+        .sort((a, b) => a.clock_in.localeCompare(b.clock_in));
+
+    const dayMap = new Map<string, AttendanceDay>();
+    let totalHours = 0;
+    for (const e of inRange) {
+        const h = attendanceHours(e, now);
+        totalHours += h;
+        const key = isoDate(new Date(e.clock_in));
+        const bucket = dayMap.get(key);
+        if (bucket) {
+            bucket.hours += h;
+            bucket.sessions.push(e);
+        } else {
+            dayMap.set(key, { date: key, hours: h, sessions: [e] });
+        }
+    }
+
+    return {
+        totalHours,
+        days: Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
+        sessions: inRange,
+    };
+}
+
 export function countBusinessDays(from: Date, to: Date): number {
     let count = 0;
     const cursor = new Date(from);
@@ -179,6 +237,54 @@ export function buildCsv(entries: TimeEntry[], employee: Employee, projects: Pro
             (proj as any)?.clients?.name || '',
             String(e.hours).replace('.', ','),
             (e.description || '').replace(/\n/g, ' '),
+        ]);
+    }
+    return rows.map(r => r.map(csvEscape).join(';')).join('\r\n');
+}
+
+/** CSV für Projektzeit-Einträge mehrerer Mitarbeiter (Projekt-/Kunden-Reporting).
+ *  Nutzt die jointen Felder (e.employees, e.projects) — fällt auf Maps zurück. */
+export function buildTimeEntriesCsv(
+    entries: TimeEntry[],
+    employees: Employee[] = [],
+    projects: Project[] = [],
+): string {
+    const rows: string[][] = [];
+    rows.push(['Datum', 'Mitarbeiter', 'Projekt', 'Kunde', 'Stunden', 'Beschreibung']);
+    const empById = new Map(employees.map(e => [e.id, e]));
+    const projById = new Map(projects.map(p => [p.id, p]));
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+    for (const e of sorted) {
+        const proj = e.projects || projById.get(e.project_id);
+        const empName = (e as any).employees?.name || empById.get(e.employee_id)?.name || '';
+        rows.push([
+            e.date.slice(0, 10),
+            empName,
+            proj?.title || '',
+            (proj as any)?.clients?.name || '',
+            String(e.hours).replace('.', ','),
+            (e.description || '').replace(/\n/g, ' '),
+        ]);
+    }
+    return rows.map(r => r.map(csvEscape).join(';')).join('\r\n');
+}
+
+/** CSV für Anwesenheits-Sessions (Stempeluhr). */
+export function buildAttendanceCsv(sessions: AttendanceEntry[], employeeName: string): string {
+    const rows: string[][] = [];
+    rows.push(['Datum', 'Mitarbeiter', 'Einstempeln', 'Ausstempeln', 'Dauer (h)', 'Notiz']);
+    const time = (iso?: string | null) => iso
+        ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+        : '';
+    const sorted = [...sessions].sort((a, b) => a.clock_in.localeCompare(b.clock_in));
+    for (const s of sorted) {
+        rows.push([
+            isoDate(new Date(s.clock_in)),
+            employeeName,
+            time(s.clock_in),
+            time(s.clock_out),
+            attendanceHours(s).toFixed(2).replace('.', ','),
+            (s.note || '').replace(/\n/g, ' '),
         ]);
     }
     return rows.map(r => r.map(csvEscape).join(';')).join('\r\n');

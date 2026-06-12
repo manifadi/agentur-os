@@ -7,6 +7,7 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import InvoicePDF from '../Contracts/InvoicePDF';
 import ContactModal from '../Modals/ContactModal';
 import ConfirmModal from '../Modals/ConfirmModal';
+import TemplateSelect from '../UI/TemplateSelect';
 import { toast } from 'sonner';
 
 interface ProjectInvoiceTabProps {
@@ -533,10 +534,10 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Einleitungstext</label>
-                                <select className="text-xs border border-default bg-subtle text-text-primary rounded-lg py-1 px-2 focus:ring-1 focus:ring-accent" onChange={(e) => setIntroText(fillPlaceholders(e.target.value, recipientContact, project.clients || null))} value="">
-                                    <option value="" disabled>Vorlage…</option>
-                                    {templates.map(t => <option key={t.id} value={t.content}>{t.name}</option>)}
-                                </select>
+                                <TemplateSelect
+                                    templates={templates}
+                                    onSelect={(content) => setIntroText(fillPlaceholders(content, recipientContact, project.clients || null))}
+                                />
                             </div>
                             <textarea
                                 value={introText}
@@ -554,10 +555,10 @@ export default function ProjectInvoiceTab({ project, agencySettings, templates, 
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Schlusstext</label>
-                                <select className="text-xs border border-default bg-subtle text-text-primary rounded-lg py-1 px-2 focus:ring-1 focus:ring-accent" onChange={(e) => setOutroText(fillPlaceholders(e.target.value, recipientContact, project.clients || null))} value="">
-                                    <option value="" disabled>Vorlage…</option>
-                                    {templates.map(t => <option key={t.id} value={t.content}>{t.name}</option>)}
-                                </select>
+                                <TemplateSelect
+                                    templates={templates}
+                                    onSelect={(content) => setOutroText(fillPlaceholders(content, recipientContact, project.clients || null))}
+                                />
                             </div>
                             <textarea
                                 value={outroText}

@@ -1,10 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 // @ts-ignore
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Employee, Project, Todo, TimeEntry, DashboardConfig, WidgetId, DashboardWidgetConfig } from '../../types';
-import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2, Filter, Layout, FolderOpen } from 'lucide-react';
+import { CheckSquare, Briefcase, Clock, Calendar, ArrowRight, Check, Plus, Search, Settings2, Minus, Star, Users, Briefcase as BriefcaseIcon, CheckCircle2, Filter, Layout, FolderOpen, Timer, Play, Square } from 'lucide-react';
 import { getStatusStyle, getDeadlineColorClass } from '../../utils';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../supabaseClient';
@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ConfirmModal from '../Modals/ConfirmModal';
 import { DashboardSkeleton } from '../UI/Skeleton';
+import { attendanceHours } from '../../utils/reporting';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -52,6 +53,14 @@ const DEFAULT_WIDGETS: DashboardWidgetConfig[] = [
 
 const MIN_W = 2;
 const MIN_H = 3;
+
+// Widget → benötigtes Feature-Flag. Widgets ohne Eintrag sind Kern-Funktionen
+// und immer verfügbar. Ist das Feature für die Agentur (über die Admin-Konsole)
+// nicht freigeschaltet, erscheint weder Widget noch Galerie-Eintrag.
+const WIDGET_FEATURE: Partial<Record<WidgetId, string>> = {
+    resource_planning: 'resource_planning',
+    calendar: 'calendar_sync',
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────
 function getGreeting(): string {
@@ -107,7 +116,7 @@ function migrateConfig(savedWidgets: any[]): DashboardWidgetConfig[] {
 // ─── Component ────────────────────────────────────────────────────
 export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAction }: UserDashboardProps) {
     const router = useRouter();
-    const { currentUser, employees, projects, allocations, members, timeEntries, fetchData, loading } = useApp();
+    const { currentUser, employees, projects, allocations, members, timeEntries, fetchData, loading, attendanceToday, openAttendance, clockIn, clockOut, isFeatureEnabled } = useApp();
     const [showAddTimeModal, setShowAddTimeModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [showGallery, setShowGallery] = useState(false); // Widget gallery
@@ -217,6 +226,20 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
         return todayEntries.reduce((acc: number, t: any) => acc + (Number(t.hours) || 0), 0);
     }, [todayEntries]);
 
+    // Stempeluhr: live tickender Timer, nur während einer offenen Session
+    const [nowTick, setNowTick] = useState(() => Date.now());
+    useEffect(() => {
+        if (!openAttendance) return;
+        const id = setInterval(() => setNowTick(Date.now()), 1000);
+        return () => clearInterval(id);
+    }, [openAttendance]);
+
+    // Heute eingestempelte Gesamtzeit (alle Sessions, offene bis jetzt)
+    const attendanceTotalToday = useMemo(() => {
+        const now = new Date(nowTick);
+        return (attendanceToday || []).reduce((acc, e) => acc + attendanceHours(e, now), 0);
+    }, [attendanceToday, nowTick]);
+
     const deadlines = projects
         .filter(p => {
             if (!p.deadline) return false;
@@ -259,7 +282,8 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
         { id: 'assigned_todos', title: 'Zugewiesene To-Dos', icon: CheckSquare, color: 'blue' },
         { id: 'private_todos', title: 'Private To-Do-Liste', icon: CheckSquare, color: 'green' },
         { id: 'resource_planning', title: 'Wochenplan', icon: Calendar, color: 'purple' },
-        { id: 'time_tracking', title: 'Stundenerfassung', icon: Clock, color: 'blue' }
+        { id: 'time_tracking', title: 'Stundenerfassung', icon: Clock, color: 'blue' },
+        { id: 'time_clock', title: 'Stempeluhr', icon: Timer, color: 'green' }
     ];
 
     // ─── Config & Layout ──────────────────────────────────────────
@@ -269,9 +293,27 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
         return migrateConfig(widgets);
     }, [currentUser]);
 
+    // Widget nur erlaubt, wenn es kein Feature-Flag braucht oder dieses für die
+    // Agentur freigeschaltet ist.
+    const allowedWidget = useCallback(
+        (id: WidgetId) => { const f = WIDGET_FEATURE[id]; return !f || isFeatureEnabled(f); },
+        [isFeatureEnabled],
+    );
+    // Sichtbar = gespeichert UND freigeschaltet (gesperrte bleiben in der Config
+    // erhalten, werden nur nicht gerendert).
+    const visibleWidgets = useMemo(
+        () => currentWidgets.filter(w => allowedWidget(w.id)),
+        [currentWidgets, allowedWidget],
+    );
+    // Galerie zeigt nur freigeschaltete, noch nicht platzierte Widgets.
+    const availableWidgets = useMemo(
+        () => allAvailableWidgets.filter(w => allowedWidget(w.id as WidgetId)),
+        [allowedWidget],
+    );
+
     // Sync layoutState with currentWidgets on load/change
     useEffect(() => {
-        const initialLayout: RGLLayoutItem[] = currentWidgets.map(w => ({
+        const initialLayout: RGLLayoutItem[] = visibleWidgets.map(w => ({
             i: w.id,
             x: w.x,
             y: w.y,
@@ -281,7 +323,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             minH: MIN_H
         }));
         setLayoutState(initialLayout);
-    }, [currentWidgets]);
+    }, [visibleWidgets]);
 
     // Persist default config for users with no saved layout
     useEffect(() => {
@@ -311,9 +353,14 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             h: l.h
         }));
 
+        // Gesperrte (nicht gerenderte) Widgets erhalten — sonst gingen sie beim
+        // Umsortieren verloren und wären nach Re-Aktivierung des Features weg.
+        const hiddenWidgets = currentWidgets.filter(w => !allowedWidget(w.id));
+        const merged = [...newWidgets, ...hiddenWidgets];
+
         const { error } = await supabase
             .from('employees')
-            .update({ dashboard_config: { widgets: newWidgets } })
+            .update({ dashboard_config: { widgets: merged } })
             .eq('id', currentUser.id);
 
         if (!error) fetchData();
@@ -415,6 +462,61 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                         </div>
                     </div>
                 );
+            case 'time_clock': {
+                const elapsed = openAttendance ? attendanceHours(openAttendance, new Date(nowTick)) : 0;
+                const fmtHms = (h: number) => {
+                    const total = Math.floor(h * 3600);
+                    const hh = Math.floor(total / 3600);
+                    const mm = Math.floor((total % 3600) / 60);
+                    const ss = total % 60;
+                    const p = (n: number) => String(n).padStart(2, '0');
+                    return `${p(hh)}:${p(mm)}:${p(ss)}`;
+                };
+                const fmtHm = (iso?: string | null) => iso
+                    ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                const isIn = !!openAttendance;
+                return (
+                    <div className="h-full flex flex-col items-center justify-center text-center px-2">
+                        {/* Status-Dot */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className={`w-2 h-2 rounded-full ${isIn ? 'bg-green-500 animate-pulse' : 'bg-text-placeholder'}`} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                                {isIn ? 'Eingestempelt' : 'Ausgestempelt'}
+                            </span>
+                        </div>
+
+                        {/* Großer Timer */}
+                        <div className={`font-black tabular-nums tracking-tight ${isIn ? 'text-text-primary' : 'text-text-placeholder'} text-4xl`}>
+                            {isIn ? fmtHms(elapsed) : fmtHms(0)}
+                        </div>
+                        {isIn && openAttendance && (
+                            <div className="text-[11px] text-text-muted mt-1">
+                                seit {fmtHm(openAttendance.clock_in)} Uhr
+                            </div>
+                        )}
+
+                        {/* Ein-/Ausstempeln */}
+                        <button
+                            onClick={() => { isIn ? clockOut() : clockIn(); }}
+                            className={`mt-5 flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-lg ${
+                                isIn
+                                    ? 'bg-red-500 text-white hover:brightness-110 shadow-red-500/20'
+                                    : 'bg-green-500 text-white hover:brightness-110 shadow-green-500/20'
+                            }`}
+                        >
+                            {isIn ? <Square size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
+                            {isIn ? 'Ausstempeln' : 'Einstempeln'}
+                        </button>
+
+                        {/* Heute gesamt */}
+                        <div className="mt-5 pt-4 border-t border-default w-full max-w-[200px]">
+                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Heute gesamt</div>
+                            <div className="text-lg font-black text-text-primary tabular-nums">{attendanceTotalToday.toFixed(2)} h</div>
+                        </div>
+                    </div>
+                );
+            }
             case 'time_tracking':
                 return (
                     <div className="h-full flex flex-col">
@@ -731,7 +833,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                     containerPadding={[0, 0]}
                     draggableHandle=".drag-handle"
                 >
-                    {currentWidgets.map(widget => {
+                    {visibleWidgets.map(widget => {
                         const info = allAvailableWidgets.find(i => i.id === widget.id);
                         if (!info) return <div key={widget.id} data-grid={{ x: 0, y: 0, w: 4, h: 6 }}>Unknown Widget</div>;
 
@@ -828,7 +930,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                 </ResponsiveGridLayout>
 
                 {/* Empty State — shown only when user has explicitly removed every widget */}
-                {currentWidgets.length === 0 && (
+                {visibleWidgets.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-default rounded-[32px] gap-6 animate-in fade-in duration-300">
                         <div className="w-16 h-16 rounded-3xl bg-subtle border border-default flex items-center justify-center">
                             <Layout size={28} className="text-text-placeholder" />
@@ -856,7 +958,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                             <button onClick={() => setShowGallery(false)} className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center hover:bg-hover"><Plus size={24} className="rotate-45" /></button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {allAvailableWidgets.filter(w => !currentWidgets.find(cw => cw.id === w.id)).map(w => (
+                            {availableWidgets.filter(w => !currentWidgets.find(cw => cw.id === w.id)).map(w => (
                                 <button key={w.id} onClick={() => handleAddWidget(w.id as WidgetId)} className="flex items-center gap-4 p-6 rounded-3xl border-2 border-default hover:border-accent hover:bg-accent-subtle/30 transition-all text-left group">
                                     <div className={`w-12 h-12 rounded-2xl bg-${w.color}-500/10 text-${w.color}-500 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                                         <w.icon size={24} />

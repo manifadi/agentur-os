@@ -292,8 +292,9 @@ export default function ResourcePlanner({ employees: propsEmployees, projects, c
                         onPrev={() => changeWeek(-1)}
                         onNext={() => changeWeek(1)}
                         centerLabel={`KW ${currentWeek} · ${currentYear}`}
+                        hoverLabel="Aktuelle Woche"
                         onCenterClick={() => setCurrentDate(new Date())}
-                        centerMinWidth={112}
+                        centerMinWidth={128}
                         centerTitle="Zur aktuellen Woche springen"
                     />
 

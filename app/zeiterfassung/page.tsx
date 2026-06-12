@@ -19,6 +19,7 @@ export default function ZeiterfassungPage() {
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [entries, setEntries] = useState<TimeEntry[]>([]);
+    const [entryDates, setEntryDates] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
 
     // Modal State
@@ -29,6 +30,7 @@ export default function ZeiterfassungPage() {
     useEffect(() => {
         if (currentUser) {
             fetchEntries();
+            fetchWeekEntryDates();
 
             // Realtime listener for time entries of the current user
             const channel = supabase
@@ -41,7 +43,7 @@ export default function ZeiterfassungPage() {
                         table: 'time_entries',
                         filter: `employee_id=eq.${currentUser.id}`
                     },
-                    () => fetchEntries()
+                    () => { fetchEntries(); fetchWeekEntryDates(); }
                 )
                 .subscribe();
 
@@ -50,6 +52,31 @@ export default function ZeiterfassungPage() {
             };
         }
     }, [currentDate, currentUser]);
+
+    // Lokaler Datums-Key (YYYY-MM-DD) — matcht die gespeicherte date-Spalte
+    const isoLocal = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    // Tage der sichtbaren Woche (Mo–So) mit mindestens einem Eintrag — für die
+    // Punkte unter den Tagen im DaySwitcher.
+    const fetchWeekEntryDates = async () => {
+        if (!currentUser) return;
+        const d = new Date(currentDate);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Montag
+        const start = new Date(d.getFullYear(), d.getMonth(), diff);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+
+        const { data } = await supabase
+            .from('time_entries')
+            .select('date')
+            .eq('employee_id', currentUser.id)
+            .gte('date', isoLocal(start))
+            .lte('date', isoLocal(end));
+
+        setEntryDates(new Set((data || []).map((r: any) => String(r.date).slice(0, 10))));
+    };
 
     const fetchEntries = async () => {
         if (!currentUser) return;
@@ -107,7 +134,7 @@ export default function ZeiterfassungPage() {
                             Stunden erfassen & überblicken
                         </p>
                     </div>
-                    <DaySwitcher currentDate={currentDate} onDateChange={setCurrentDate} />
+                    <DaySwitcher currentDate={currentDate} onDateChange={setCurrentDate} markedDates={entryDates} />
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-8 bg-subtle/30">

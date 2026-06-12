@@ -7,6 +7,7 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import ContractPDF from '../Contracts/ContractPDF';
 import ContactModal from '../Modals/ContactModal';
 import ConfirmModal from '../Modals/ConfirmModal';
+import TemplateSelect from '../UI/TemplateSelect';
 import { toast } from 'sonner';
 
 interface ProjectContractTabProps {
@@ -213,14 +214,11 @@ export default function ProjectContractTab({ project, agencySettings, templates,
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Einleitungstext</label>
-                            <select
-                                className="text-xs border border-default rounded-lg py-1 px-2 bg-subtle text-text-primary focus:ring-1 focus:ring-accent"
-                                onChange={(e) => applyTemplate('intro', e.target.value)}
-                                value=""
-                            >
-                                <option value="" disabled>Vorlage wählen…</option>
-                                {templates.filter(t => t.type === 'intro').map(t => <option key={t.id} value={t.content}>{t.name}</option>)}
-                            </select>
+                            <TemplateSelect
+                                templates={templates.filter(t => t.type === 'intro')}
+                                onSelect={(content) => applyTemplate('intro', content)}
+                                emptyHint="Noch keine Einleitungs-Vorlagen"
+                            />
                         </div>
                         <textarea
                             value={contractIntro}
@@ -242,14 +240,11 @@ export default function ProjectContractTab({ project, agencySettings, templates,
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Schlusstext / AGB</label>
-                            <select
-                                className="text-xs border border-default rounded-lg py-1 px-2 bg-subtle text-text-primary focus:ring-1 focus:ring-accent"
-                                onChange={(e) => applyTemplate('outro', e.target.value)}
-                                value=""
-                            >
-                                <option value="" disabled>Vorlage wählen…</option>
-                                {templates.filter(t => t.type === 'outro').map(t => <option key={t.id} value={t.content}>{t.name}</option>)}
-                            </select>
+                            <TemplateSelect
+                                templates={templates.filter(t => t.type === 'outro')}
+                                onSelect={(content) => applyTemplate('outro', content)}
+                                emptyHint="Noch keine Schlusstexte / Abbinder"
+                            />
                         </div>
                         <textarea
                             value={contractOutro}

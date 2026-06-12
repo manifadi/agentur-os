@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -17,6 +17,10 @@ interface PeriodNavigatorProps {
     onPrev: () => void;
     onNext: () => void;
     centerLabel: string;
+    /** Beim Hovern über das (klickbare) Center gezeigter Text, z.B.
+     *  "Aktuelle Woche" / "Aktueller Monat" / "Heute" — signalisiert,
+     *  dass ein Klick zur aktuellen Periode zurückspringt. */
+    hoverLabel?: string;
     onCenterClick?: () => void;
     /** "auto" wählt die Breite automatisch, sonst feste min-width für Stabilität */
     centerMinWidth?: number;
@@ -28,7 +32,7 @@ interface PeriodNavigatorProps {
 }
 
 export default function PeriodNavigator({
-    onPrev, onNext, centerLabel, onCenterClick,
+    onPrev, onNext, centerLabel, hoverLabel, onCenterClick,
     centerMinWidth = 88,
     size = 'md',
     prevTitle = 'Vorheriger Zeitraum',
@@ -42,6 +46,8 @@ export default function PeriodNavigator({
     const fontSize  = size === 'sm' ? 'text-[11px]' : 'text-[12px]';
 
     const interactive = !!onCenterClick;
+    const [hovered, setHovered] = useState(false);
+    const showHover = interactive && !!hoverLabel && hovered;
 
     return (
         <div
@@ -71,14 +77,14 @@ export default function PeriodNavigator({
                 title={centerTitle}
                 className={`${centerPad} rounded-lg ${fontSize} font-semibold whitespace-nowrap transition-colors text-center`}
                 style={{
-                    color: 'var(--text-primary)',
+                    color: showHover ? 'var(--accent)' : 'var(--text-primary)',
                     minWidth: centerMinWidth,
                     cursor: interactive ? 'pointer' : 'default',
                 }}
-                onMouseEnter={e => { if (interactive) (e.currentTarget.style.background = 'var(--bg-hover)'); }}
-                onMouseLeave={e => { if (interactive) (e.currentTarget.style.background = ''); }}
+                onMouseEnter={e => { if (interactive) { setHovered(true); e.currentTarget.style.background = 'var(--bg-hover)'; } }}
+                onMouseLeave={e => { if (interactive) { setHovered(false); e.currentTarget.style.background = ''; } }}
             >
-                {centerLabel}
+                {showHover ? hoverLabel : centerLabel}
             </button>
 
             <button
