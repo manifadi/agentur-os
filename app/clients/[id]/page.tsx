@@ -789,7 +789,7 @@ export default function ClientDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Total Revenue */}
                     <div className="bg-surface rounded-2xl border border-default shadow-sm p-6 flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-success-subtle)', color: 'var(--color-success-text)' }}>
                             <TrendingUp size={22} strokeWidth={2.5} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -801,7 +801,10 @@ export default function ClientDetailPage() {
 
                     {/* Open Invoices */}
                     <div className="bg-surface rounded-2xl border border-default shadow-sm p-6 flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${openInvoices.length > 0 ? 'bg-orange-500/10 text-orange-600' : 'bg-subtle text-text-muted'}`}>
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                            style={openInvoices.length > 0
+                                ? { background: 'var(--color-warning-subtle)', color: 'var(--color-warning-text)' }
+                                : { background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
                             <Receipt size={22} strokeWidth={2.5} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -903,7 +906,7 @@ export default function ClientDetailPage() {
                                                             <div className={`w-2 h-2 rounded-full ${getStatusDot(p.status)}`} />
                                                             <span className="text-sm font-bold text-text-primary flex-1 truncate group-hover:text-accent transition-colors">{p.title}</span>
                                                             <span className="text-[10px] font-bold text-text-muted">{p.job_number}</span>
-                                                            <span className={`text-xs font-bold ${isOverdue ? 'text-red-500' : 'text-text-muted'}`}>{new Date(p.deadline!).toLocaleDateString('de-DE')}</span>
+                                                            <span className="text-xs font-bold" style={{ color: isOverdue ? 'var(--color-danger)' : 'var(--text-muted)' }}>{new Date(p.deadline!).toLocaleDateString('de-DE')}</span>
                                                             <ArrowRight size={14} className="text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity" />
                                                         </button>
                                                     );
@@ -1041,7 +1044,10 @@ export default function ClientDetailPage() {
                                                             onClick={() => router.push(`/uebersicht?projectId=${inv.project_id}`)}
                                                             className="group w-full flex items-center gap-4 p-4 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
                                                         >
-                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isFinal ? 'bg-green-500/10 text-green-600' : 'bg-orange-500/10 text-orange-600'}`}>
+                                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                                                                style={isFinal
+                                                                    ? { background: 'var(--color-success-subtle)', color: 'var(--color-success-text)' }
+                                                                    : { background: 'var(--color-warning-subtle)', color: 'var(--color-warning-text)' }}>
                                                                 {isFinal ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
@@ -1116,14 +1122,20 @@ export default function ClientDetailPage() {
                                             {activityTimeline.map(event => {
                                                 const eventIcon = event.type === 'log' ? FileText : event.type === 'project_created' ? Briefcase : event.type === 'invoice_finalized' ? CheckCircle2 : Receipt;
                                                 const Icon = eventIcon;
-                                                const iconColor = event.type === 'log' ? 'bg-blue-500/10 text-blue-600' : event.type === 'project_created' ? 'bg-accent-subtle/30 text-accent' : event.type === 'invoice_finalized' ? 'bg-green-500/10 text-green-600' : 'bg-orange-500/10 text-orange-600';
+                                                const iconStyle: React.CSSProperties = event.type === 'log'
+                                                    ? { background: 'var(--color-info-subtle)', color: 'var(--color-info-text)' }
+                                                    : event.type === 'project_created'
+                                                        ? { background: 'var(--accent-subtle)', color: 'var(--accent)' }
+                                                        : event.type === 'invoice_finalized'
+                                                            ? { background: 'var(--color-success-subtle)', color: 'var(--color-success-text)' }
+                                                            : { background: 'var(--color-warning-subtle)', color: 'var(--color-warning-text)' };
                                                 const isLog = event.type === 'log';
                                                 const logRef = isLog ? logs.find(l => `log-${l.id}` === event.id) : null;
                                                 const isEditingThis = logRef && editingLogId === logRef.id;
 
                                                 return (
                                                     <div key={event.id} className="group relative pl-12">
-                                                        <div className={`absolute left-0 top-0 w-8 h-8 rounded-xl flex items-center justify-center ${iconColor}`}>
+                                                        <div className="absolute left-0 top-0 w-8 h-8 rounded-xl flex items-center justify-center" style={iconStyle}>
                                                             <Icon size={14} />
                                                         </div>
                                                         <div className="flex items-start justify-between mb-1">
@@ -1138,7 +1150,7 @@ export default function ClientDetailPage() {
                                                             {isLog && logRef && (isAdmin || currentUser?.id === logRef.author_id) && !editingLogId && (
                                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
                                                                     <button onClick={() => { setEditingLogId(logRef.id); setEditLogData({ title: logRef.title, content: logRef.content }) }} className="p-1 text-text-placeholder hover:text-text-primary"><Edit2 size={12} /></button>
-                                                                    <button onClick={() => handleDeleteLog(logRef.id)} className="p-1 text-text-placeholder hover:text-red-500"><Trash size={12} /></button>
+                                                                    <button onClick={() => handleDeleteLog(logRef.id)} className="p-1 text-text-placeholder hover:text-[color:var(--color-danger)]"><Trash size={12} /></button>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1295,7 +1307,7 @@ export default function ClientDetailPage() {
                                                 <Edit2 size={14} />
                                             </button>
                                             {(isAdmin || currentUser?.role === 'admin') && (
-                                                <button onClick={() => handleDeleteContact(contact.id)} className="p-1.5 text-text-placeholder hover:text-red-500 transition" title="Kontakt löschen">
+                                                <button onClick={() => handleDeleteContact(contact.id)} className="p-1.5 text-text-placeholder hover:text-[color:var(--color-danger)] transition" title="Kontakt löschen">
                                                     <Trash size={14} />
                                                 </button>
                                             )}
@@ -1319,8 +1331,8 @@ export default function ClientDetailPage() {
                                                 </a>
                                             )}
                                             {contact.phone && (
-                                                <a href={`tel:${contact.phone}`} className="flex items-center gap-2 text-xs text-text-secondary hover:text-green-600 transition group/link">
-                                                    <Phone size={12} className="text-text-placeholder group-hover/link:text-green-500" />
+                                                <a href={`tel:${contact.phone}`} className="flex items-center gap-2 text-xs text-text-secondary hover:text-[color:var(--color-success)] transition group/link">
+                                                    <Phone size={12} className="text-text-placeholder group-hover/link:text-[color:var(--color-success)]" />
                                                     <span className="truncate">{contact.phone}</span>
                                                 </a>
                                             )}
