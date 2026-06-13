@@ -244,9 +244,11 @@ Das Produkt ist **bereits clean und Apple-nah**; die größten Gewinne liegen in
 ### ⚡ Quick Wins (klein, hohe Konsistenz-Wirkung)
 1. ✅ **Dynamische Tailwind-Farbklassen** (Prod-Bug) — *erledigt, commit `7ceb40b`*.
 2. ✅ **PM-Leerzustand** Projektliste — *erledigt, commit `7ceb40b`*.
-3. **Systemweite Farb-Token-Map** statt `*-500`-Literalfarben (clients-Cockpit zuerst, dann ProjectDetail/Dashboard/GlobalTasks). Eine `STATUS_COLORS`/`ACCENT_COLORS`-Map auf `--color-*`-Tokens → dark-/akzent-aware, ruhiger.
-4. **Eigene Segmented-Controls → `ViewSwitcher`** (GlobalTasks u.a.) und **bespoke Buttons → `.btn-*`** (überall).
-5. **Inline-SVGs → lucide-Icons** (ProjectDetail-Status-Dropdown).
+3. ✅ **Farb-Tokens statt `*-500`-Literalfarben** — *erledigt für die Haupt-Hotspots: Kunden-Cockpit (`7c50dc2`), ProjectDetail + GlobalTasks (`c4f4f79`).* Rest: Dashboard-Favoriten-Stern (bewusst gelb belassen) + „AKTIONEN"-Button-Casing (subjektiv, offen).
+4. ✅ **Segmented-Controls → `ViewSwitcher`** (GlobalTasks) + **bespoke Buttons → `.btn-secondary`** (Aufgaben „Historie", Projektliste „Weitere laden") — *erledigt `c4f4f79` / `81e0be8`*.
+5. ✅ **Inline-SVGs → lucide-Icons** (ProjectDetail-Status-Dropdown) — *erledigt `c4f4f79`*.
+
+> **Status:** Alle ⚡ Quick Wins umgesetzt & auf `main` (verifiziert mit tsc + 27 Tests + `next build`). Offen sind die 🏗️ größeren Umbauten unten.
 
 ### 🏗️ Größere Umbauten (planen)
 6. **Karten-Radius/Schatten-Skala vereinheitlichen** (Dashboard `rounded-[32px]`/Onboarding `rounded-3xl` vs. `.card`).
