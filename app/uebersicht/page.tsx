@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useApp } from '../context/AppContext';
 import DashboardView from '../components/Dashboard/DashboardView';
-import ProjectDetail from '../components/Projects/ProjectDetail';
 import TimeEntryModal from '../components/Modals/TimeEntryModal'; // NEW
 import ClientModal from '../components/Modals/ClientModal';
 import EmployeeModal from '../components/Modals/EmployeeModal';
@@ -15,6 +15,17 @@ import { Project, Client, Employee } from '../types';
 import { deleteFileFromSupabase, uploadFileToSupabase } from '../utils/supabaseUtils';
 import { toast } from 'sonner';
 import { usePageTitle } from '../hooks/usePageTitle';
+
+// Schwergewichtige Detailansicht (zieht @react-pdf/renderer) erst laden, wenn
+// ein Projekt geöffnet wird — hält das initiale /uebersicht-Bundle klein.
+const ProjectDetail = dynamic(() => import('../components/Projects/ProjectDetail'), {
+    ssr: false,
+    loading: () => (
+        <div className="flex items-center justify-center py-32 text-sm" style={{ color: 'var(--text-muted)' }}>
+            Projekt wird geladen…
+        </div>
+    ),
+});
 
 export default function UebersichtPage() {
     const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees, setProjects } = useApp();
