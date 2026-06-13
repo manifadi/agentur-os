@@ -9,6 +9,7 @@ import {
 import { supabase } from '../../supabaseClient';
 import TaskHistoryModal from './TaskHistoryModal';
 import MultiSelectDropdown, { MultiSelectItem } from '../Dashboard/MultiSelectDropdown';
+import ViewSwitcher from '../UI/ViewSwitcher';
 import UserAvatar from '../UI/UserAvatar';
 import ClientLogo from '../UI/ClientLogo';
 import { toast } from 'sonner';
@@ -283,20 +284,20 @@ export default function GlobalTasks({
             {/* ─── Stats row (clickable to switch view+filter) ── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard
-                    label="Überfällig" value={stats.overdue} icon={<Flame size={14} />} color="#EF4444"
+                    label="Überfällig" value={stats.overdue} icon={<Flame size={14} />} tone="danger"
                     onClick={() => setViewMode('today')}
                     active={viewMode === 'today' && stats.overdue > 0}
                 />
                 <StatCard
-                    label="Heute" value={stats.today} icon={<Star size={14} />} color="#F59E0B"
+                    label="Heute" value={stats.today} icon={<Star size={14} />} tone="warning"
                     onClick={() => setViewMode('today')}
                 />
                 <StatCard
-                    label="Diese Woche" value={stats.thisWeek} icon={<Calendar size={14} />} color="#3B82F6"
+                    label="Diese Woche" value={stats.thisWeek} icon={<Calendar size={14} />} tone="info"
                     onClick={() => setViewMode('today')}
                 />
                 <StatCard
-                    label="Alle offen" value={stats.total} icon={<Inbox size={14} />} color="#6B7280"
+                    label="Alle offen" value={stats.total} icon={<Inbox size={14} />} tone="neutral"
                     onClick={() => setViewMode('list')}
                     active={viewMode === 'list'}
                 />
@@ -307,29 +308,27 @@ export default function GlobalTasks({
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
 
                 {/* View toggle */}
-                <div className="inline-flex p-0.5 rounded-xl"
-                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                    <SegmentButton active={viewMode === 'today'} onClick={() => setViewMode('today')}>
-                        <LayoutGrid size={13} /> Heute
-                    </SegmentButton>
-                    <SegmentButton active={viewMode === 'list'} onClick={() => setViewMode('list')}>
-                        <ListTree size={13} /> Liste
-                    </SegmentButton>
-                </div>
+                <ViewSwitcher<ViewMode>
+                    size="sm"
+                    options={[
+                        { value: 'today', label: 'Heute', icon: LayoutGrid },
+                        { value: 'list', label: 'Liste', icon: ListTree },
+                    ]}
+                    value={viewMode}
+                    onChange={setViewMode}
+                />
 
                 {/* Source toggle */}
-                <div className="inline-flex p-0.5 rounded-xl"
-                    style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                    <SegmentButton active={source === 'all'} onClick={() => setSource('all')}>
-                        Alle
-                    </SegmentButton>
-                    <SegmentButton active={source === 'project'} onClick={() => setSource('project')}>
-                        <Briefcase size={11} /> Projekt
-                    </SegmentButton>
-                    <SegmentButton active={source === 'private'} onClick={() => setSource('private')}>
-                        <User size={11} /> Privat
-                    </SegmentButton>
-                </div>
+                <ViewSwitcher<SourceFilter>
+                    size="sm"
+                    options={[
+                        { value: 'all', label: 'Alle' },
+                        { value: 'project', label: 'Projekt', icon: Briefcase },
+                        { value: 'private', label: 'Privat', icon: User },
+                    ]}
+                    value={source}
+                    onChange={setSource}
+                />
 
                 <div className="flex-1" />
 
@@ -443,45 +442,36 @@ export default function GlobalTasks({
 }
 
 // ─── Reusable: Stat card ──────────────────────────────────
-function StatCard({ label, value, icon, color, onClick, active }: {
-    label: string; value: number; icon: React.ReactNode; color: string;
+const STAT_TONE: Record<string, { accent: string; subtle: string }> = {
+    danger:  { accent: 'var(--color-danger)',  subtle: 'var(--color-danger-subtle)' },
+    warning: { accent: 'var(--color-warning)', subtle: 'var(--color-warning-subtle)' },
+    info:    { accent: 'var(--color-info)',    subtle: 'var(--color-info-subtle)' },
+    neutral: { accent: 'var(--text-muted)',    subtle: 'var(--bg-subtle)' },
+};
+
+function StatCard({ label, value, icon, tone, onClick, active }: {
+    label: string; value: number; icon: React.ReactNode; tone: keyof typeof STAT_TONE;
     onClick?: () => void; active?: boolean;
 }) {
+    const t = STAT_TONE[tone] || STAT_TONE.neutral;
     return (
         <button
             onClick={onClick}
             className="flex items-center gap-3 p-4 rounded-2xl transition-all text-left"
             style={{
                 background: 'var(--bg-card)',
-                border: `1px solid ${active ? color : 'var(--border-default)'}`,
-                boxShadow: active ? `0 0 0 2px ${color}20` : 'none',
+                border: `1px solid ${active ? t.accent : 'var(--border-default)'}`,
+                boxShadow: active ? `0 0 0 2px ${t.subtle}` : 'none',
             }}
         >
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${color}15`, color }}>
+                style={{ background: t.subtle, color: t.accent }}>
                 {icon}
             </div>
             <div>
                 <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</div>
                 <div className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{value}</div>
             </div>
-        </button>
-    );
-}
-
-// ─── Reusable: Segment toggle button ──────────────────────
-function SegmentButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-    return (
-        <button
-            onClick={onClick}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-            style={{
-                background: active ? 'var(--bg-surface)' : 'transparent',
-                color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: active ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-            }}
-        >
-            {children}
         </button>
     );
 }
@@ -722,7 +712,7 @@ function TaskRow({
                     {task.deadline && (
                         <>
                             <span>·</span>
-                            <span style={{ color: overdue && !isDone ? '#EF4444' : 'var(--text-muted)', fontWeight: overdue && !isDone ? 600 : 500 }}>
+                            <span style={{ color: overdue && !isDone ? 'var(--color-danger)' : 'var(--text-muted)', fontWeight: overdue && !isDone ? 600 : 500 }}>
                                 {new Date(task.deadline).toLocaleDateString('de-DE')}
                             </span>
                         </>

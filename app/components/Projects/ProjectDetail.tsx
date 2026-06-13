@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder, BarChart3, ExternalLink, ListChecks, Receipt } from 'lucide-react';
+import { ArrowLeft, Trash2, Settings, FileText, Upload, Eye, X, Star, Layout, Clock, Copy, Plus, Calculator, Edit3, CheckSquare, Folder, BarChart3, ExternalLink, ListChecks, Receipt, ChevronDown, Check } from 'lucide-react';
 import ViewSwitcher from '../UI/ViewSwitcher';
 import { Project, Employee, Todo, ProjectLog, AgencySettings, OrganizationTemplate, ProjectLink } from '../../types';
 import { getStatusStyle, getStatusDot, getDeadlineColorClass, STATUS_OPTIONS } from '../../utils';
@@ -613,7 +613,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                     onClick={() => { handleTabChange('kalkulation'); setKalkulationView('leistungen'); setShowActionsMenu(false); }}
                                     className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--color-info-subtle)', color: 'var(--color-info-text)' }}>
                                         <Calculator size={13} />
                                     </div>
                                     Positionen bearbeiten
@@ -623,7 +623,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                     onClick={() => { setShowDuplicateModal(true); setShowActionsMenu(false); }}
                                     className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
-                                    <div className="w-7 h-7 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center shrink-0">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--color-success-subtle)', color: 'var(--color-success-text)' }}>
                                         <Copy size={13} />
                                     </div>
                                     Projekt kopieren
@@ -631,9 +631,10 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                 <div className="h-px bg-default my-1 mx-4" />
                                 <button
                                     onClick={() => { onDeleteProject(); setShowActionsMenu(false); }}
-                                    className="w-full text-left px-4 py-3 text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-3"
+                                    className="w-full text-left px-4 py-3 text-xs font-semibold hover:bg-[var(--color-danger-subtle)] transition-colors flex items-center gap-3"
+                                    style={{ color: 'var(--color-danger)' }}
                                 >
-                                    <div className="w-7 h-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--color-danger-subtle)', color: 'var(--color-danger)' }}>
                                         <Trash2 size={13} />
                                     </div>
                                     Projekt löschen
@@ -681,7 +682,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                         >
                             <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(project.status)}`} />
                             {project.status}
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-text-muted ml-0.5"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <ChevronDown size={12} className="text-text-muted ml-0.5" />
                         </button>
                         {isStatusDropdownOpen && (
                             <div className="absolute top-full left-0 mt-1.5 w-56 bg-surface rounded-xl shadow-lg border border-border-subtle py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
@@ -694,7 +695,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                         <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusDot(status)}`} />
                                         {status}
                                         {project.status === status && (
-                                            <svg className="ml-auto text-accent shrink-0" width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5L5 9.5L11 3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                            <Check size={13} className="ml-auto text-accent shrink-0" />
                                         )}
                                     </button>
                                 ))}
