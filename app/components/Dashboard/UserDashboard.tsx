@@ -850,7 +850,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                         if (!info) return <div key={widget.id} data-grid={{ x: 0, y: 0, w: 4, h: 6 }}>Unknown Widget</div>;
 
                         return (
-                            <div key={widget.id} className="group relative flex flex-col bg-surface rounded-[32px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-transparent dark:border-default hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.6)] transition-shadow">
+                            <div key={widget.id} className="group relative flex flex-col bg-surface rounded-3xl shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] border border-transparent dark:border-default transition-shadow">
                                 {/* Header */}
                                 <div className="p-6 pb-2 flex items-center gap-3 shrink-0 drag-handle !opacity-100 hover:!opacity-100 cursor-grab active:cursor-grabbing">
                                     <div className={`w-8 h-8 rounded-xl bg-accent-subtle/30 ${widgetIconColor(info.color)} flex items-center justify-center`}>
@@ -926,7 +926,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                 {/* Edit Mode Controls */}
                                 {isEditMode && (
                                     <>
-                                        <div className="absolute inset-0 border-2 border-accent/20 rounded-[32px] pointer-events-none" />
+                                        <div className="absolute inset-0 border-2 border-accent/20 rounded-3xl pointer-events-none" />
                                         <button
                                             onClick={() => handleRemoveWidget(widget.id)}
                                             className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform cursor-pointer z-50"
@@ -943,7 +943,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
 
                 {/* Empty State — shown only when user has explicitly removed every widget */}
                 {visibleWidgets.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-default rounded-[32px] gap-6 animate-in fade-in duration-300">
+                    <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-default rounded-3xl gap-6 animate-in fade-in duration-300">
                         <div className="w-16 h-16 rounded-3xl bg-subtle border border-default flex items-center justify-center">
                             <Layout size={28} className="text-text-placeholder" />
                         </div>
@@ -964,7 +964,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
             {/* Widget Gallery Modal */}
             {showGallery && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/40 backdrop-blur-md animate-in fade-in">
-                    <div className="bg-surface rounded-[40px] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 p-12 border border-default">
+                    <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 p-12 border border-default">
                         <div className="flex justify-between items-center mb-10">
                             <h2 className="text-3xl font-black text-text-primary">Widget hinzufügen</h2>
                             <button onClick={() => setShowGallery(false)} className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center hover:bg-hover"><Plus size={24} className="rotate-45" /></button>

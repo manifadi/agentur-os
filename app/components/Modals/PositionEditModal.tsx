@@ -34,7 +34,7 @@ export default function PositionEditModal({ isOpen, onClose, onSave, position }:
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-surface border border-default rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-surface border border-default rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6 border-b border-default flex justify-between items-center bg-surface sticky top-0 z-10">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-accent-subtle text-accent flex items-center justify-center">

@@ -99,7 +99,7 @@ export default function CalculationImportModal({ isOpen, onClose, onImport, curr
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-surface border border-default rounded-[32px] w-full max-w-4xl h-[85vh] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="bg-surface border border-default rounded-3xl w-full max-w-4xl h-[85vh] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-6 border-b border-default flex justify-between items-center bg-surface shrink-0">
                     <div className="flex items-center gap-3">
@@ -192,7 +192,7 @@ export default function CalculationImportModal({ isOpen, onClose, onImport, curr
                                 ) : (
                                     <>
                                         {sourceData.length === 0 ? (
-                                            <div className="text-center py-20 border-2 border-dashed border-default rounded-[32px] text-text-muted">
+                                            <div className="text-center py-20 border-2 border-dashed border-default rounded-3xl text-text-muted">
                                                 Keine Kalkulation in diesem Projekt gefunden.
                                             </div>
                                         ) : (

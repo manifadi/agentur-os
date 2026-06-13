@@ -66,7 +66,7 @@ export function DashboardSkeleton() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="rounded-[32px] border border-default bg-surface p-6" style={{ height: 384 }}>
+                    <div key={i} className="rounded-3xl border border-default bg-surface p-6" style={{ height: 384 }}>
                         <div className="flex items-center gap-3 mb-6">
                             <Skeleton className="w-8 h-8" rounded="xl" />
                             <Skeleton className="h-4 w-32" rounded="md" />
@@ -75,7 +75,7 @@ export function DashboardSkeleton() {
                     </div>
                 ))}
             </div>
-            <div className="rounded-[32px] border border-default bg-surface p-6" style={{ height: 320 }}>
+            <div className="rounded-3xl border border-default bg-surface p-6" style={{ height: 320 }}>
                 <div className="flex items-center gap-3 mb-6">
                     <Skeleton className="w-8 h-8" rounded="xl" />
                     <Skeleton className="h-4 w-44" rounded="md" />
