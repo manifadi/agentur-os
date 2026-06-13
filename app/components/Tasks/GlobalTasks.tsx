@@ -271,11 +271,7 @@ export default function GlobalTasks({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowHistory(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
-                        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
-                    >
+                    <button onClick={() => setShowHistory(true)} className="btn-secondary">
                         <History size={14} /> Historie
                     </button>
                 </div>

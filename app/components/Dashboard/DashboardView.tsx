@@ -209,22 +209,7 @@ export default function DashboardView({
                 <div className="mt-6 flex flex-col items-center gap-2">
                     <button
                         onClick={() => setDisplayLimit(d => d + PAGE_SIZE)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all shadow-sm"
-                        style={{
-                            background: 'var(--bg-surface)',
-                            border: '1px solid var(--border-default)',
-                            color: 'var(--text-secondary)',
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.background = 'var(--accent-subtle)';
-                            e.currentTarget.style.borderColor = 'var(--accent)';
-                            e.currentTarget.style.color = 'var(--accent)';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.background = 'var(--bg-surface)';
-                            e.currentTarget.style.borderColor = 'var(--border-default)';
-                            e.currentTarget.style.color = 'var(--text-secondary)';
-                        }}
+                        className="btn-secondary"
                     >
                         <ChevronDown size={14} /> Weitere {Math.min(PAGE_SIZE, filteredProjects.length - displayLimit)} laden
                     </button>
