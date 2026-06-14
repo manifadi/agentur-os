@@ -25,6 +25,10 @@ import TaskDetailSidebar from '../Tasks/TaskDetailSidebar';
 import ConfirmModal from '../Modals/ConfirmModal';
 import DuplicateProjectModal from '../Modals/DuplicateProjectModal';
 
+// Angebot & Rechnung sind eigene Top-Tabs (schneller Zugriff) statt Sub-Tabs
+// unter "Kalkulation". "leistungen" = die frühere Kalkulations-Ansicht.
+type ProjectTab = 'uebersicht' | 'aufgaben' | 'leistungen' | 'angebot' | 'rechnung' | 'reporting' | 'dokumente';
+
 interface ProjectDetailProps {
     project: Project;
     employees: Employee[];
@@ -68,8 +72,7 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
     // Tab navigation
-    const [activeTab, setActiveTab] = useState<'uebersicht' | 'aufgaben' | 'kalkulation' | 'reporting' | 'dokumente'>('uebersicht');
-    const [kalkulationView, setKalkulationView] = useState<'leistungen' | 'angebot' | 'rechnung'>('leistungen');
+    const [activeTab, setActiveTab] = useState<ProjectTab>('uebersicht');
     const [showRatesSidebar, setShowRatesSidebar] = useState(false);
     const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
     const [templates, setTemplates] = useState<OrganizationTemplate[]>([]);
@@ -100,15 +103,17 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
     // Sync Tab with URL
     useEffect(() => {
         const tab = searchParams.get('tab');
-        const map: Record<string, 'uebersicht' | 'aufgaben' | 'kalkulation' | 'reporting' | 'dokumente'> = {
-            uebersicht: 'uebersicht', aufgaben: 'aufgaben', kalkulation: 'kalkulation',
+        const map: Record<string, ProjectTab> = {
+            uebersicht: 'uebersicht', aufgaben: 'aufgaben',
+            leistungen: 'leistungen', angebot: 'angebot', rechnung: 'rechnung',
             reporting: 'reporting', dokumente: 'dokumente',
-            details: 'uebersicht', contract: 'kalkulation', invoice: 'kalkulation', documents: 'dokumente',
+            // Back-Compat alte Tab-Keys (Deep-Links)
+            details: 'uebersicht', kalkulation: 'leistungen', contract: 'angebot', invoice: 'rechnung', documents: 'dokumente',
         };
         if (tab && map[tab]) setActiveTab(map[tab]);
     }, [searchParams]);
 
-    const handleTabChange = (tab: 'uebersicht' | 'aufgaben' | 'kalkulation' | 'reporting' | 'dokumente') => {
+    const handleTabChange = (tab: ProjectTab) => {
         setActiveTab(tab);
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
@@ -614,7 +619,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                                     Grunddaten bearbeiten
                                 </button>
                                 <button
-                                    onClick={() => { handleTabChange('kalkulation'); setKalkulationView('leistungen'); setShowActionsMenu(false); }}
+                                    onClick={() => { handleTabChange('leistungen'); setShowActionsMenu(false); }}
                                     className="w-full text-left px-4 py-3 text-xs font-semibold text-text-primary hover:bg-hover transition-colors flex items-center gap-3"
                                 >
                                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--color-info-subtle)', color: 'var(--color-info-text)' }}>
@@ -746,11 +751,13 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             </div>
 
             {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-            <div className="flex gap-0.5 border-b border-border-subtle mb-7">
+            <div className="flex gap-0.5 border-b border-border-subtle mb-7 overflow-x-auto">
                 {([
                     { id: 'uebersicht', label: 'Übersicht', icon: Layout },
                     { id: 'aufgaben', label: 'Aufgaben', icon: CheckSquare },
-                    { id: 'kalkulation', label: 'Kalkulation', icon: Calculator },
+                    { id: 'leistungen', label: 'Leistungen', icon: ListChecks },
+                    { id: 'angebot', label: 'Angebot', icon: FileText },
+                    { id: 'rechnung', label: 'Rechnung', icon: Receipt },
                     { id: 'reporting', label: 'Reporting', icon: BarChart3 },
                     { id: 'dokumente', label: 'Dokumente', icon: Folder },
                 ] as const).map(({ id, label, icon: Icon }) => (
@@ -894,20 +901,10 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                 </div>
             )}
 
-            {/* ── Kalkulation Tab ──────────────────────────────────────────────── */}
-            {activeTab === 'kalkulation' && (
+            {/* ── Leistungen (Kalkulation) ─────────────────────────────────────── */}
+            {activeTab === 'leistungen' && (
                 <div>
-                    {/* Sub-navigation pills + Stundensätze trigger */}
-                    <div className="flex items-center justify-between mb-6">
-                        <ViewSwitcher
-                            options={[
-                                { value: 'leistungen', label: 'Leistungen', icon: ListChecks },
-                                { value: 'angebot', label: 'Angebot', icon: FileText },
-                                { value: 'rechnung', label: 'Rechnung', icon: Receipt },
-                            ]}
-                            value={kalkulationView}
-                            onChange={setKalkulationView}
-                        />
+                    <div className="flex items-center justify-end mb-6">
                         <button
                             onClick={() => setShowRatesSidebar(true)}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-default bg-surface text-xs font-bold text-text-secondary hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all shadow-sm"
@@ -916,32 +913,35 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                             Stundensätze
                         </button>
                     </div>
+                    <ProjectLeistungenTab
+                        projectId={project.id}
+                        organizationId={project.organization_id}
+                        initialSections={sections}
+                        onSaved={fetchDetails}
+                    />
+                </div>
+            )}
 
-                    {kalkulationView === 'leistungen' && (
-                        <ProjectLeistungenTab
-                            projectId={project.id}
-                            organizationId={project.organization_id}
-                            initialSections={sections}
-                            onSaved={fetchDetails}
-                        />
-                    )}
-                    {kalkulationView === 'angebot' && (
-                        <ProjectContractTab
-                            project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
-                            agencySettings={agencySettings}
-                            templates={templates}
-                            onUpdateProject={onUpdateProject}
-                        />
-                    )}
-                    {kalkulationView === 'rechnung' && (
-                        <ProjectInvoiceTab
-                            project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
-                            agencySettings={agencySettings}
-                            templates={templates}
-                            employees={employees}
-                            onUpdateProject={onUpdateProject}
-                        />
-                    )}
+            {/* ── Angebot ──────────────────────────────────────────────────────── */}
+            {activeTab === 'angebot' && (
+                <ProjectContractTab
+                    project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
+                    agencySettings={agencySettings}
+                    templates={templates}
+                    onUpdateProject={onUpdateProject}
+                />
+            )}
+
+            {/* ── Rechnung ─────────────────────────────────────────────────────── */}
+            {activeTab === 'rechnung' && (
+                <div>
+                    <ProjectInvoiceTab
+                        project={{ ...project, sections: sections, positions: sections.flatMap(s => s.positions || []) }}
+                        agencySettings={agencySettings}
+                        templates={templates}
+                        employees={employees}
+                        onUpdateProject={onUpdateProject}
+                    />
                 </div>
             )}
 
