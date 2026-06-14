@@ -458,7 +458,7 @@ export default function UserDashboard({ onSelectProject, onToggleTodo, onQuickAc
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        router.push(`/uebersicht?projectId=${t.project_id}&highlight_task_id=${t.id}`);
+                                                        router.push(`/projekte/${t.project_id}?highlight_task_id=${t.id}`);
                                                     }}
                                                     title="Zum Projekt"
                                                     className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-all duration-200 z-10 flex items-center gap-1.5 px-2.5 py-1.5 bg-surface border border-default hover:border-accent hover:text-accent rounded-lg text-[10px] font-bold text-text-secondary shadow-md"

@@ -473,7 +473,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
             }
 
             toast.success(`„${project.title}" wurde dupliziert.`);
-            router.push(`/uebersicht?project_id=${newProject.id}`);
+            router.push(`/projekte/${newProject.id}`);
             setShowDuplicateModal(false);
 
         } catch (err: any) {

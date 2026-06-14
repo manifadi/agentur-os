@@ -49,7 +49,7 @@ export default function AdminProjectList({ projects, clients }: AdminProjectList
             <ProjectList
                 projects={filteredProjects}
                 selectedClient={null}
-                onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
+                onSelectProject={(p) => router.push(`/projekte/${p.id}`)}
                 showOpenTodos={false}
             />
         </div>

@@ -34,7 +34,7 @@ export default function AufgabenPage() {
                 projects={projects}
                 personalTodos={personalTodos}
                 employees={employees}
-                onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
+                onSelectProject={(p) => router.push(`/projekte/${p.id}`)}
                 onUpdate={fetchData}
                 onAddPersonal={handleAddPersonal}
                 currentUser={currentUser}

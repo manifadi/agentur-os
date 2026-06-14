@@ -92,7 +92,7 @@ export default function DashboardPage() {
     return (
         <div className="p-4 md:p-8 h-full">
             <UserDashboard
-                onSelectProject={(p) => router.push(`/uebersicht?projectId=${p.id}`)}
+                onSelectProject={(p) => router.push(`/projekte/${p.id}`)}
                 onToggleTodo={handleToggleTodo}
                 onQuickAction={(action) => {
                     if (action === 'create_project') setCreateProjectOpen(true);

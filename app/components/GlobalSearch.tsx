@@ -203,7 +203,7 @@ export default function GlobalSearch() {
                                         {results.projects.map(p => (
                                             <button
                                                 key={p.id}
-                                                onClick={() => handleSelect(`/uebersicht?project_id=${p.id}`)}
+                                                onClick={() => handleSelect(`/projekte/${p.id}`)}
                                                 className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
                                                 <div className="w-10 h-10 rounded-xl bg-accent-subtle/50 flex items-center justify-center text-accent border border-accent/20 group-hover:bg-accent group-hover:text-accent-text transition-all shadow-sm">
@@ -230,7 +230,7 @@ export default function GlobalSearch() {
                                         {results.todos.map(t => (
                                             <button
                                                 key={t.id}
-                                                onClick={() => handleSelect(t.project_id ? `/uebersicht?project_id=${t.project_id}&task_id=${t.id}` : `/aufgaben?task_id=${t.id}`)}
+                                                onClick={() => handleSelect(t.project_id ? `/projekte/${t.project_id}?highlight_task_id=${t.id}` : `/aufgaben?task_id=${t.id}`)}
                                                 className="flex items-center gap-4 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all shadow-sm ${t.is_done ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
@@ -259,7 +259,7 @@ export default function GlobalSearch() {
                                         {results.logs.map(l => (
                                             <button
                                                 key={l.id}
-                                                onClick={() => handleSelect(`/uebersicht?project_id=${l.project_id}`)}
+                                                onClick={() => handleSelect(`/projekte/${l.project_id}`)}
                                                 className="flex flex-col gap-1 p-3 hover:bg-hover rounded-2xl group transition-all text-left"
                                             >
                                                 <div className="flex justify-between items-center">

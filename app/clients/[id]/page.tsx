@@ -900,7 +900,7 @@ export default function ClientDetailPage() {
                                                     return (
                                                         <button
                                                             key={p.id}
-                                                            onClick={() => router.push(`/uebersicht?projectId=${p.id}`)}
+                                                            onClick={() => router.push(`/projekte/${p.id}`)}
                                                             className="group w-full flex items-center gap-3 p-3 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
                                                         >
                                                             <div className={`w-2 h-2 rounded-full ${getStatusDot(p.status)}`} />
@@ -966,7 +966,7 @@ export default function ClientDetailPage() {
                                                 return (
                                                     <button
                                                         key={p.id}
-                                                        onClick={() => router.push(`/uebersicht?projectId=${p.id}`)}
+                                                        onClick={() => router.push(`/projekte/${p.id}`)}
                                                         className="group w-full flex items-center gap-4 p-4 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
                                                     >
                                                         <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusDot(p.status)}`} />
@@ -1041,7 +1041,7 @@ export default function ClientDetailPage() {
                                                     return (
                                                         <button
                                                             key={inv.id}
-                                                            onClick={() => router.push(`/uebersicht?projectId=${inv.project_id}`)}
+                                                            onClick={() => router.push(`/projekte/${inv.project_id}`)}
                                                             className="group w-full flex items-center gap-4 p-4 rounded-xl bg-subtle hover:bg-hover hover:shadow-sm border border-default hover:border-accent transition-all text-left"
                                                         >
                                                             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -1179,7 +1179,7 @@ export default function ClientDetailPage() {
                                                                     <RichTextDisplay html={event.description} />
                                                                 ) : (
                                                                     <button
-                                                                        onClick={() => event.meta?.projectId && router.push(`/uebersicht?projectId=${event.meta.projectId}`)}
+                                                                        onClick={() => event.meta?.projectId && router.push(`/projekte/${event.meta.projectId}`)}
                                                                         className="hover:text-accent transition-colors"
                                                                     >
                                                                         {event.description}
