@@ -2,35 +2,25 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { useApp } from '../context/AppContext';
 import DashboardView from '../components/Dashboard/DashboardView';
-import TimeEntryModal from '../components/Modals/TimeEntryModal'; // NEW
+import TimeEntryModal from '../components/Modals/TimeEntryModal';
 import ClientModal from '../components/Modals/ClientModal';
 import EmployeeModal from '../components/Modals/EmployeeModal';
 import CreateProjectModal from '../components/Modals/CreateProjectModal';
 import ConfirmModal from '../components/Modals/ConfirmModal';
 import { supabase } from '../supabaseClient';
 import { Project, Client, Employee } from '../types';
-import { deleteFileFromSupabase, uploadFileToSupabase } from '../utils/supabaseUtils';
 import { toast } from 'sonner';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
-// Schwergewichtige Detailansicht (zieht @react-pdf/renderer) erst laden, wenn
-// ein Projekt geöffnet wird — hält das initiale /uebersicht-Bundle klein.
-const ProjectDetail = dynamic(() => import('../components/Projects/ProjectDetail'), {
-    ssr: false,
-    loading: () => (
-        <div className="flex items-center justify-center py-32 text-sm" style={{ color: 'var(--text-muted)' }}>
-            Projekt wird geladen…
-        </div>
-    ),
-});
-
+// Projekt-Detail lebt jetzt unter /projekte/[id] (eigene Route → Browser-Back,
+// Deep-Links, kontextsensitiver Zurück-Button). Diese Seite ist nur noch die Liste.
 export default function UebersichtPage() {
-    const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees, setProjects } = useApp();
+    const { session, projects, clients, employees, members, allocations, fetchData, setClients, setEmployees } = useApp();
+    usePageTitle('Projekte');
 
-    // Calculate joined IDs for modal
     const activeUser = employees.find(e => e.email?.toLowerCase() === session?.user?.email?.toLowerCase());
     const joinedProjectIds = members
         ?.filter((m: any) => m.employee_id === activeUser?.id)
@@ -39,16 +29,13 @@ export default function UebersichtPage() {
     const router = useRouter();
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    usePageTitle(selectedProject ? selectedProject.title : 'Projekte');
 
-    // Filter state — lifted here so it persists when opening a project detail and returning
-    const [activeStatus, setActiveStatus] = useState<string[]>([]);
-    const [activePmId, setActivePmId] = useState<string | null>(null);
-    const [sortOrder, setSortOrder] = useState<'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc'>('created_desc');
+    // Filter persistent (localStorage) — bleiben beim Öffnen/Zurück eines Projekts erhalten
+    const [activeStatus, setActiveStatus] = useLocalStorage<string[]>('uebersicht:status', []);
+    const [activePmId, setActivePmId] = useLocalStorage<string | null>('uebersicht:pm', null);
+    const [sortOrder, setSortOrder] = useLocalStorage<'deadline_asc' | 'deadline_desc' | 'created_desc' | 'title_asc'>('uebersicht:sort', 'created_desc');
 
-    // -- FILTER PROJECTS: Show only "My Projects" --
-    // Definition: PM, Member, Has Tasks, OR Has Allocations
+    // -- Nur "Meine Projekte": PM, Member, eigene Aufgaben oder Allokationen --
     const myProjects = useMemo(() => {
         if (!activeUser) return [];
         return projects.filter(p => {
@@ -66,16 +53,12 @@ export default function UebersichtPage() {
     const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [createProjectOpen, setCreateProjectOpen] = useState(false);
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: () => { } });
-    const [todaysHours, setTodaysHours] = useState(0); // NEW
-    const [timeModalOpen, setTimeModalOpen] = useState(false); // NEW
-    const [pendingProject, setPendingProject] = useState<Project | null>(null); // Project awaiting membership confirmation
-    const [joinConfirmOpen, setJoinConfirmOpen] = useState(false); // Join confirmation modal
-    const isInternalNavigationRef = useRef(false); // Track if navigation is from within the app (not URL change)
-    const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the scrollable container
+    const [todaysHours, setTodaysHours] = useState(0);
+    const [timeModalOpen, setTimeModalOpen] = useState(false);
+    const [pendingProject, setPendingProject] = useState<Project | null>(null);
+    const [joinConfirmOpen, setJoinConfirmOpen] = useState(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Helper to check if user is member of a project
     const isUserMemberOfProject = (projectId: string) => {
         if (!activeUser) return false;
         const project = projects.find(p => p.id === projectId);
@@ -85,41 +68,28 @@ export default function UebersichtPage() {
         return isPM || isMember;
     };
 
-    // URL Param Sync & State Management (only for external navigation/deep links)
+    // Deep-Links / Alt-Links umleiten: ?action=create öffnet das Modal,
+    // ?project_id/?projectId → neue Detail-Route (Zusatzparameter bleiben erhalten).
     useEffect(() => {
-        // Skip if this was an internal navigation (we already handled it)
-        if (isInternalNavigationRef.current) {
-            isInternalNavigationRef.current = false;
-            return;
-        }
-
         const action = searchParams.get('action');
         if (action === 'create') {
             setCreateProjectOpen(true);
             const params = new URLSearchParams(searchParams.toString());
             params.delete('action');
             router.replace(`/uebersicht${params.toString() ? '?' + params.toString() : ''}`);
+            return;
         }
 
         const pId = searchParams.get('project_id') || searchParams.get('projectId');
-        if (pId && projects.length > 0) {
-            const found = projects.find(p => p.id === pId);
-            if (found && found.id !== selectedProject?.id) {
-                // Check if user is member
-                if (isUserMemberOfProject(pId)) {
-                    setSelectedProject(found);
-                } else {
-                    // Show join confirmation
-                    setPendingProject(found);
-                    setJoinConfirmOpen(true);
-                }
-            }
-        } else if (!pId && selectedProject) {
-            setSelectedProject(null);
+        if (pId) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('project_id');
+            params.delete('projectId');
+            const qs = params.toString();
+            router.replace(`/projekte/${pId}${qs ? '?' + qs : ''}`);
         }
-    }, [searchParams, projects, activeUser, members]);
+    }, [searchParams, router]);
 
-    // NEW: Fetch Today's Hours
     useEffect(() => {
         if (activeUser) fetchTodaysHours();
     }, [activeUser]);
@@ -131,19 +101,13 @@ export default function UebersichtPage() {
             .select('hours')
             .eq('employee_id', activeUser.id)
             .eq('date', today);
-
-        if (data) {
-            const sum = data.reduce((acc, curr) => acc + (Number(curr.hours) || 0), 0);
-            setTodaysHours(sum);
-        }
+        if (data) setTodaysHours(data.reduce((acc, curr) => acc + (Number(curr.hours) || 0), 0));
     };
 
-    // Filter Logic for Stats (using myProjects instead of all projects)
     const stats = useMemo(() => {
         if (!myProjects) return { activeProjects: 0, openTasks: 0, nextDeadline: null };
         const activeCount = myProjects.filter(p => ['Bearbeitung', 'In Umsetzung'].includes(p.status)).length;
         const openTaskCount = myProjects.reduce((acc, curr) => acc + ((curr.totalTodos || 0) - (curr.doneTodos || 0)), 0);
-
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const futureProjects = myProjects
             .filter(proj => proj.deadline && new Date(proj.deadline) >= today)
@@ -151,10 +115,7 @@ export default function UebersichtPage() {
         return { activeProjects: activeCount, openTasks: openTaskCount, nextDeadline: futureProjects[0] || null };
     }, [myProjects]);
 
-
-    // -- Action Handlers (Replicated from page.tsx) --
-
-    // Clients
+    // -- Handlers --
     const handleSaveClient = async (clientData: any) => {
         const p = { ...clientData, organization_id: activeUser?.organization_id };
         if (editingClient) {
@@ -167,8 +128,6 @@ export default function UebersichtPage() {
         setClientModalOpen(false);
     };
 
-
-    // Employees
     const handleSaveEmployee = async (name: string) => {
         const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
         const p = { name, initials };
@@ -182,106 +141,50 @@ export default function UebersichtPage() {
         setEmployeeModalOpen(false);
     };
 
-    // Projects
     const handleCreateProject = async (data: { title: string; jobNr: string; clientId: string; pmId: string; deadline?: string }) => {
         const { data: newProject, error } = await supabase.from('projects').insert([{
             title: data.title, job_number: data.jobNr, client_id: data.clientId, project_manager_id: data.pmId || null, status: 'Bearbeitung', deadline: data.deadline || null, organization_id: activeUser?.organization_id
         }]).select().single();
-
         if (error) { toast.error('Projekt konnte nicht erstellt werden.'); return; }
-
         if (newProject && activeUser) {
             await supabase.from('project_members').insert([{
-                project_id: newProject.id,
-                employee_id: activeUser.id,
-                organization_id: activeUser.organization_id,
-                role: 'member'
+                project_id: newProject.id, employee_id: activeUser.id, organization_id: activeUser.organization_id, role: 'member'
             }]);
         }
-
         fetchData();
         setCreateProjectOpen(false);
         toast.success(`„${data.title}" wurde erstellt.`);
     };
 
+    const openProject = (projectId: string) => router.push(`/projekte/${projectId}`);
+
     const handleSelectProject = (project: Project) => {
-        // Check if user is member
         if (!isUserMemberOfProject(project.id)) {
             setPendingProject(project);
             setJoinConfirmOpen(true);
             return;
         }
-        setSelectedProject(project);
-        isInternalNavigationRef.current = true; // Prevent useEffect from re-checking
-        scrollContainerRef.current?.scrollTo(0, 0); // Scroll container to top
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('project_id', project.id);
-        router.push(`/uebersicht?${params.toString()}`);
-    };
-
-    const handleCloseProject = () => {
-        setSelectedProject(null);
-        scrollContainerRef.current?.scrollTo(0, 0); // Scroll container to top
-        router.push('/uebersicht');
+        openProject(project.id);
     };
 
     const handleConfirmJoin = async () => {
         if (!pendingProject || !activeUser) return;
         await handleJoinProject(pendingProject.id);
         setJoinConfirmOpen(false);
-        setSelectedProject(pendingProject);
-        isInternalNavigationRef.current = true; // Prevent useEffect from re-checking
-        scrollContainerRef.current?.scrollTo(0, 0); // Scroll container to top
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('project_id', pendingProject.id);
-        router.push(`/uebersicht?${params.toString()}`);
+        const target = pendingProject.id;
         setPendingProject(null);
+        openProject(target);
     };
 
     const handleCancelJoin = () => {
         setJoinConfirmOpen(false);
         setPendingProject(null);
-        // Remove project_id from URL if it was set
-        router.push('/uebersicht');
-    };
-
-    const handleUpdateProject = async (id: string, updates: Partial<Project>) => {
-        const { data, error } = await supabase.from('projects').update(updates).eq('id', id).select();
-        if (error) { toast.error('Änderungen konnten nicht gespeichert werden.'); return; }
-        if (data) {
-            await fetchData();
-            const updated = projects.find(p => p.id === id);
-            if (updated) setSelectedProject({ ...updated, ...updates } as any);
-            // Only show toast for explicit saves (not status-only updates that have their own toast)
-            if (!('status' in updates && Object.keys(updates).length === 1)) {
-                toast.success('Änderungen gespeichert.');
-            }
-        }
-    };
-
-    const handleDeleteProject = () => {
-        if (!selectedProject) return;
-        setConfirmConfig({
-            title: "Projekt löschen?",
-            message: `„${selectedProject.title}" wird unwiderruflich gelöscht.`,
-            action: async () => {
-                const { error } = await supabase.from('projects').delete().eq('id', selectedProject.id);
-                if (error) { toast.error('Projekt konnte nicht gelöscht werden.'); return; }
-                setProjects(projects.filter(p => p.id !== selectedProject.id));
-                handleCloseProject();
-                toast.success('Projekt gelöscht.');
-            }
-        });
-        setConfirmOpen(true);
     };
 
     const handleJoinProject = async (projectId: string) => {
         if (!activeUser) return;
         const { error } = await supabase.from('project_members').insert([{
-            project_id: projectId,
-            employee_id: activeUser.id,
-            organization_id: activeUser.organization_id,
-            role: 'member'
+            project_id: projectId, employee_id: activeUser.id, organization_id: activeUser.organization_id, role: 'member'
         }]);
         if (error) { toast.error('Beitritt fehlgeschlagen.'); return; }
         fetchData();
@@ -291,36 +194,24 @@ export default function UebersichtPage() {
     return (
         <div className="h-full w-full">
             <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 md:p-8">
-                {selectedProject ? (
-                    <ProjectDetail
-                        project={selectedProject}
-                        employees={employees}
-                        currentEmployee={activeUser}
-                        onClose={handleCloseProject}
-                        onUpdateProject={handleUpdateProject}
-                        onDeleteProject={handleDeleteProject}
-                    />
-                ) : (
-                    <DashboardView
-                        projects={myProjects}
-                        clients={clients}
-                        employees={employees}
-                        stats={stats}
-                        selectedClient={selectedClient}
-                        onSelectProject={handleSelectProject}
-                        onSelectClient={setSelectedClient}
-
-                        onOpenCreateModal={() => setCreateProjectOpen(true)}
-                        todaysHours={todaysHours}
-                        onAddTime={() => setTimeModalOpen(true)}
-                        activeStatus={activeStatus}
-                        setActiveStatus={setActiveStatus}
-                        activePmId={activePmId}
-                        setActivePmId={setActivePmId}
-                        sortOrder={sortOrder}
-                        setSortOrder={setSortOrder}
-                    />
-                )}
+                <DashboardView
+                    projects={myProjects}
+                    clients={clients}
+                    employees={employees}
+                    stats={stats}
+                    selectedClient={selectedClient}
+                    onSelectProject={handleSelectProject}
+                    onSelectClient={setSelectedClient}
+                    onOpenCreateModal={() => setCreateProjectOpen(true)}
+                    todaysHours={todaysHours}
+                    onAddTime={() => setTimeModalOpen(true)}
+                    activeStatus={activeStatus}
+                    setActiveStatus={setActiveStatus}
+                    activePmId={activePmId}
+                    setActivePmId={setActivePmId}
+                    sortOrder={sortOrder}
+                    setSortOrder={setSortOrder}
+                />
             </div>
 
             {/* Modals */}
@@ -343,19 +234,15 @@ export default function UebersichtPage() {
                     onClose={() => setTimeModalOpen(false)}
                     currentUser={activeUser}
                     projects={projects}
-                    onEntryCreated={() => {
-                        fetchTodaysHours();
-                        setTimeModalOpen(false);
-                    }}
+                    onEntryCreated={() => { fetchTodaysHours(); setTimeModalOpen(false); }}
                 />
             )}
-            <ConfirmModal isOpen={confirmOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={() => { confirmConfig.action(); setConfirmOpen(false); }} onCancel={() => setConfirmOpen(false)} />
 
-            {/* Join Project Confirmation Modal */}
+            {/* Beitritts-Bestätigung beim Öffnen eines fremden Projekts */}
             <ConfirmModal
                 isOpen={joinConfirmOpen}
                 title="Projekt beitreten?"
-                message={`Du bist dem Projekt "${pendingProject?.title}" noch nicht zugewiesen. Möchtest du dich jetzt zuweisen?`}
+                message={`Du bist dem Projekt „${pendingProject?.title}" noch nicht zugewiesen. Möchtest du dich jetzt zuweisen?`}
                 onConfirm={handleConfirmJoin}
                 onCancel={handleCancelJoin}
                 confirmText="Zuweisen"

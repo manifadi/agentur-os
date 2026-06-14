@@ -32,9 +32,11 @@ interface ProjectDetailProps {
     onUpdateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     onDeleteProject: () => void;
     currentEmployee?: Employee;
+    /** Kontextsensitiver Zurück-Button-Text (z.B. "Zurück zum Dashboard"). */
+    backLabel?: string;
 }
 
-export default function ProjectDetail({ project, employees, onClose, onUpdateProject, onDeleteProject, currentEmployee }: ProjectDetailProps) {
+export default function ProjectDetail({ project, employees, onClose, onUpdateProject, onDeleteProject, currentEmployee, backLabel = 'Zurück zur Übersicht' }: ProjectDetailProps) {
     const { clients, projects } = useApp();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -110,7 +112,9 @@ export default function ProjectDetail({ project, employees, onClose, onUpdatePro
         setActiveTab(tab);
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
-        router.push(`${pathname}?${params.toString()}`);
+        // replace statt push: Tab-Wechsel sollen die Browser-Historie nicht
+        // zumüllen (sonst springt "Zurück" durch alte Tabs statt zum Modul).
+        router.replace(`${pathname}?${params.toString()}`);
     };
 
     // Outside click for status dropdown
@@ -574,7 +578,7 @@ id, project_id, employee_id, position_id, agency_position_id, date, hours, descr
                     className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors group"
                 >
                     <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-                    Zurück zur Übersicht
+                    {backLabel}
                 </button>
 
                 <div className="flex gap-2 items-center">
