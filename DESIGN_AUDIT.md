@@ -253,9 +253,9 @@ Das Produkt ist **bereits clean und Apple-nah**; die größten Gewinne liegen in
 ### 🏗️ Größere Umbauten (planen)
 - ✅ **`/uebersicht`-Bundle entschlacken** — *erledigt `57cabf1`*: ProjectDetail via `next/dynamic`, First Load 840 → 311 kB.
 - ✅ **Karten-Radius/Schatten-Skala vereinheitlichen** — *erledigt `1283bf4`*: arbiträre Radien → `rounded-3xl`, Schatten → DS-Token.
-- **Karten-/Tabellen-Toggle für Projektliste** + leichtere, randlose Filterleisten (offen).
-- **Projekt-Detail als eigene Route** (Browser-Back, Deep-Link) (offen — Routing-Umbau).
-- **Angebot/Rechnung aus der Tiefe holen** (IA im Projekt-Detail) (offen — Navigations-Entscheidung).
+- **Karten-/Tabellen-Toggle für Projektliste** — *vom Gründer verworfen (kompakte Liste bleibt).*
+- ✅ **Projekt-Detail als eigene Route** `/projekte/[id]` — *erledigt `25984bf`/`e3a312e`/`2e79045`*: Browser-Back, Deep-Links, kontextsensitiver Zurück-Button („Zurück zu <letztem Modul>"), Listen-Filter persistent.
+- ✅ **Angebot/Rechnung aus der Tiefe holen** — *erledigt `777241a`*: eigene Top-Tabs „Angebot"/„Rechnung" (vorher Sub-Tabs unter Kalkulation→Leistungen).
 
 ### Durchgängige Themen
 - **Eine Akzent-Intensität**: Akzent-Rot gezielt für Primäraktionen/echte Negativwerte, nicht für neutrale Zahlen (Wochenplan-Pills, Reporting-Sektions-Icons).
