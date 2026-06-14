@@ -21,6 +21,22 @@ import {
     removeAccount as removeAccountFromVault, subscribeAccounts,
 } from '../utils/accountVault';
 
+// Zurück-Button-Label je Modul-Pfad (kontextsensitiv).
+function moduleLabel(path: string): string {
+    if (path.startsWith('/dashboard')) return 'Zurück zum Dashboard';
+    if (path.startsWith('/uebersicht')) return 'Zurück zur Projektliste';
+    if (path.startsWith('/aufgaben')) return 'Zurück zu den Aufgaben';
+    if (path.startsWith('/ressourcen')) return 'Zurück zum Ressourcenplan';
+    if (path.startsWith('/zeiterfassung')) return 'Zurück zur Zeiterfassung';
+    if (path.startsWith('/kalender')) return 'Zurück zum Kalender';
+    if (path.startsWith('/reporting')) return 'Zurück zum Reporting';
+    if (path.startsWith('/abwesenheiten')) return 'Zurück zu den Abwesenheiten';
+    if (path.startsWith('/einstellungen')) return 'Zurück zu den Einstellungen';
+    if (path.startsWith('/clients/')) return 'Zurück zum Kunden';
+    if (path.startsWith('/admin')) return 'Zurück zum Admin-Panel';
+    return 'Zurück zur Projektliste';
+}
+
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
@@ -42,6 +58,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     const [agencySettings, setAgencySettings] = useState<any>(null);
     const [orgFeatures, setOrgFeatures] = useState<OrganizationFeature[]>([]);
     const [showWelcome, setShowWelcome] = useState(false);
+    const [previousModule, setPreviousModule] = useState<{ path: string; label: string }>({ path: '/uebersicht', label: 'Zurück zur Projektliste' });
 
     // Multi-Account / Agentur-Switcher
     const [accounts, setAccounts] = useState<StoredAccount[]>([]);
@@ -62,7 +79,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     // State mapping for Sidebar highlighting
     const getSidebarView = () => {
         if (!pathname) return 'dashboard';
-        if (pathname.startsWith('/uebersicht')) return 'projects_overview';
+        if (pathname.startsWith('/uebersicht') || pathname.startsWith('/projekte')) return 'projects_overview';
         if (pathname.startsWith('/aufgaben')) return 'global_tasks';
         if (pathname.startsWith('/ressourcen')) return 'resource_planning';
         if (pathname.startsWith('/zeiterfassung')) return 'time_tracking';
@@ -122,6 +139,14 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
         setAccounts(getAccounts());
         return subscribeAccounts(() => setAccounts(getAccounts()));
     }, []);
+
+    // Merkt sich das zuletzt besuchte Modul (nicht die Projekt-Detail-Route),
+    // damit der Zurück-Button im Detail „Zurück zu <Modul>" kontextsensitiv zeigt.
+    useEffect(() => {
+        if (!pathname || pathname.startsWith('/projekte/')) return;
+        if (['/login', '/onboarding', '/reset-password', '/set-password', '/auth/callback'].includes(pathname)) return;
+        setPreviousModule({ path: pathname, label: moduleLabel(pathname) });
+    }, [pathname]);
 
     // ── Per-table refetchers (memoized so subscriptions can call them) ──
     const fetchClients = useCallback(async (organizationId: string) => {
@@ -557,6 +582,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
             updateThemePrefs,
             isSidebarExpanded,
             setSidebarExpanded,
+            previousModule,
         }}>
             <CalendarDataProvider currentUser={currentUser} organizationId={orgId}>
                 <ImpersonationBanner />

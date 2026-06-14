@@ -50,6 +50,10 @@ interface AppContextType {
     updateThemePrefs: (patch: Partial<ThemePreferences>) => void;
     isSidebarExpanded: boolean;
     setSidebarExpanded: (expanded: boolean) => void;
+
+    // Navigations-Kontext: das zuletzt besuchte Modul vor einer Detail-Route
+    // (z.B. Projekt-Detail). Treibt den kontextsensitiven Zurück-Button.
+    previousModule: { path: string; label: string };
 }
 
 const defaultTheme: ThemePreferences = {
@@ -93,6 +97,7 @@ export const AppContext = createContext<AppContextType>({
     updateThemePrefs: () => { },
     isSidebarExpanded: false,
     setSidebarExpanded: () => { },
+    previousModule: { path: '/uebersicht', label: 'Zurück zur Projektliste' },
 });
 
 export function useApp() {
